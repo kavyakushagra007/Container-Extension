@@ -1,0 +1,269 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SaveIt – Dashboard</title>
+  <link rel="stylesheet" href="dashboard.css" />
+</head>
+<body>
+  <div id="app">
+    <!-- Sidebar -->
+    <aside class="sidebar">
+      <div class="sidebar-header">
+        <svg class="logo-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/>
+          <polyline points="17 21 17 13 7 13 7 21"/>
+          <polyline points="7 3 7 8 15 8"/>
+        </svg>
+        <h1>SaveIt</h1>
+      </div>
+
+      <nav class="sidebar-nav">
+        <button class="nav-item active" data-view="all">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
+          All Items
+          <span class="nav-count" id="count-all">0</span>
+        </button>
+        <button class="nav-item" data-view="text">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+          Text Snippets
+          <span class="nav-count" id="count-text">0</span>
+        </button>
+        <button class="nav-item" data-view="link">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
+          Links
+          <span class="nav-count" id="count-link">0</span>
+        </button>
+        <button class="nav-item" data-view="favorite">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+          Favorites
+          <span class="nav-count" id="count-fav">0</span>
+        </button>
+
+        <div class="sidebar-section-header">
+          <span>CONTAINERS</span>
+          <button id="btn-add-container-dash" class="add-container-mini-btn" title="Create Container">+</button>
+        </div>
+        <div id="dash-containers-list" class="dash-containers-list">
+          <!-- Rendered by JS -->
+        </div>
+      </nav>
+
+      <div class="sidebar-footer">
+        <button class="nav-item" id="btn-settings">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+          Settings
+        </button>
+      </div>
+    </aside>
+
+    <!-- Main Content -->
+    <main class="main">
+      <!-- Top Bar -->
+      <header class="topbar">
+        <div class="topbar-left">
+          <h2 id="page-title">All Items</h2>
+        </div>
+        <div class="topbar-right">
+          <div class="search-box">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+            <input type="text" id="search-input" placeholder="Search everything..." />
+          </div>
+          <div class="sort-box">
+            <select id="sort-select">
+              <option value="newest">Newest first</option>
+              <option value="oldest">Oldest first</option>
+              <option value="alpha">A → Z</option>
+            </select>
+          </div>
+          <button class="btn btn-secondary" id="btn-dash-auth" title="Account & Cloud Sync">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+            <span id="dash-auth-label">Cloud Sync</span>
+          </button>
+          <button class="btn btn-primary" id="btn-add-new">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+            Add New
+          </button>
+        </div>
+      </header>
+
+      <!-- Stats Cards -->
+      <div class="stats-row" id="stats-row">
+        <div class="stat-card">
+          <div class="stat-number" id="stat-total">0</div>
+          <div class="stat-label">Total Saves</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-number stat-text" id="stat-text">0</div>
+          <div class="stat-label">Text Snippets</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-number stat-link" id="stat-links">0</div>
+          <div class="stat-label">Links</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-number stat-fav" id="stat-favs">0</div>
+          <div class="stat-label">Favorites</div>
+        </div>
+      </div>
+
+      <!-- Bulk Actions Bar -->
+      <div class="bulk-bar hidden" id="bulk-bar">
+        <span id="selected-count">0 selected</span>
+        <button class="btn btn-sm btn-secondary" id="btn-select-all">Select All</button>
+        <button class="btn btn-sm btn-danger" id="btn-delete-selected">Delete Selected</button>
+        <button class="btn btn-sm btn-secondary" id="btn-cancel-select">Cancel</button>
+      </div>
+
+      <!-- Items Grid -->
+      <div class="items-grid" id="items-grid">
+        <!-- Items rendered by JS -->
+      </div>
+
+      <!-- Empty State -->
+      <div class="empty-state hidden" id="empty-state">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" width="64" height="64">
+          <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/>
+          <polyline points="17 21 17 13 7 13 7 21"/>
+          <polyline points="7 3 7 8 15 8"/>
+        </svg>
+        <h3>No saved items yet</h3>
+        <p>Start saving text, links, and notes from any webpage.<br/>Select text → Right-click → "Save to SaveIt"</p>
+      </div>
+
+      <!-- Settings Panel -->
+      <div class="settings-panel hidden" id="settings-panel">
+        <h2>Settings</h2>
+        <div class="settings-grid">
+          <div class="settings-card">
+            <h3>📤 Export Data</h3>
+            <p>Download all your saved items as a JSON file for backup.</p>
+            <button class="btn btn-secondary" id="settings-export">Export All Items</button>
+          </div>
+          <div class="settings-card">
+            <h3>📥 Import Data</h3>
+            <p>Import items from a previously exported JSON backup file.</p>
+            <button class="btn btn-secondary" id="settings-import">Import from File</button>
+            <input type="file" id="import-file" accept=".json" style="display:none" />
+          </div>
+          <div class="settings-card danger-card">
+            <h3>🗑️ Clear All Data</h3>
+            <p>Permanently delete all saved items. This action cannot be undone.</p>
+            <button class="btn btn-danger" id="settings-clear">Delete Everything</button>
+          </div>
+          <div class="settings-card">
+            <h3>⌨️ Keyboard Shortcut</h3>
+            <p>Quick save selection: <kbd style="color:var(--neon); background:#0c0f06; padding:2px 8px; border:1px solid rgba(190,250,79,0.3); border-radius:4px; font-weight:700;">⌘+Shift+S</kbd> / <kbd style="color:var(--neon); background:#0c0f06; padding:2px 8px; border:1px solid rgba(190,250,79,0.3); border-radius:4px; font-weight:700;">Ctrl+Shift+S</kbd></p>
+            <button class="btn btn-secondary" id="btn-shortcuts">Customize Shortcut</button>
+          </div>
+          <div class="settings-card">
+            <h3>ℹ️ About</h3>
+            <p>SaveIt v1.0.0<br/>Your permanent clipboard for the web.<br/>All data stored locally — nothing sent to servers.</p>
+            <a href="privacy-policy.html" target="_blank" style="color: var(--accent-hover); text-decoration: none; font-size: 13px;">View Privacy Policy →</a>
+          </div>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <!-- Add/Edit Modal -->
+  <div id="modal" class="modal hidden">
+    <div class="modal-backdrop"></div>
+    <div class="modal-content">
+      <h2 id="modal-title">Add New Item</h2>
+      <div class="form-group">
+        <label for="modal-container-select">Container</label>
+        <select id="modal-container-select" class="neon-select"></select>
+      </div>
+      <div class="form-group">
+        <label for="modal-content-input">Content</label>
+        <textarea id="modal-content-input" rows="5" placeholder="Paste text snippet or link..."></textarea>
+      </div>
+      <div class="form-group">
+        <label for="modal-tags-input">Tags <span class="hint">(comma separated)</span></label>
+        <input type="text" id="modal-tags-input" placeholder="e.g. work, ideas, research" />
+      </div>
+      <div class="modal-actions">
+        <button class="btn btn-secondary" id="modal-cancel">Cancel</button>
+        <button class="btn btn-primary" id="modal-save">Save</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Container Creation Modal -->
+  <div id="container-modal" class="modal hidden">
+    <div class="modal-backdrop"></div>
+    <div class="modal-content">
+      <h2>New Container</h2>
+      <div class="form-group">
+        <label for="container-name-input">Container Name</label>
+        <input type="text" id="container-name-input" placeholder="e.g. Articles, Work, Ideas" maxlength="25" />
+      </div>
+      <div class="form-group">
+        <label>Icon Emoji</label>
+        <div class="emoji-selector" id="emoji-selector">
+          <button type="button" class="emoji-opt active" data-emoji="⚡">⚡</button>
+          <button type="button" class="emoji-opt" data-emoji="📚">📚</button>
+          <button type="button" class="emoji-opt" data-emoji="💼">💼</button>
+          <button type="button" class="emoji-opt" data-emoji="💡">💡</button>
+          <button type="button" class="emoji-opt" data-emoji="📁">📁</button>
+          <button type="button" class="emoji-opt" data-emoji="🎯">🎯</button>
+          <button type="button" class="emoji-opt" data-emoji="🔖">🔖</button>
+          <button type="button" class="emoji-opt" data-emoji="🔥">🔥</button>
+        </div>
+      </div>
+      <div class="modal-actions">
+        <button id="container-modal-cancel" class="btn btn-secondary">Cancel</button>
+        <button id="container-modal-save" class="btn btn-primary">Create</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Auth / Account Modal -->
+  <div id="auth-modal" class="modal hidden">
+    <div class="modal-backdrop"></div>
+    <div class="modal-content">
+      <h2 id="auth-modal-title">Cloud Sync & Account</h2>
+      <div id="auth-logged-in-view" class="hidden">
+        <div class="auth-status-card">
+          <div class="auth-avatar">👤</div>
+          <div class="auth-info">
+            <div class="auth-email" id="auth-user-email">user@example.com</div>
+            <div class="auth-sync-status" id="auth-sync-status">🟢 Synced with Firebase Cloud</div>
+          </div>
+        </div>
+        <div class="modal-actions" style="margin-top: 18px;">
+          <button id="btn-sync-now" class="btn btn-primary">Sync Now</button>
+          <button id="btn-logout" class="btn btn-secondary">Log Out</button>
+        </div>
+      </div>
+      <div id="auth-logged-out-view">
+        <p class="auth-desc">Log in to sync your containers and clips across different Chrome profiles and computers.</p>
+        <div class="form-group">
+          <label for="auth-email-input">Email</label>
+          <input type="email" id="auth-email-input" placeholder="you@example.com" />
+        </div>
+        <div class="form-group">
+          <label for="auth-password-input">Password</label>
+          <input type="password" id="auth-password-input" placeholder="••••••••" />
+        </div>
+        <div class="auth-toggle-row">
+          <span id="auth-mode-text">Don't have an account? <a href="#" id="auth-toggle-mode" style="color:var(--neon);">Sign Up</a></span>
+        </div>
+        <div class="modal-actions">
+          <button id="auth-modal-cancel" class="btn btn-secondary">Cancel</button>
+          <button id="auth-submit-btn" class="btn btn-primary">Log In</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast -->
+  <div id="toast" class="toast hidden"></div>
+
+  <script src="sync.js"></script>
+  <script src="dashboard.js"></script>
+</body>
+</html>
+

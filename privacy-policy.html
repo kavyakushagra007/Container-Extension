@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Privacy Policy - SaveIt Chrome Extension</title>
+  <style>
+    :root {
+      --bg: #000000;
+      --card-bg: #070804;
+      --text: #f5fbee;
+      --text-muted: #9ea98f;
+      --accent: #BEFA4F;
+      --border: #181c0f;
+      --neon-glow: rgba(190, 250, 79, 0.45);
+    }
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      line-height: 1.7;
+      margin: 0;
+      padding: 40px 20px;
+      display: flex;
+      justify-content: center;
+    }
+    .container {
+      max-width: 760px;
+      background: var(--card-bg);
+      border: 1px solid rgba(190, 250, 79, 0.3);
+      border-radius: 16px;
+      padding: 40px;
+      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.95), 0 0 25px rgba(190, 250, 79, 0.18);
+    }
+    h1 {
+      font-size: 28px;
+      color: var(--accent);
+      margin-top: 0;
+      text-shadow: 0 0 14px var(--neon-glow);
+    }
+    h2 {
+      font-size: 18px;
+      color: var(--accent);
+      margin-top: 28px;
+      border-bottom: 1px solid var(--border);
+      padding-bottom: 8px;
+      text-shadow: 0 0 10px rgba(190, 250, 79, 0.35);
+    }
+    p, li {
+      color: var(--text-muted);
+      font-size: 15px;
+    }
+    ul {
+      padding-left: 20px;
+    }
+    .badge {
+      display: inline-block;
+      background: rgba(190, 250, 79, 0.12);
+      border: 1px solid rgba(190, 250, 79, 0.35);
+      color: #BEFA4F;
+      padding: 4px 12px;
+      border-radius: 20px;
+      font-size: 12px;
+      font-weight: 800;
+      margin-bottom: 20px;
+      text-shadow: 0 0 8px var(--neon-glow);
+    }
+    code {
+      background: #0f1207;
+      border: 1px solid #202611;
+      color: #BEFA4F;
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-size: 13px;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="badge">Privacy First</div>
+    <h1>Privacy Policy for SaveIt</h1>
+    <p>Last updated: November 2026</p>
+
+    <p>SaveIt ("we", "our", or "extension") is designed with complete user privacy in mind. We believe your notes, clipped text, and bookmarks belong exclusively to you.</p>
+
+    <h2>1. Data Collection & Storage</h2>
+    <p><strong>SaveIt does NOT collect, transmit, or sell your personal data.</strong></p>
+    <ul>
+      <li>All saved text snippets, links, tags, and notes are stored <strong>strictly locally</strong> on your computer using Chrome's <code>chrome.storage.local</code> API.</li>
+      <li>No data ever leaves your device or is transmitted to any external server or cloud service.</li>
+    </ul>
+
+    <h2>2. Permissions Justification</h2>
+    <ul>
+      <li><strong>storage:</strong> Required to save your clips and notes locally on your machine.</li>
+      <li><strong>contextMenus:</strong> Enables the right-click "Save to SaveIt" option on selections, links, and pages.</li>
+      <li><strong>activeTab & scripting:</strong> Allows the extension to extract the selected text snippet when you invoke the keyboard shortcut (⌘+Shift+S / Ctrl+Shift+S) or context menu.</li>
+      <li><strong>clipboardRead:</strong> Used only when you manually click the "Paste from clipboard" button to save whatever text you have currently copied.</li>
+    </ul>
+
+    <h2>3. Third-Party Sharing</h2>
+    <p>We do not partner with third-party advertisers, analytics services, or trackers. There are zero tracking pixels, telemetry scripts, or analytics tools included in SaveIt.</p>
+
+    <h2>4. Data Control & Deletion</h2>
+    <p>You have 100% control over your data at all times:</p>
+    <ul>
+      <li>You can export all your data at any time in standard JSON format.</li>
+      <li>You can delete individual items or use "Clear All" in the Dashboard to wipe all data permanently.</li>
+      <li>Uninstalling the extension instantly removes all stored local data.</li>
+    </ul>
+
+    <h2>5. Contact</h2>
+    <p>If you have any questions about this Privacy Policy, you can open an issue on the project's repository or contact the developer.</p>
+  </div>
+</body>
+</html>
+
