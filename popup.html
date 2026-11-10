@@ -178,12 +178,16 @@
           </div>
         </div>
         <div class="form-group">
-          <label for="add-title">Title / Note <span class="hint">(optional)</span></label>
-          <input type="text" id="add-title" placeholder="e.g. Design Inspiration, Quote by Marcus Aurelius" />
+          <label for="add-title">Title <span class="hint">(optional)</span></label>
+          <input type="text" id="add-title" placeholder="e.g. Design Inspiration, Quote by Steve Jobs" />
         </div>
         <div class="form-group">
           <label for="add-content">Content / URL / Quote</label>
-          <textarea id="add-content" rows="4" placeholder="Paste article text, quote, YouTube URL, product link, or image URL..."></textarea>
+          <textarea id="add-content" rows="3" placeholder="Paste article text, quote, YouTube URL, product link, or image URL..."></textarea>
+        </div>
+        <div class="form-group">
+          <label for="add-note">Personal Note <span class="hint">(optional note on this item)</span></label>
+          <input type="text" id="add-note" placeholder="e.g. Remember to check out their color palette" />
         </div>
         <div class="form-group">
           <label for="add-tags">Tags <span class="hint">(comma separated)</span></label>
@@ -220,7 +224,11 @@
         </div>
         <div class="form-group">
           <label for="edit-content">Content</label>
-          <textarea id="edit-content" rows="4"></textarea>
+          <textarea id="edit-content" rows="3"></textarea>
+        </div>
+        <div class="form-group">
+          <label for="edit-note">Personal Note</label>
+          <input type="text" id="edit-note" placeholder="Add a note to this item..." />
         </div>
         <div class="form-group">
           <label for="edit-tags">Tags</label>
@@ -280,8 +288,19 @@
           <input type="text" id="container-name-input" placeholder="e.g. Theme Ideas, Marketing Materials" maxlength="30" />
         </div>
         <div class="form-group">
-          <label for="container-desc-input">Description <span class="hint">(optional)</span></label>
-          <input type="text" id="container-desc-input" placeholder="e.g. Saved inspirations and palettes" maxlength="60" />
+          <label>Container Color</label>
+          <div class="color-picker-row" id="cont-color-picker">
+            <button type="button" class="color-swatch active" data-color="#2563EB" style="background:#2563EB"></button>
+            <button type="button" class="color-swatch" data-color="#059669" style="background:#059669"></button>
+            <button type="button" class="color-swatch" data-color="#D97706" style="background:#D97706"></button>
+            <button type="button" class="color-swatch" data-color="#E11D48" style="background:#E11D48"></button>
+            <button type="button" class="color-swatch" data-color="#7C3AED" style="background:#7C3AED"></button>
+            <button type="button" class="color-swatch" data-color="#475569" style="background:#475569"></button>
+          </div>
+        </div>
+        <div class="form-group">
+          <label for="container-desc-input">Container Note / Guidelines <span class="hint">(optional)</span></label>
+          <input type="text" id="container-desc-input" placeholder="e.g. Palettes, hex codes & moodboards" maxlength="80" />
         </div>
         <div class="modal-actions">
           <button id="container-modal-cancel" class="btn btn-secondary">Cancel</button>

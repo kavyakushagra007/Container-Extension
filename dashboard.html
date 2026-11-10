@@ -7,297 +7,420 @@
   <link rel="stylesheet" href="dashboard.css" />
 </head>
 <body>
-  <div id="app" class="dashboard-layout">
-    <!-- ── Left Sidebar Navigation ── -->
-    <aside class="sidebar">
+  <div id="app" class="app-layout">
+    <!-- ── Relevant Sidebar ── -->
+    <aside class="workspace-sidebar">
       <div class="sidebar-header">
-        <div class="logo-group">
-          <div class="logo-box">
-            <svg class="logo-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/>
-            </svg>
-          </div>
-          <div>
-            <h1>SaveIt</h1>
-            <span class="logo-caption">Vault & Collections</span>
-          </div>
+        <div class="brand-logo" id="sidebar-brand-home" title="Go to Dashboard Home">
+          <div class="brand-icon">📁</div>
+          <span class="brand-name">SaveIt</span>
         </div>
-        <button id="btn-quick-add" class="btn-sidebar-add" title="Create New Item">+</button>
       </div>
 
       <nav class="sidebar-nav">
-        <!-- System Quick Views -->
-        <div class="nav-section-title">OVERVIEW</div>
-        <button class="nav-item active" data-view="all">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
-          <span class="nav-label">All Items</span>
-          <span class="nav-count" id="count-all">0</span>
+        <!-- Quick Views -->
+        <div class="sidebar-section-title">NAVIGATE</div>
+        <button class="sidebar-link active" id="nav-link-home">
+          <span class="sidebar-icon">🏠</span>
+          <span class="sidebar-label">Dashboard</span>
+          <span class="sidebar-badge" id="badge-total-items">0</span>
         </button>
-        <button class="nav-item" data-view="favorite">
-          <svg viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" stroke-width="1"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
-          <span class="nav-label">Favorites</span>
-          <span class="nav-count" id="count-fav">0</span>
-        </button>
-        <button class="nav-item" data-view="quote">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 21c3 0 7-1 7-8V5c0-1.25-.75-2-2-2H4c-1.25 0-2 .75-2 2v6c0 7 3 10 3 10zm14 0c3 0 7-1 7-8V5c0-1.25-.75-2-2-2h-4c-1.25 0-2 .75-2 2v6c0 7 3 10 3 10z"/></svg>
-          <span class="nav-label">Quotes & Snippets</span>
-          <span class="nav-count" id="count-quote">0</span>
-        </button>
-        <button class="nav-item" data-view="media">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2" ry="2"/></svg>
-          <span class="nav-label">YouTube & Media</span>
-          <span class="nav-count" id="count-media">0</span>
-        </button>
-        <button class="nav-item" data-view="link">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
-          <span class="nav-label">Links & Articles</span>
-          <span class="nav-count" id="count-link">0</span>
+        <button class="sidebar-link" id="nav-link-starred">
+          <span class="sidebar-icon">★</span>
+          <span class="sidebar-label">Starred Saves</span>
+          <span class="sidebar-badge" id="badge-starred-items">0</span>
         </button>
 
-        <!-- Collections & Nested Containers Section -->
+        <!-- Collections Section -->
         <div class="sidebar-section-header">
-          <span>COLLECTIONS & CONTAINERS</span>
-          <div class="header-action-btns">
-            <button id="btn-sidebar-add-col" class="mini-tool-btn" title="Create Collection (📁)">
-              📁+
-            </button>
-            <button id="btn-sidebar-add-cont" class="mini-tool-btn" title="Create Container (🗄️)">
-              🗄️+
-            </button>
-          </div>
+          <span>COLLECTIONS</span>
+          <button id="btn-sidebar-new-col" class="sidebar-action-btn" title="Create Collection (📁)">+</button>
         </div>
-
-        <div id="sidebar-collections-tree" class="sidebar-collections-tree">
-          <!-- Dynamic collection folders and nested container archives rendered by JS -->
+        <div id="sidebar-collections-list" class="sidebar-collections-list">
+          <!-- Dynamically populated: 📁 Brand, 📁 General, etc. -->
         </div>
       </nav>
 
       <!-- Sidebar Footer -->
       <div class="sidebar-footer">
-        <div class="user-status-card" id="user-status-card">
-          <div class="user-avatar">👤</div>
-          <div class="user-info">
-            <span class="user-name" id="user-display-email">Local Vault</span>
-            <span class="user-sync-text" id="user-sync-status">Ready</span>
+        <div class="sidebar-auth-card" id="btn-sidebar-auth" title="Cloud Sync & Account">
+          <div class="auth-avatar-mini">👤</div>
+          <div class="auth-info-mini">
+            <span class="auth-user-email" id="sidebar-auth-email">Local Vault</span>
+            <span class="auth-status-dot" id="sidebar-auth-status">● Offline Ready</span>
           </div>
-          <button id="btn-open-auth-modal" class="btn-sync-icon" title="Account & Sync">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"/></svg>
-          </button>
         </div>
       </div>
     </aside>
 
-    <!-- ── Main Workspace Canvas ── -->
-    <main class="main">
-      <!-- Top Action Toolbar -->
-      <header class="topbar">
+    <!-- ── Main Canvas ── -->
+    <div class="workspace-content-wrap">
+      <!-- Top Navigation Toolbar -->
+      <header class="app-topbar">
         <div class="topbar-left">
-          <div class="breadcrumb-trail" id="dash-breadcrumbs">
-            <span class="b-crumb b-col">📁 All Collections</span>
-            <span class="b-sep">›</span>
-            <span class="b-crumb b-cont">🗄️ All Containers</span>
+          <nav class="breadcrumb-trail" id="breadcrumb-trail">
+            <button class="crumb-btn active">Dashboard</button>
+          </nav>
+        </div>
+
+        <div class="topbar-center">
+          <div class="search-box">
+            <svg class="search-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+            </svg>
+            <input type="text" id="global-search-input" placeholder="Search saved items, quotes, links, notes... (press /)" />
+            <button id="search-clear-btn" class="search-clear-btn hidden">&times;</button>
           </div>
-          <h2 id="page-title">All Saved Items</h2>
-          <p id="page-desc" class="page-description">Everything captured across your web browsing sessions</p>
         </div>
 
         <div class="topbar-right">
-          <!-- Search box -->
-          <div class="search-box">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="search-icon"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-            <input type="text" id="search-input" placeholder="Search your vault... (press /)" />
-            <button id="btn-clear-search" class="clear-search-btn hidden">&times;</button>
-          </div>
-
-          <!-- Sort dropdown -->
-          <div class="sort-box">
-            <select id="sort-select" class="light-select">
-              <option value="newest">Newest first</option>
-              <option value="oldest">Oldest first</option>
-              <option value="alpha">Title A → Z</option>
-              <option value="type">Group by Type</option>
-            </select>
-          </div>
-
-          <!-- View Toggle (Grid vs List) -->
-          <div class="view-toggle">
-            <button id="btn-view-grid" class="view-btn active" title="Masonry Grid View">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
-            </button>
-            <button id="btn-view-list" class="view-btn" title="Compact List View">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>
-            </button>
-          </div>
-
-          <!-- Main Actions -->
-          <button class="btn btn-secondary" id="btn-export-dash" title="Export Vault JSON">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-            Export
-          </button>
-          <button class="btn btn-secondary" id="btn-import-dash" title="Import Vault Backup">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
-            Import
-          </button>
-          <button class="btn btn-primary" id="btn-add-item-dash">
+          <button id="btn-top-add-item" class="btn btn-primary" title="Save New Item">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-            Add Item
+            Save Item
+          </button>
+          <button id="btn-export-backup" class="btn btn-ghost" title="Export Backup JSON">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+          </button>
+          <button id="btn-import-backup" class="btn btn-ghost" title="Import Backup JSON">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
           </button>
         </div>
       </header>
 
-      <!-- Active Filter Tags Bar -->
-      <div class="filter-strip" id="filter-strip">
-        <div class="active-chips" id="active-chips">
-          <!-- Dynamic filter chips -->
-        </div>
-        <div class="results-meta">
-          <span id="results-count">0 items</span>
-        </div>
-      </div>
-
-      <!-- Main Items Viewport -->
-      <div class="content-viewport">
-        <div id="items-grid" class="items-grid view-mode-grid">
-          <!-- Saved items rendered dynamically -->
-        </div>
-
-        <!-- Empty State -->
-        <div id="empty-state" class="empty-state hidden">
-          <div class="empty-icon-box">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" width="48" height="48">
-              <polyline points="21 8 21 21 3 21 3 8"/>
-              <rect x="1" y="3" width="22" height="5"/>
-              <line x1="10" y1="12" x2="14" y2="12"/>
-            </svg>
+      <!-- Workspace Body Panels -->
+      <main class="workspace-main">
+        <!-- 1. Search Results View -->
+        <section id="view-search-results" class="view-panel hidden">
+          <div class="panel-header">
+            <div>
+              <h2 class="panel-title">Search Results</h2>
+              <p class="panel-subtitle" id="search-results-meta">Matching items in your vault</p>
+            </div>
+            <button class="btn btn-secondary" id="btn-exit-search">Close Search</button>
           </div>
-          <h3>No items found</h3>
-          <p>This container has no items matching your criteria.<br/>Save quotes, links, YouTube videos, or images from the web.</p>
-          <button class="btn btn-primary" id="btn-empty-add">+ Save Item Here</button>
-        </div>
-      </div>
-    </main>
+          <div id="search-items-grid" class="uniform-cards-grid">
+            <!-- Dynamically populated -->
+          </div>
+        </section>
+
+        <!-- 2. Starred / Favorites View -->
+        <section id="view-favorites" class="view-panel hidden">
+          <div class="panel-header">
+            <div>
+              <h2 class="panel-title">★ Starred Saves</h2>
+              <p class="panel-subtitle" id="favorites-meta">Your most important web clippings</p>
+            </div>
+          </div>
+          <div id="favorites-items-grid" class="uniform-cards-grid">
+            <!-- Dynamically populated -->
+          </div>
+          <div id="favorites-empty" class="empty-state-card hidden">
+            <div class="empty-icon-box">★</div>
+            <h3>No starred saves yet</h3>
+            <p>Click the star icon on any card to pin it here.</p>
+          </div>
+        </section>
+
+        <!-- 3. Home View: Recents Row + Big Desktop Icon Folders -->
+        <section id="view-home" class="view-panel">
+          <!-- Recents Row -->
+          <div class="home-recents-block">
+            <div class="panel-header">
+              <div>
+                <h2 class="panel-title">Recent Saves</h2>
+                <p class="panel-subtitle">Your latest captured quotes, links, videos, and clippings</p>
+              </div>
+              <span class="panel-counter" id="recents-counter">0 items</span>
+            </div>
+
+            <div class="recents-row-wrap">
+              <div id="recents-row" class="recents-scroll-row">
+                <!-- Uniform size cards rendered by JS -->
+              </div>
+              <div id="recents-empty" class="recents-empty-state hidden">
+                <span>No saves yet. Highlight text or right-click any page to save.</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Collections (Desktop Icon View Folders) -->
+          <div class="home-collections-block">
+            <div class="panel-header">
+              <div>
+                <h2 class="panel-title">Collections</h2>
+                <p class="panel-subtitle">Folders for your containers and internet discoveries</p>
+              </div>
+              <button id="btn-new-collection-main" class="btn btn-secondary">
+                <span>📁+</span>
+                <span>New Folder</span>
+              </button>
+            </div>
+
+            <!-- Desktop Icon View Grid (Enlarged Folder Icons + Name + Count) -->
+            <div id="desktop-folders-grid" class="desktop-icon-grid">
+              <!-- Rendered as desktop folder icon tiles -->
+            </div>
+          </div>
+        </section>
+
+        <!-- 4. Collection View: Inside a Collection (Literal Containers Desktop Icon View) -->
+        <section id="view-collection" class="view-panel hidden">
+          <div class="view-nav-header">
+            <button class="btn-back" id="btn-back-to-home">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><polyline points="15 18 9 12 15 6"/></svg>
+              <span>Back to Dashboard</span>
+            </button>
+            <div class="view-nav-actions">
+              <button id="btn-edit-current-col" class="btn btn-secondary">Folder Settings</button>
+              <button id="btn-new-container-in-col" class="btn btn-primary">
+                <span>🗄️+</span>
+                <span>New Container</span>
+              </button>
+            </div>
+          </div>
+
+          <div class="collection-title-strip">
+            <div class="collection-title-left">
+              <div class="collection-big-icon" id="col-view-icon">📁</div>
+              <div>
+                <h1 class="collection-view-title" id="col-view-title">Brand</h1>
+                <p class="collection-view-meta" id="col-view-meta">3 containers • 12 items</p>
+              </div>
+            </div>
+          </div>
+
+          <!-- Literal Containers in Desktop Icon View -->
+          <div class="containers-icon-section">
+            <div class="panel-header">
+              <div>
+                <h2 class="panel-title">Containers</h2>
+                <p class="panel-subtitle">Storage crates inside this folder</p>
+              </div>
+            </div>
+
+            <div id="desktop-containers-grid" class="desktop-crate-icon-grid">
+              <!-- Rendered as literal container crates in icon view -->
+            </div>
+          </div>
+        </section>
+
+        <!-- 5. Container View: Inside a Container (Items Grid + Container Note) -->
+        <section id="view-container" class="view-panel hidden">
+          <div class="view-nav-header">
+            <button class="btn-back" id="btn-back-to-collection">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><polyline points="15 18 9 12 15 6"/></svg>
+              <span id="back-to-col-text">Back to Folder</span>
+            </button>
+            <div class="view-nav-actions">
+              <button id="btn-edit-cont-details" class="btn btn-secondary">Container Settings</button>
+              <button id="btn-add-item-to-current-cont" class="btn btn-primary">+ Save Item Here</button>
+            </div>
+          </div>
+
+          <!-- Container Crate Hero Banner with Editable Note -->
+          <div class="container-crate-hero" id="cont-hero-crate">
+            <div class="crate-hero-stripe" id="cont-hero-stripe"></div>
+            <div class="crate-hero-body">
+              <div class="crate-hero-left">
+                <div class="crate-hero-icon" id="cont-hero-icon">🗄️</div>
+                <div>
+                  <h1 class="crate-hero-name" id="cont-hero-title">Theme Ideas</h1>
+                  <span class="crate-hero-meta" id="cont-hero-meta">0 items</span>
+                </div>
+              </div>
+
+              <!-- Container Note Box -->
+              <div class="crate-hero-note-box">
+                <div class="crate-note-top">
+                  <span>📝 CONTAINER NOTE</span>
+                  <button id="btn-edit-cont-note" class="btn-note-edit">Edit Note</button>
+                </div>
+                <div class="crate-note-text" id="cont-hero-note-text">
+                  (No container note yet. Click "Edit Note" to add guidelines or hex palettes)
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Items inside Container (Uniform Cards Grid) -->
+          <div class="container-items-section">
+            <div class="panel-header">
+              <div>
+                <h2 class="panel-title">Saved Items</h2>
+                <p class="panel-subtitle" id="container-items-subtitle">All cards in this container</p>
+              </div>
+              <div class="filter-pills" id="container-type-filters">
+                <button class="chip-filter active" data-filter="all">All</button>
+                <button class="chip-filter" data-filter="quote">💬 Quotes</button>
+                <button class="chip-filter" data-filter="youtube">🎬 YouTube</button>
+                <button class="chip-filter" data-filter="image">🖼️ Images</button>
+                <button class="chip-filter" data-filter="link">🔗 Links</button>
+                <button class="chip-filter" data-filter="favorite">★ Starred</button>
+              </div>
+            </div>
+
+            <div id="container-items-grid" class="uniform-cards-grid">
+              <!-- Uniform cards rendered by JS -->
+            </div>
+
+            <div id="container-empty-state" class="empty-state-card hidden">
+              <div class="empty-icon-box">🗄️</div>
+              <h3>This container is empty</h3>
+              <p>Save quotes, links, YouTube videos, or images into this container.</p>
+              <button class="btn btn-primary" id="btn-empty-cont-add">+ Add First Item</button>
+            </div>
+          </div>
+        </section>
+      </main>
+    </div>
 
     <!-- ── MODALS ── -->
 
-    <!-- Add / Edit Item Modal -->
+    <!-- Save / Edit Item Modal (Supports Item Note!) -->
     <div id="item-modal" class="modal hidden">
       <div class="modal-backdrop"></div>
-      <div class="modal-content modal-lg">
+      <div class="modal-card">
         <div class="modal-header">
           <h2 id="item-modal-title">Save to Container</h2>
-          <button class="btn-close-modal" id="item-modal-close">&times;</button>
+          <button class="modal-close-x" id="item-modal-close">&times;</button>
         </div>
-        <div class="form-row-2">
-          <div class="form-group">
-            <label for="modal-col-select">Collection (📁)</label>
-            <select id="modal-col-select" class="light-select"></select>
+        <div class="modal-form">
+          <div class="form-row-2">
+            <div class="form-field">
+              <label for="item-col-select">Collection (📁)</label>
+              <select id="item-col-select" class="form-select"></select>
+            </div>
+            <div class="form-field">
+              <label for="item-cont-select">Container (🗄️)</label>
+              <select id="item-cont-select" class="form-select"></select>
+            </div>
           </div>
-          <div class="form-group">
-            <label for="modal-cont-select">Container (🗄️)</label>
-            <select id="modal-cont-select" class="light-select"></select>
+
+          <div class="form-field">
+            <label for="item-title-input">Title / Headline <span class="hint">(optional)</span></label>
+            <input type="text" id="item-title-input" placeholder="e.g. Minimalist Branding Idea" />
+          </div>
+
+          <div class="form-field">
+            <label for="item-content-input">Content / URL / Quote</label>
+            <textarea id="item-content-input" rows="4" placeholder="Paste article text, quote, YouTube URL, product link, or image URL..."></textarea>
+          </div>
+
+          <!-- Item Note Field -->
+          <div class="form-field">
+            <label for="item-note-input">Note on this item <span class="hint">(optional personal thought or reminder)</span></label>
+            <input type="text" id="item-note-input" placeholder="e.g. Great color combo for our next landing page" />
+          </div>
+
+          <div class="form-row-2">
+            <div class="form-field">
+              <label for="item-source-input">Source URL <span class="hint">(optional)</span></label>
+              <input type="url" id="item-source-input" placeholder="https://..." />
+            </div>
+            <div class="form-field">
+              <label for="item-tags-input">Tags <span class="hint">(comma separated)</span></label>
+              <input type="text" id="item-tags-input" placeholder="branding, ideas, quote" />
+            </div>
           </div>
         </div>
-        <div class="form-group">
-          <label for="modal-item-title">Title / Headline</label>
-          <input type="text" id="modal-item-title" placeholder="e.g. Design Inspiration, Quote by Steve Jobs" />
-        </div>
-        <div class="form-group">
-          <label for="modal-item-content">Content (Text / Quote / Link / Image URL / YouTube URL)</label>
-          <textarea id="modal-item-content" rows="5" placeholder="Paste your text snippet, quote, YouTube URL, product link, or image URL..."></textarea>
-        </div>
-        <div class="form-row-2">
-          <div class="form-group">
-            <label for="modal-item-source">Source Webpage URL <span class="hint">(optional)</span></label>
-            <input type="url" id="modal-item-source" placeholder="https://example.com" />
-          </div>
-          <div class="form-group">
-            <label for="modal-item-tags">Tags <span class="hint">(comma separated)</span></label>
-            <input type="text" id="modal-item-tags" placeholder="e.g. typography, marketing, video" />
-          </div>
-        </div>
-        <div class="modal-actions">
+        <div class="modal-footer">
           <button id="item-modal-cancel" class="btn btn-secondary">Cancel</button>
-          <button id="item-modal-save" class="btn btn-primary">Save to Container</button>
+          <button id="item-modal-save" class="btn btn-primary">Save Item</button>
         </div>
       </div>
     </div>
 
-    <!-- Collection Modal -->
+    <!-- Create / Edit Collection Modal -->
     <div id="col-modal" class="modal hidden">
       <div class="modal-backdrop"></div>
-      <div class="modal-content">
+      <div class="modal-card">
         <div class="modal-header">
-          <h2 id="col-modal-title">Create Collection (📁)</h2>
-          <button class="btn-close-modal" id="col-modal-close">&times;</button>
+          <h2 id="col-modal-title">New Collection Folder (📁)</h2>
+          <button class="modal-close-x" id="col-modal-close">&times;</button>
         </div>
-        <div class="form-group">
-          <label for="dash-col-name">Collection Name</label>
-          <input type="text" id="dash-col-name" placeholder="e.g. Brand, Personal, Research" maxlength="30" />
-        </div>
-        <div class="form-group">
-          <label>Accent Color</label>
-          <div class="color-picker-row" id="dash-col-colors">
-            <button type="button" class="color-swatch active" data-color="#4F46E5" style="background:#4F46E5"></button>
-            <button type="button" class="color-swatch" data-color="#2563EB" style="background:#2563EB"></button>
-            <button type="button" class="color-swatch" data-color="#0D9488" style="background:#0D9488"></button>
-            <button type="button" class="color-swatch" data-color="#F59E0B" style="background:#F59E0B"></button>
-            <button type="button" class="color-swatch" data-color="#DC2626" style="background:#DC2626"></button>
-            <button type="button" class="color-swatch" data-color="#9333EA" style="background:#9333EA"></button>
+        <div class="modal-form">
+          <div class="form-field">
+            <label for="col-name-input">Collection Name</label>
+            <input type="text" id="col-name-input" placeholder="e.g. Brand, Travel, Personal Growth" maxlength="30" />
+          </div>
+          <div class="form-field">
+            <label>Folder Color</label>
+            <div class="color-palette-row" id="col-color-palette">
+              <button type="button" class="swatch active" data-color="#4F46E5" style="background:#4F46E5"></button>
+              <button type="button" class="swatch" data-color="#2563EB" style="background:#2563EB"></button>
+              <button type="button" class="swatch" data-color="#0D9488" style="background:#0D9488"></button>
+              <button type="button" class="swatch" data-color="#F59E0B" style="background:#F59E0B"></button>
+              <button type="button" class="swatch" data-color="#E11D48" style="background:#E11D48"></button>
+              <button type="button" class="swatch" data-color="#7C3AED" style="background:#7C3AED"></button>
+              <button type="button" class="swatch" data-color="#475569" style="background:#475569"></button>
+            </div>
           </div>
         </div>
-        <div class="modal-actions">
+        <div class="modal-footer">
           <button id="col-modal-cancel" class="btn btn-secondary">Cancel</button>
-          <button id="col-modal-save" class="btn btn-primary">Save Collection</button>
+          <button id="col-modal-save" class="btn btn-primary">Save Folder</button>
         </div>
       </div>
     </div>
 
-    <!-- Container Modal -->
+    <!-- Create / Edit Container Modal (Color + Note!) -->
     <div id="cont-modal" class="modal hidden">
       <div class="modal-backdrop"></div>
-      <div class="modal-content">
+      <div class="modal-card">
         <div class="modal-header">
-          <h2 id="cont-modal-title">Create Container (🗄️)</h2>
-          <button class="btn-close-modal" id="cont-modal-close">&times;</button>
+          <h2 id="cont-modal-title">New Container (🗄️)</h2>
+          <button class="modal-close-x" id="cont-modal-close">&times;</button>
         </div>
-        <div class="form-group">
-          <label for="dash-cont-parent-col">Parent Collection (📁)</label>
-          <select id="dash-cont-parent-col" class="light-select"></select>
+        <div class="modal-form">
+          <div class="form-field">
+            <label for="cont-col-select">Parent Folder (📁)</label>
+            <select id="cont-col-select" class="form-select"></select>
+          </div>
+          <div class="form-field">
+            <label for="cont-name-input">Container Name</label>
+            <input type="text" id="cont-name-input" placeholder="e.g. Theme Ideas, Marketing Materials, Colour Templates" maxlength="35" />
+          </div>
+          <div class="form-field">
+            <label>Container Crate Color</label>
+            <div class="color-palette-row" id="cont-color-palette">
+              <button type="button" class="swatch active" data-color="#2563EB" style="background:#2563EB"></button>
+              <button type="button" class="swatch" data-color="#059669" style="background:#059669"></button>
+              <button type="button" class="swatch" data-color="#D97706" style="background:#D97706"></button>
+              <button type="button" class="swatch" data-color="#E11D48" style="background:#E11D48"></button>
+              <button type="button" class="swatch" data-color="#7C3AED" style="background:#7C3AED"></button>
+              <button type="button" class="swatch" data-color="#0891B2" style="background:#0891B2"></button>
+              <button type="button" class="swatch" data-color="#475569" style="background:#475569"></button>
+            </div>
+          </div>
+          <div class="form-field">
+            <label for="cont-note-input">Container Note <span class="hint">(guidelines or description)</span></label>
+            <textarea id="cont-note-input" rows="2" placeholder="e.g. Palettes, hex codes, visual identity guidelines and moodboards"></textarea>
+          </div>
         </div>
-        <div class="form-group">
-          <label for="dash-cont-name">Container Name</label>
-          <input type="text" id="dash-cont-name" placeholder="e.g. Theme Ideas, Marketing Materials" maxlength="30" />
-        </div>
-        <div class="form-group">
-          <label for="dash-cont-desc">Description <span class="hint">(optional)</span></label>
-          <input type="text" id="dash-cont-desc" placeholder="e.g. Color schemes, typography, logos" maxlength="80" />
-        </div>
-        <div class="modal-actions">
+        <div class="modal-footer">
           <button id="cont-modal-cancel" class="btn btn-secondary">Cancel</button>
           <button id="cont-modal-save" class="btn btn-primary">Save Container</button>
         </div>
       </div>
     </div>
 
-    <!-- Move Item Modal -->
-    <div id="move-modal" class="modal hidden">
+    <!-- Container Note Quick-Edit Modal -->
+    <div id="note-modal" class="modal hidden">
       <div class="modal-backdrop"></div>
-      <div class="modal-content">
+      <div class="modal-card">
         <div class="modal-header">
-          <h2>Move Item to Container</h2>
-          <button class="btn-close-modal" id="move-modal-close">&times;</button>
+          <h2>Edit Container Note</h2>
+          <button class="modal-close-x" id="note-modal-close">&times;</button>
         </div>
-        <div class="form-group">
-          <label for="move-col-select">Target Collection (📁)</label>
-          <select id="move-col-select" class="light-select"></select>
+        <div class="modal-form">
+          <div class="form-field">
+            <label for="quick-note-textarea">Container Note / Guidelines</label>
+            <textarea id="quick-note-textarea" rows="4" placeholder="Write any notes, reminders, or descriptions for this container..."></textarea>
+          </div>
         </div>
-        <div class="form-group">
-          <label for="move-cont-select">Target Container (🗄️)</label>
-          <select id="move-cont-select" class="light-select"></select>
-        </div>
-        <div class="modal-actions">
-          <button id="move-modal-cancel" class="btn btn-secondary">Cancel</button>
-          <button id="move-modal-confirm" class="btn btn-primary">Move Item</button>
+        <div class="modal-footer">
+          <button id="note-modal-cancel" class="btn btn-secondary">Cancel</button>
+          <button id="note-modal-save" class="btn btn-primary">Update Note</button>
         </div>
       </div>
     </div>
@@ -305,38 +428,40 @@
     <!-- Auth / Cloud Sync Modal -->
     <div id="auth-modal" class="modal hidden">
       <div class="modal-backdrop"></div>
-      <div class="modal-content">
+      <div class="modal-card">
         <div class="modal-header">
           <h2 id="auth-modal-title">Cloud Sync & Account</h2>
-          <button class="btn-close-modal" id="auth-modal-close">&times;</button>
+          <button class="modal-close-x" id="auth-modal-close">&times;</button>
         </div>
         <div id="auth-logged-in-view" class="hidden">
-          <div class="auth-status-card">
-            <div class="auth-avatar">👤</div>
-            <div class="auth-info">
-              <div class="auth-email" id="auth-user-email">user@example.com</div>
-              <div class="auth-sync-status">🟢 Synced with Cloud Firestore</div>
+          <div class="auth-card-info">
+            <div class="avatar-lg">👤</div>
+            <div>
+              <div class="auth-email-text" id="auth-user-email">user@example.com</div>
+              <div class="auth-sync-status-badge">🟢 Synced with Cloud Firestore</div>
             </div>
           </div>
-          <div class="modal-actions" style="margin-top: 16px;">
+          <div class="modal-footer" style="margin-top: 16px;">
             <button id="btn-sync-now" class="btn btn-primary">Sync Now</button>
             <button id="btn-logout" class="btn btn-secondary">Log Out</button>
           </div>
         </div>
         <div id="auth-logged-out-view">
-          <p class="auth-desc">Log in with your email to keep your collections, containers, and web saves backed up and synchronized across Chrome browsers.</p>
-          <div class="form-group">
-            <label for="auth-email-input">Email</label>
-            <input type="email" id="auth-email-input" placeholder="you@example.com" />
+          <p class="auth-intro">Sign in to sync your collections, containers, and notes across all your Chrome profiles.</p>
+          <div class="modal-form">
+            <div class="form-field">
+              <label for="auth-email-input">Email</label>
+              <input type="email" id="auth-email-input" placeholder="you@example.com" />
+            </div>
+            <div class="form-field">
+              <label for="auth-password-input">Password</label>
+              <input type="password" id="auth-password-input" placeholder="••••••••" />
+            </div>
           </div>
-          <div class="form-group">
-            <label for="auth-password-input">Password</label>
-            <input type="password" id="auth-password-input" placeholder="••••••••" />
-          </div>
-          <div class="auth-toggle-row">
+          <div class="auth-toggle-note">
             <span id="auth-mode-text">Don't have an account? <a href="#" id="auth-toggle-mode">Sign Up</a></span>
           </div>
-          <div class="modal-actions">
+          <div class="modal-footer">
             <button id="auth-modal-cancel" class="btn btn-secondary">Cancel</button>
             <button id="auth-submit-btn" class="btn btn-primary">Log In</button>
           </div>

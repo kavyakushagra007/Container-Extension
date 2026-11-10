@@ -10,6 +10,7 @@ let currentFilter = "all";
 let searchQuery = "";
 let editingItemId = null;
 let selectedColColor = "#4F46E5";
+let selectedContColor = "#2563EB";
 let authIsSignUp = false;
 
 // ── DOM References ──
@@ -49,6 +50,7 @@ const addColSelect = document.getElementById("add-col-select");
 const addContSelect = document.getElementById("add-cont-select");
 const addTitle = document.getElementById("add-title");
 const addContent = document.getElementById("add-content");
+const addNote = document.getElementById("add-note");
 const addTags = document.getElementById("add-tags");
 const modalCancel = document.getElementById("modal-cancel");
 const modalSave = document.getElementById("modal-save");
@@ -60,6 +62,7 @@ const editColSelect = document.getElementById("edit-col-select");
 const editContSelect = document.getElementById("edit-cont-select");
 const editTitle = document.getElementById("edit-title");
 const editContent = document.getElementById("edit-content");
+const editNote = document.getElementById("edit-note");
 const editTags = document.getElementById("edit-tags");
 const editCancel = document.getElementById("edit-cancel");
 const editSave = document.getElementById("edit-save");
@@ -78,6 +81,7 @@ const containerModal = document.getElementById("container-modal");
 const contParentColSelect = document.getElementById("cont-parent-col-select");
 const containerNameInput = document.getElementById("container-name-input");
 const containerDescInput = document.getElementById("container-desc-input");
+const contColorPicker = document.getElementById("cont-color-picker");
 const containerModalCancel = document.getElementById("container-modal-cancel");
 const containerModalSave = document.getElementById("container-modal-save");
 const contModalCloseX = document.getElementById("cont-modal-close-x");
@@ -249,6 +253,15 @@ function setupEventListeners() {
   contModalCloseX.addEventListener("click", closeContainerModal);
   containerModalCancel.addEventListener("click", closeContainerModal);
   containerModalSave.addEventListener("click", handleCreateContainer);
+  if (contColorPicker) {
+    contColorPicker.querySelectorAll(".color-swatch").forEach((swatch) => {
+      swatch.addEventListener("click", () => {
+        contColorPicker.querySelectorAll(".color-swatch").forEach((s) => s.classList.remove("active"));
+        swatch.classList.add("active");
+        selectedContColor = swatch.dataset.color;
+      });
+    });
+  }
 
   // Auth Modal Events
   btnAuth.addEventListener("click", openAuthModal);
@@ -516,6 +529,15 @@ function createItemCard(item) {
     `;
   }
 
+  // Personal Note on item
+  if (item.note && item.note.trim()) {
+    cardHtml += `
+      <div class="card-note-chip" style="display:flex;align-items:center;gap:4px;font-size:10.5px;color:#4338CA;background:#EEF2FF;padding:2px 6px;border-radius:4px;margin-top:2px;">
+        💡 ${escapeHTML(item.note)}
+      </div>
+    `;
+  }
+
   // Bottom Source & Time Row
   const timeStr = formatRelativeTime(item.createdAt);
   const targetUrl = item.sourceUrl || (item.content.startsWith("http") ? item.content : "");
@@ -621,6 +643,7 @@ function openAddModal() {
   populateContainerSelect(addContSelect, addColSelect.value, activeContainerId !== "all" ? activeContainerId : undefined);
   addTitle.value = "";
   addContent.value = "";
+  if (addNote) addNote.value = "";
   addTags.value = "";
   addModal.classList.remove("hidden");
   addContent.focus();
@@ -640,6 +663,7 @@ async function handleSaveNewItem() {
   const colId = addColSelect.value;
   const contId = addContSelect.value;
   const title = addTitle.value.trim();
+  const note = addNote ? addNote.value.trim() : "";
   const tags = addTags.value
     .split(",")
     .map((t) => t.trim())
@@ -652,6 +676,7 @@ async function handleSaveNewItem() {
     type: classification.type,
     title: title || (classification.type === "youtube" ? "Saved YouTube" : ""),
     content,
+    note,
     containerId: contId,
     collectionId: colId,
     previewImage: classification.thumbnail || (classification.type === "image" ? content : ""),
@@ -680,6 +705,7 @@ function openEditModal(item) {
   populateContainerSelect(editContSelect, item.collectionId, item.containerId);
   editTitle.value = item.title || "";
   editContent.value = item.content || "";
+  if (editNote) editNote.value = item.note || "";
   editTags.value = (item.tags || []).join(", ");
   editModal.classList.remove("hidden");
 }
@@ -700,6 +726,7 @@ async function handleSaveEditItem() {
   const colId = editColSelect.value;
   const contId = editContSelect.value;
   const title = editTitle.value.trim();
+  const note = editNote ? editNote.value.trim() : "";
   const tags = editTags.value
     .split(",")
     .map((t) => t.trim())
@@ -711,6 +738,7 @@ async function handleSaveEditItem() {
     ...allItems[itemIndex],
     content,
     title,
+    note,
     collectionId: colId,
     containerId: contId,
     tags,
@@ -811,6 +839,8 @@ async function handleCreateContainer() {
     collectionId: parentColId,
     name,
     icon: "archive",
+    color: selectedContColor || "#2563EB",
+    note: desc,
     description: desc,
     createdAt: Date.now(),
     order: containers.length,

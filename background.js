@@ -56,12 +56,15 @@ async function getTargetDestination() {
   ]);
 
   let targetCont = null;
-  if (lastActiveContainer && lastActiveContainer !== "all") {
+  if (lastActiveContainer && lastActiveContainer !== "all" && lastActiveContainer !== "default") {
     targetCont = containers.find((c) => c.id === lastActiveContainer);
   }
 
   if (!targetCont) {
     targetCont = containers[0] || DEFAULT_CONTAINERS[0];
+    if (targetCont) {
+      chrome.storage.local.set({ lastActiveContainer: targetCont.id }).catch(() => {});
+    }
   }
 
   const parentCol =

@@ -9,15 +9,15 @@ const FIREBASE_CONFIG = {
 // ── Default Hierarchy Constants ──
 const DEFAULT_COLLECTIONS = [
   { id: "col_brand", name: "Brand", color: "#4F46E5", createdAt: 1700000001000, order: 0 },
-  { id: "col_general", name: "General & Quick Saves", color: "#0D9488", createdAt: 1700000002000, order: 1 },
+  { id: "col_general", name: "General", color: "#0D9488", createdAt: 1700000002000, order: 1 },
 ];
 
 const DEFAULT_CONTAINERS = [
-  { id: "cont_theme_ideas", collectionId: "col_brand", name: "Theme Ideas", icon: "archive", description: "Design concepts, moodboards & brand aesthetics", createdAt: 1700000003000, order: 0 },
-  { id: "cont_marketing", collectionId: "col_brand", name: "Marketing Materials", icon: "archive", description: "Ad copy, campaigns, landing page inspo", createdAt: 1700000004000, order: 1 },
-  { id: "cont_colours", collectionId: "col_brand", name: "Colour Templates", icon: "archive", description: "Palettes, hex codes, visual identity guidelines", createdAt: 1700000005000, order: 2 },
-  { id: "default", collectionId: "col_general", name: "Quick Saves", icon: "archive", description: "Instant clipboard & web clippings", createdAt: 1700000006000, order: 3 },
-  { id: "cont_reading", collectionId: "col_general", name: "Articles & Reading", icon: "archive", description: "Long-form blogs, research, guides & essays", createdAt: 1700000007000, order: 4 },
+  { id: "cont_theme_ideas", collectionId: "col_brand", name: "Theme Ideas", icon: "archive", color: "#2563EB", note: "Design concepts, moodboards & brand aesthetics", description: "Design concepts, moodboards & brand aesthetics", createdAt: 1700000003000, order: 0 },
+  { id: "cont_marketing", collectionId: "col_brand", name: "Marketing Materials", icon: "archive", color: "#E11D48", note: "Ad copy, campaigns, landing page inspo", description: "Ad copy, campaigns, landing page inspo", createdAt: 1700000004000, order: 1 },
+  { id: "cont_colours", collectionId: "col_brand", name: "Colour Templates", icon: "archive", color: "#F59E0B", note: "Palettes, hex codes, visual identity guidelines", description: "Palettes, hex codes, visual identity guidelines", createdAt: 1700000005000, order: 2 },
+  { id: "cont_reading", collectionId: "col_general", name: "Articles & Reading", icon: "archive", color: "#7C3AED", note: "Long-form blogs, research, guides & essays", description: "Long-form blogs, research, guides & essays", createdAt: 1700000006000, order: 3 },
+  { id: "cont_notes", collectionId: "col_general", name: "Notes & Snippets", icon: "archive", color: "#0D9488", note: "Ideas, quotes & snippets", description: "Ideas, quotes & snippets", createdAt: 1700000007000, order: 4 },
 ];
 
 // ── Helper: Smart URL / Content Classification ──
@@ -307,6 +307,32 @@ const SyncService = {
     let items = data.items || [];
     let modified = false;
 
+    // 0. Remove "Quick Saves" entirely from collections & containers
+    collections = collections.map((col) => {
+      if ((col.name || "").includes("Quick Saves")) {
+        modified = true;
+        return { ...col, name: col.name.replace(/ & Quick Saves|Quick Saves/gi, "").trim() || "General" };
+      }
+      return col;
+    });
+
+    const quickCont = containers.find((c) => c.id === "default" || (c.name || "").toLowerCase() === "quick saves");
+    if (quickCont) {
+      modified = true;
+      const fallbackCont = containers.find((c) => c.id !== quickCont.id) || DEFAULT_CONTAINERS[0];
+      items = items.map((item) => {
+        if (item.containerId === quickCont.id) {
+          return {
+            ...item,
+            containerId: fallbackCont.id,
+            collectionId: fallbackCont.collectionId,
+          };
+        }
+        return item;
+      });
+      containers = containers.filter((c) => c.id !== quickCont.id);
+    }
+
     // 1. Initialize Collections if missing
     if (!collections || collections.length === 0) {
       collections = [...DEFAULT_COLLECTIONS];
@@ -322,21 +348,36 @@ const SyncService = {
       const primaryColId = collections[0]?.id || "col_brand";
       const secondaryColId = collections[1]?.id || primaryColId;
 
+      const palette = ["#2563EB", "#059669", "#D97706", "#7C3AED", "#E11D48", "#0891B2"];
       containers = containers.map((c, index) => {
+        const color = c.color || palette[index % palette.length];
+        const note = c.note || c.description || "";
         if (!c.collectionId) {
           modified = true;
-          // if it's default or quick saves, put in general, else brand
-          const isQuick = c.id === "default" || (c.name || "").toLowerCase().includes("quick");
           return {
             ...c,
-            collectionId: isQuick ? secondaryColId : primaryColId,
+            collectionId: primaryColId,
             icon: c.icon || "archive",
+            color,
+            note,
+            order: c.order ?? index,
+          };
+        }
+        if (!c.color || c.note === undefined) {
+          modified = true;
+          return {
+            ...c,
+            icon: c.icon || "archive",
+            color,
+            note,
             order: c.order ?? index,
           };
         }
         return {
           ...c,
           icon: c.icon || "archive",
+          color: c.color || color,
+          note: c.note || note,
           order: c.order ?? index,
         };
       });
@@ -346,7 +387,7 @@ const SyncService = {
     const containerCollectionMap = new Map();
     containers.forEach((c) => containerCollectionMap.set(c.id, c.collectionId));
 
-    const defaultContId = containers[0]?.id || "default";
+    const defaultContId = containers[0]?.id || "cont_theme_ideas";
     const defaultColId = containers[0]?.collectionId || collections[0]?.id || "col_brand";
 
     items = items.map((item) => {
