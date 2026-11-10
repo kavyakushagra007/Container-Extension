@@ -1,46 +1,58 @@
-// ── SaveIt: Popup Controller (Option 2: Two-Tab Mode - Save vs. Browse) ──
+// ── SaveIt: Popup Controller (Containers-Only & Library Workspace) ──
 
-let collections = [];
 let containers = [];
 let allItems = [];
 
-let activeCollectionId = "all";
-let activeContainerId = "all";
-let activeVaultBoxId = "all";
-let currentFilter = "all";
+let activeContainerFilter = "all"; // "all" or specific container ID in Library
+let currentFilter = "all";          // type filter: "all", "link", "quote", "media", "favorite"
 let searchQuery = "";
 let editingItemId = null;
-let selectedColColor = "#4F46E5";
 let selectedContColor = "#2563EB";
+let inlineContColor = "#2563EB";
 let authIsSignUp = false;
 let currentTabInfo = null;
 
 // ── DOM References ──
 // Segmented Tabs & Views
 const tabSavePage = document.getElementById("tab-save-page");
-const tabRecentVault = document.getElementById("tab-recent-vault");
+const tabLibrary = document.getElementById("tab-library");
 const tabVaultCount = document.getElementById("tab-vault-count");
 const viewSavePage = document.getElementById("view-save-page");
-const viewRecentVault = document.getElementById("view-recent-vault");
+const viewLibrary = document.getElementById("view-library");
 
 // Screen A (Save Page)
 const savePageTypeChip = document.getElementById("save-page-type-chip");
 const savePageTitle = document.getElementById("save-page-title");
 const savePageUrl = document.getElementById("save-page-url");
-const saveColSelect = document.getElementById("save-col-select");
 const saveContSelect = document.getElementById("save-cont-select");
-const btnQuickNewCol = document.getElementById("btn-quick-new-col");
 const btnQuickNewCont = document.getElementById("btn-quick-new-cont");
 const saveNoteInput = document.getElementById("save-note-input");
 const saveTagsInput = document.getElementById("save-tags-input");
 const btnSaveCurrentPage = document.getElementById("btn-save-current-page");
 const btnSaveText = document.getElementById("btn-save-text");
-const btnPasteClipboard = document.getElementById("btn-paste-clipboard");
 
-// Screen B (Recent Vault)
+// Square Drop & Paste Area (Photos / Text / Links)
+const quickDropZone = document.getElementById("quick-drop-zone");
+const dropZoneIdle = document.getElementById("drop-zone-idle");
+const dropZoneActive = document.getElementById("drop-zone-active");
+const dropActiveTarget = document.getElementById("drop-active-target");
+const dropZoneSuccess = document.getElementById("drop-zone-success");
+const dropSuccessTitle = document.getElementById("drop-success-title");
+const dropSuccessMeta = document.getElementById("drop-success-meta");
+const dropSuccessThumb = document.getElementById("drop-success-thumb");
+const dropFileInput = document.getElementById("drop-file-input");
+
+// Screen B (Library)
 const vaultSearchInput = document.getElementById("vault-search-input");
 const vaultSearchClear = document.getElementById("vault-search-clear");
-const vaultBoxFilter = document.getElementById("vault-box-filter");
+const btnNewContainerToolbar = document.getElementById("btn-new-container-toolbar");
+const inlineContainerCreator = document.getElementById("inline-container-creator");
+const inlineContainerName = document.getElementById("inline-container-name");
+const btnInlineContConfirm = document.getElementById("btn-inline-cont-confirm");
+const btnInlineContCancel = document.getElementById("btn-inline-cont-cancel");
+const inlineColorPicker = document.getElementById("inline-color-picker");
+const containersPillsList = document.getElementById("containers-pills-list");
+const containersCountBadge = document.getElementById("containers-count-badge");
 const typeFilterChips = document.querySelectorAll(".type-filter-chip");
 const itemsContainer = document.getElementById("items-container");
 const emptyState = document.getElementById("empty-state");
@@ -50,7 +62,6 @@ const btnDashboard = document.getElementById("btn-dashboard");
 const btnAdd = document.getElementById("btn-add");
 const btnMenu = document.getElementById("btn-menu");
 const dropdownMenu = document.getElementById("dropdown-menu");
-const menuAddCollection = document.getElementById("menu-add-collection");
 const menuAddContainer = document.getElementById("menu-add-container");
 const menuAuth = document.getElementById("menu-auth");
 const menuExport = document.getElementById("menu-export");
@@ -64,9 +75,7 @@ const footerItemCount = document.getElementById("footer-item-count");
 
 // Add Modal (Manual Clip)
 const addModal = document.getElementById("add-modal");
-const addColSelect = document.getElementById("add-col-select");
-const addContSelect = document.getElementById("add-cont-select");
-const addTitle = document.getElementById("add-title");
+const addModalTitle = document.getElementById("add-modal-title");
 const addContent = document.getElementById("add-content");
 const addNote = document.getElementById("add-note");
 const addTags = document.getElementById("add-tags");
@@ -76,9 +85,6 @@ const modalCloseX = document.getElementById("modal-close-x");
 
 // Edit Modal
 const editModal = document.getElementById("edit-modal");
-const editColSelect = document.getElementById("edit-col-select");
-const editContSelect = document.getElementById("edit-cont-select");
-const editTitle = document.getElementById("edit-title");
 const editContent = document.getElementById("edit-content");
 const editNote = document.getElementById("edit-note");
 const editTags = document.getElementById("edit-tags");
@@ -86,17 +92,8 @@ const editCancel = document.getElementById("edit-cancel");
 const editSave = document.getElementById("edit-save");
 const editCloseX = document.getElementById("edit-close-x");
 
-// Collection Modal
-const collectionModal = document.getElementById("collection-modal");
-const colNameInput = document.getElementById("col-name-input");
-const colColorPicker = document.getElementById("col-color-picker");
-const colModalCancel = document.getElementById("col-modal-cancel");
-const colModalSave = document.getElementById("col-modal-save");
-const colModalCloseX = document.getElementById("col-modal-close-x");
-
 // Container Modal
 const containerModal = document.getElementById("container-modal");
-const contParentColSelect = document.getElementById("cont-parent-col-select");
 const containerNameInput = document.getElementById("container-name-input");
 const containerDescInput = document.getElementById("container-desc-input");
 const contColorPicker = document.getElementById("cont-color-picker");
@@ -133,25 +130,34 @@ document.addEventListener("DOMContentLoaded", async () => {
 
 async function loadState() {
   const state = await SyncService.ensureInitializedAndMigrated();
-  collections = state.collections || [];
   containers = state.containers || [];
   allItems = state.items || [];
 
-  const stored = await chrome.storage.local.get(["activeCollectionId", "activeContainerId"]);
-  if (stored.activeCollectionId) activeCollectionId = stored.activeCollectionId;
-  if (stored.activeContainerId) activeContainerId = stored.activeContainerId;
+  // Ensure user has at least one default container
+  if (containers.length === 0) {
+    const defaultCont = {
+      id: "cont_" + generateId(),
+      name: "General",
+      color: "#2563EB",
+      note: "Default container for all saves",
+      createdAt: Date.now(),
+      order: 0,
+    };
+    containers.push(defaultCont);
+    await chrome.storage.local.set({ containers });
+  }
+
+  const stored = await chrome.storage.local.get(["activeContainerFilter", "lastActiveContainer"]);
+  if (stored.activeContainerFilter) activeContainerFilter = stored.activeContainerFilter;
 
   // Validate active container still exists
-  if (activeContainerId !== "all" && !containers.some((c) => c.id === activeContainerId)) {
-    activeContainerId = "all";
-  }
-  if (activeCollectionId !== "all" && !collections.some((c) => c.id === activeCollectionId)) {
-    activeCollectionId = "all";
+  if (activeContainerFilter !== "all" && !containers.some((c) => c.id === activeContainerFilter)) {
+    activeContainerFilter = "all";
   }
 
   updateVaultCounters();
-  populateSaveDestinationSelects();
-  populateVaultBoxFilter();
+  populateContainerSelect(saveContSelect, stored.lastActiveContainer || containers[0]?.id);
+  renderContainersPills();
   renderItems();
 }
 
@@ -161,12 +167,11 @@ async function autoSyncBackground() {
   try {
     const res = await SyncService.syncNow();
     if (res) {
-      collections = res.collections || [];
       containers = res.containers || [];
       allItems = res.items || [];
       updateVaultCounters();
-      populateSaveDestinationSelects();
-      populateVaultBoxFilter();
+      populateContainerSelect(saveContSelect);
+      renderContainersPills();
       renderItems();
     }
   } catch (err) {
@@ -177,15 +182,18 @@ async function autoSyncBackground() {
 function updateVaultCounters() {
   const total = allItems.length;
   if (tabVaultCount) tabVaultCount.textContent = total;
-  if (footerItemCount) footerItemCount.textContent = `${total} ${total === 1 ? "item" : "items"} in vault`;
+  if (footerItemCount) footerItemCount.textContent = `${total} ${total === 1 ? "item" : "items"} in library`;
+  if (containersCountBadge) {
+    containersCountBadge.textContent = `${containers.length} ${containers.length === 1 ? "container" : "containers"}`;
+  }
 }
 
 // ── Event Listeners ──
 function setupEventListeners() {
   // Segmented Tabs
-  if (tabSavePage && tabRecentVault) {
+  if (tabSavePage && tabLibrary) {
     tabSavePage.addEventListener("click", () => switchToTab("save"));
-    tabRecentVault.addEventListener("click", () => switchToTab("vault"));
+    tabLibrary.addEventListener("click", () => switchToTab("library"));
   }
 
   // Active Tab Save Action
@@ -193,30 +201,47 @@ function setupEventListeners() {
     btnSaveCurrentPage.addEventListener("click", handleSaveCurrentTab);
   }
 
-  // Quick Paste
-  if (btnPasteClipboard) {
-    btnPasteClipboard.addEventListener("click", handleQuickPaste);
+  // Square Drop & Paste Engine (Photos, Texts, Links)
+  setupSquareDropZone();
+
+  // New Container shortcut in Save Page tab
+  if (btnQuickNewCont) {
+    btnQuickNewCont.addEventListener("click", openContainerModal);
   }
 
-  // Destination selects in Save Page tab
-  if (saveColSelect) {
-    saveColSelect.addEventListener("change", () => {
-      populateContainerSelect(saveContSelect, saveColSelect.value);
+  // Library: Desktop New Folder / Container Creator
+  if (btnNewContainerToolbar) {
+    btnNewContainerToolbar.addEventListener("click", () => {
+      toggleInlineCreator();
     });
   }
-  if (btnQuickNewCol) {
-    btnQuickNewCol.addEventListener("click", openCollectionModal);
+  if (btnInlineContConfirm) {
+    btnInlineContConfirm.addEventListener("click", handleInlineCreateContainer);
   }
-  if (btnQuickNewCont) {
-    btnQuickNewCont.addEventListener("click", () => {
-      openContainerModal();
-      if (saveColSelect && saveColSelect.value) {
-        contParentColSelect.value = saveColSelect.value;
+  if (btnInlineContCancel) {
+    btnInlineContCancel.addEventListener("click", closeInlineCreator);
+  }
+  if (inlineContainerName) {
+    inlineContainerName.addEventListener("keydown", (e) => {
+      if (e.key === "Enter") {
+        e.preventDefault();
+        handleInlineCreateContainer();
+      } else if (e.key === "Escape") {
+        closeInlineCreator();
       }
     });
   }
+  if (inlineColorPicker) {
+    inlineColorPicker.querySelectorAll(".color-dot").forEach((dot) => {
+      dot.addEventListener("click", () => {
+        inlineColorPicker.querySelectorAll(".color-dot").forEach((d) => d.classList.remove("active"));
+        dot.classList.add("active");
+        inlineContColor = dot.dataset.color;
+      });
+    });
+  }
 
-  // Recent Vault: Search
+  // Library: Search
   if (vaultSearchInput) {
     vaultSearchInput.addEventListener("input", (e) => {
       searchQuery = e.target.value.trim().toLowerCase();
@@ -233,15 +258,7 @@ function setupEventListeners() {
     });
   }
 
-  // Recent Vault: Box filter dropdown
-  if (vaultBoxFilter) {
-    vaultBoxFilter.addEventListener("change", (e) => {
-      activeVaultBoxId = e.target.value;
-      renderItems();
-    });
-  }
-
-  // Recent Vault: Type filter chips
+  // Library: Type filter chips
   typeFilterChips.forEach((btn) => {
     btn.addEventListener("click", () => {
       typeFilterChips.forEach((b) => b.classList.remove("active"));
@@ -273,12 +290,6 @@ function setupEventListeners() {
   });
 
   // Dropdown Menu Items
-  if (menuAddCollection) {
-    menuAddCollection.addEventListener("click", () => {
-      dropdownMenu.classList.add("hidden");
-      openCollectionModal();
-    });
-  }
   if (menuAddContainer) {
     menuAddContainer.addEventListener("click", () => {
       dropdownMenu.classList.add("hidden");
@@ -305,35 +316,11 @@ function setupEventListeners() {
   if (modalCloseX) modalCloseX.addEventListener("click", closeAddModal);
   if (modalCancel) modalCancel.addEventListener("click", closeAddModal);
   if (modalSave) modalSave.addEventListener("click", handleSaveNewItem);
-  if (addColSelect) {
-    addColSelect.addEventListener("change", () => {
-      populateContainerSelect(addContSelect, addColSelect.value);
-    });
-  }
 
   // Edit Item Modal
   if (editCloseX) editCloseX.addEventListener("click", closeEditModal);
   if (editCancel) editCancel.addEventListener("click", closeEditModal);
   if (editSave) editSave.addEventListener("click", handleSaveEditItem);
-  if (editColSelect) {
-    editColSelect.addEventListener("change", () => {
-      populateContainerSelect(editContSelect, editColSelect.value);
-    });
-  }
-
-  // Collection Modal
-  if (colModalCloseX) colModalCloseX.addEventListener("click", closeCollectionModal);
-  if (colModalCancel) colModalCancel.addEventListener("click", closeCollectionModal);
-  if (colModalSave) colModalSave.addEventListener("click", handleCreateCollection);
-  if (colColorPicker) {
-    colColorPicker.querySelectorAll(".color-swatch").forEach((swatch) => {
-      swatch.addEventListener("click", () => {
-        colColorPicker.querySelectorAll(".color-swatch").forEach((s) => s.classList.remove("active"));
-        swatch.classList.add("active");
-        selectedColColor = swatch.dataset.color;
-      });
-    });
-  }
 
   // Container Modal
   if (contModalCloseX) contModalCloseX.addEventListener("click", closeContainerModal);
@@ -362,16 +349,16 @@ function setupEventListeners() {
 function switchToTab(tabName) {
   if (tabName === "save") {
     tabSavePage.classList.add("active");
-    tabRecentVault.classList.remove("active");
+    tabLibrary.classList.remove("active");
     viewSavePage.classList.remove("hidden");
-    viewRecentVault.classList.add("hidden");
+    viewLibrary.classList.add("hidden");
     populateActiveTabPreview();
   } else {
-    tabRecentVault.classList.add("active");
+    tabLibrary.classList.add("active");
     tabSavePage.classList.remove("active");
-    viewRecentVault.classList.remove("hidden");
+    viewLibrary.classList.remove("hidden");
     viewSavePage.classList.add("hidden");
-    populateVaultBoxFilter();
+    renderContainersPills();
     renderItems();
   }
 }
@@ -410,16 +397,15 @@ async function populateActiveTabPreview() {
       if (btnSaveText) btnSaveText.textContent = "Update Saved Page";
       if (saveNoteInput) saveNoteInput.value = existing.note || "";
       if (saveTagsInput) saveTagsInput.value = (existing.tags || []).join(", ");
-      if (existing.collectionId && saveColSelect) {
-        saveColSelect.value = existing.collectionId;
-        populateContainerSelect(saveContSelect, existing.collectionId, existing.containerId);
+      if (existing.containerId && saveContSelect) {
+        saveContSelect.value = existing.containerId;
       }
     } else {
-      if (btnSaveText) btnSaveText.textContent = "Save Page to Vault";
+      if (btnSaveText) btnSaveText.textContent = "Save Page to Container";
     }
 
     if (footerStatusText) {
-      footerStatusText.textContent = existing ? "Saved in Vault" : "Ready to Save";
+      footerStatusText.textContent = existing ? "Saved in Library" : "Ready to Save";
     }
   } catch (err) {
     console.warn("Could not query active tab:", err);
@@ -435,39 +421,23 @@ async function handleSaveCurrentTab() {
     return;
   }
 
-  // Ensure user has at least one collection & container
-  if (collections.length === 0) {
-    const defaultCol = {
-      id: "col_" + generateId(),
-      name: "General",
-      color: "#4F46E5",
-      createdAt: Date.now(),
-      order: 0,
-    };
-    collections.push(defaultCol);
+  // Ensure user has at least one container
+  if (containers.length === 0) {
     const defaultCont = {
       id: "cont_" + generateId(),
-      collectionId: defaultCol.id,
-      name: "Quick Saves",
-      icon: "archive",
+      name: "General",
       color: "#2563EB",
-      description: "Default storage box",
+      note: "Default container",
       createdAt: Date.now(),
       order: 0,
     };
     containers.push(defaultCont);
-    await chrome.storage.local.set({ collections, containers });
-    populateSaveDestinationSelects();
+    await chrome.storage.local.set({ containers });
+    populateContainerSelect(saveContSelect, defaultCont.id);
   }
 
-  let colId = saveColSelect ? saveColSelect.value : collections[0]?.id;
   let contId = saveContSelect ? saveContSelect.value : containers[0]?.id;
-
-  if (!colId && collections.length > 0) colId = collections[0].id;
-  if (!contId && containers.length > 0) {
-    const matched = containers.find((c) => c.collectionId === colId);
-    contId = matched ? matched.id : containers[0].id;
-  }
+  if (!contId && containers.length > 0) contId = containers[0].id;
 
   const title = savePageTitle ? savePageTitle.value.trim() : (currentTabInfo?.title || "");
   const note = saveNoteInput ? saveNoteInput.value.trim() : "";
@@ -480,8 +450,8 @@ async function handleSaveCurrentTab() {
   const classification = classifyContent(url);
   const existingIndex = allItems.findIndex((i) => i.sourceUrl === url || i.content === url);
 
-  const targetBox = containers.find((c) => c.id === contId);
-  const boxName = targetBox ? targetBox.name : "Storage Box";
+  const targetBox = containers.find((c) => c.id === contId) || containers[0];
+  const boxName = targetBox ? targetBox.name : "Container";
 
   if (existingIndex !== -1) {
     // Update existing item
@@ -490,7 +460,6 @@ async function handleSaveCurrentTab() {
       title: title || allItems[existingIndex].title,
       note,
       tags,
-      collectionId: colId,
       containerId: contId,
       updatedAt: Date.now(),
     };
@@ -504,7 +473,6 @@ async function handleSaveCurrentTab() {
       content: url,
       note,
       containerId: contId,
-      collectionId: colId,
       previewImage: classification.thumbnail || "",
       metadata: classification.videoId ? { videoId: classification.videoId } : {},
       sourceUrl: url,
@@ -517,77 +485,30 @@ async function handleSaveCurrentTab() {
     showToast(`Saved to 📦 ${boxName}!`);
   }
 
-  await chrome.storage.local.set({ items: allItems });
-  SyncService.pushToCloud(allItems, containers, collections).catch(() => {});
+  await chrome.storage.local.set({ items: allItems, lastActiveContainer: contId });
+  SyncService.pushToCloud(allItems, containers, []).catch(() => {});
 
   updateVaultCounters();
-  populateVaultBoxFilter();
+  renderContainersPills();
   renderItems();
 
-  // Switch to Recent Vault tab to show the new card immediately
-  switchToTab("vault");
+  // Switch to Library tab to show the new card immediately
+  switchToTab("library");
 }
 
-// ── Destination Select Helpers ──
-function populateSaveDestinationSelects() {
-  if (!saveColSelect) return;
-  populateCollectionSelect(saveColSelect, activeCollectionId !== "all" ? activeCollectionId : collections[0]?.id);
-  populateContainerSelect(saveContSelect, saveColSelect.value, activeContainerId !== "all" ? activeContainerId : undefined);
-}
-
-function populateVaultBoxFilter() {
-  if (!vaultBoxFilter) return;
-  const currentVal = activeVaultBoxId || "all";
-  vaultBoxFilter.innerHTML = "";
-
-  const allOpt = document.createElement("option");
-  allOpt.value = "all";
-  allOpt.textContent = `All Boxes (${allItems.length}) ▾`;
-  if (currentVal === "all") allOpt.selected = true;
-  vaultBoxFilter.appendChild(allOpt);
+// ── Container Select Helper ──
+function populateContainerSelect(selectEl, selectedContId) {
+  if (!selectEl) return;
+  selectEl.innerHTML = "";
+  if (containers.length === 0) {
+    const opt = document.createElement("option");
+    opt.value = "";
+    opt.textContent = "(No containers created)";
+    selectEl.appendChild(opt);
+    return;
+  }
 
   containers.forEach((cont) => {
-    const count = allItems.filter((i) => i.containerId === cont.id).length;
-    const opt = document.createElement("option");
-    opt.value = cont.id;
-    opt.textContent = `📦 ${cont.name} (${count})`;
-    if (cont.id === currentVal) opt.selected = true;
-    vaultBoxFilter.appendChild(opt);
-  });
-}
-
-function populateCollectionSelect(selectEl, selectedColId) {
-  if (!selectEl) return;
-  selectEl.innerHTML = "";
-  if (collections.length === 0) {
-    const opt = document.createElement("option");
-    opt.value = "";
-    opt.textContent = "(No collections created)";
-    selectEl.appendChild(opt);
-    return;
-  }
-  collections.forEach((col) => {
-    const opt = document.createElement("option");
-    opt.value = col.id;
-    opt.textContent = `📁 ${col.name}`;
-    if (col.id === selectedColId) opt.selected = true;
-    selectEl.appendChild(opt);
-  });
-}
-
-function populateContainerSelect(selectEl, colId, selectedContId) {
-  if (!selectEl) return;
-  selectEl.innerHTML = "";
-  const matching = containers.filter((c) => c.collectionId === colId);
-  if (matching.length === 0) {
-    const opt = document.createElement("option");
-    opt.value = "";
-    opt.textContent = "(No boxes in this folder)";
-    selectEl.appendChild(opt);
-    return;
-  }
-
-  matching.forEach((cont) => {
     const opt = document.createElement("option");
     opt.value = cont.id;
     opt.textContent = `📦 ${cont.name}`;
@@ -596,14 +517,110 @@ function populateContainerSelect(selectEl, colId, selectedContId) {
   });
 }
 
+// ── Screen B: Containers Explorer Strip ──
+function renderContainersPills() {
+  if (!containersPillsList) return;
+  containersPillsList.innerHTML = "";
+
+  // 1. "All Items" pill
+  const allPill = document.createElement("button");
+  allPill.type = "button";
+  allPill.className = `cont-pill ${activeContainerFilter === "all" ? "active" : ""}`;
+  allPill.innerHTML = `
+    <span>📦 All</span>
+    <span class="cont-pill-count">${allItems.length}</span>
+  `;
+  allPill.addEventListener("click", () => {
+    activeContainerFilter = "all";
+    chrome.storage.local.set({ activeContainerFilter });
+    renderContainersPills();
+    renderItems();
+  });
+  containersPillsList.appendChild(allPill);
+
+  // 2. Individual Container Pills
+  containers.forEach((cont) => {
+    const count = allItems.filter((i) => i.containerId === cont.id).length;
+    const pill = document.createElement("button");
+    pill.type = "button";
+    pill.className = `cont-pill ${activeContainerFilter === cont.id ? "active" : ""}`;
+    pill.innerHTML = `
+      <span class="cont-pill-dot" style="background:${cont.color || "#2563EB"}"></span>
+      <span>${escapeHTML(cont.name)}</span>
+      <span class="cont-pill-count">${count}</span>
+    `;
+    pill.addEventListener("click", () => {
+      activeContainerFilter = cont.id;
+      chrome.storage.local.set({ activeContainerFilter });
+      renderContainersPills();
+      renderItems();
+    });
+    containersPillsList.appendChild(pill);
+  });
+}
+
+// ── Desktop Inline New Container Creator ──
+function toggleInlineCreator() {
+  if (!inlineContainerCreator) return;
+  const isHidden = inlineContainerCreator.classList.contains("hidden");
+  if (isHidden) {
+    inlineContainerCreator.classList.remove("hidden");
+    inlineContainerName.value = "";
+    inlineContainerName.focus();
+  } else {
+    closeInlineCreator();
+  }
+}
+
+function closeInlineCreator() {
+  if (!inlineContainerCreator) return;
+  inlineContainerCreator.classList.add("hidden");
+  inlineContainerName.value = "";
+}
+
+async function handleInlineCreateContainer() {
+  const name = inlineContainerName.value.trim();
+  if (!name) {
+    inlineContainerName.focus();
+    return;
+  }
+
+  const newCont = {
+    id: "cont_" + generateId(),
+    name,
+    color: inlineContColor || "#2563EB",
+    note: "",
+    createdAt: Date.now(),
+    order: containers.length,
+  };
+
+  containers.push(newCont);
+  activeContainerFilter = newCont.id;
+
+  await chrome.storage.local.set({
+    containers,
+    activeContainerFilter,
+    lastActiveContainer: newCont.id,
+  });
+
+  SyncService.pushToCloud(allItems, containers, []).catch(() => {});
+
+  closeInlineCreator();
+  updateVaultCounters();
+  populateContainerSelect(saveContSelect, newCont.id);
+  renderContainersPills();
+  renderItems();
+  showToast(`Created container: 📦 ${name}`);
+}
+
 // ── Screen B: Render Items (Cards Feed) ──
 function renderItems() {
   if (!itemsContainer) return;
   let filtered = [...allItems];
 
-  // Box filter dropdown
-  if (activeVaultBoxId && activeVaultBoxId !== "all") {
-    filtered = filtered.filter((i) => i.containerId === activeVaultBoxId);
+  // Container filter
+  if (activeContainerFilter && activeContainerFilter !== "all") {
+    filtered = filtered.filter((i) => i.containerId === activeContainerFilter);
   }
 
   // Type filter
@@ -651,10 +668,8 @@ function createItemCard(item) {
   card.className = `item-card type-${item.type || "text"}`;
   card.dataset.id = item.id;
 
-  const parentCol = collections.find((c) => c.id === item.collectionId);
   const parentCont = containers.find((c) => c.id === item.containerId);
-  const colName = parentCol ? parentCol.name : "Folder";
-  const contName = parentCont ? parentCont.name : "Storage Box";
+  const contName = parentCont ? parentCont.name : "Container";
 
   const typeIcons = {
     youtube: "🎬 YouTube",
@@ -673,7 +688,7 @@ function createItemCard(item) {
     <div class="card-top-row">
       <div style="display:flex;align-items:center;gap:6px;">
         <span class="card-type-chip ${item.type || "text"}">${typeLabel}</span>
-        <span class="card-hierarchy-tag" title="📁 ${escapeHTML(colName)} › 📦 ${escapeHTML(contName)}">
+        <span class="card-hierarchy-tag" title="📦 ${escapeHTML(contName)}">
           📦 ${escapeHTML(contName)}
         </span>
       </div>
@@ -722,7 +737,6 @@ function createItemCard(item) {
   } else if (item.type === "quote") {
     cardHtml += `<div class="card-quote-body">“${escapeHTML(item.content)}”</div>`;
   } else {
-    // Normal text or link snippet
     cardHtml += `<div class="card-content-text">${escapeHTML(item.content)}</div>`;
   }
 
@@ -784,69 +798,412 @@ function createItemCard(item) {
   return card;
 }
 
-// ── Quick Paste Handler ──
-async function handleQuickPaste() {
-  try {
-    const text = await navigator.clipboard.readText();
-    if (!text || !text.trim()) {
-      showToast("Clipboard is empty!");
+// ── Square Drop & Paste Engine (Photos / Texts / Links) ──
+
+function setupSquareDropZone() {
+  if (!quickDropZone) return;
+
+  // 1. Drag & Drop events on quickDropZone
+  quickDropZone.addEventListener("dragenter", (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    const targetCont = getActiveTargetContainer();
+    if (dropActiveTarget) dropActiveTarget.textContent = `Into 📦 ${targetCont.name}`;
+    quickDropZone.classList.add("drag-over");
+    if (dropZoneIdle) dropZoneIdle.classList.add("hidden");
+    if (dropZoneActive) dropZoneActive.classList.remove("hidden");
+    if (dropZoneSuccess) dropZoneSuccess.classList.add("hidden");
+  });
+
+  quickDropZone.addEventListener("dragover", (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    e.dataTransfer.dropEffect = "copy";
+    if (!quickDropZone.classList.contains("drag-over")) {
+      quickDropZone.classList.add("drag-over");
+    }
+  });
+
+  quickDropZone.addEventListener("dragleave", (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (!quickDropZone.contains(e.relatedTarget)) {
+      resetDropZoneUI();
+    }
+  });
+
+  quickDropZone.addEventListener("drop", async (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    resetDropZoneUI();
+    if (e.dataTransfer) {
+      await handleDropOrPaste(e.dataTransfer);
+    }
+  });
+
+  // 2. Click on square: trigger clipboard paste or file selector
+  quickDropZone.addEventListener("click", async () => {
+    try {
+      // First try reading image or text directly from modern clipboard API
+      if (navigator.clipboard && navigator.clipboard.read) {
+        try {
+          const items = await navigator.clipboard.read();
+          for (const item of items) {
+            const imageType = item.types.find((t) => t.startsWith("image/"));
+            if (imageType) {
+              const blob = await item.getType(imageType);
+              const reader = new FileReader();
+              reader.onload = async (ev) => {
+                await saveDirectItem({
+                  type: "image",
+                  title: "Pasted Screenshot",
+                  content: ev.target.result,
+                  previewImage: ev.target.result,
+                  sourceTitle: "Clipboard Photo",
+                });
+              };
+              reader.readAsDataURL(blob);
+              return;
+            }
+          }
+        } catch (clipErr) {
+          // Fall back to readText
+        }
+      }
+
+      // Check text clipboard
+      if (navigator.clipboard && navigator.clipboard.readText) {
+        const text = await navigator.clipboard.readText();
+        if (text && text.trim()) {
+          const classification = classifyContent(text.trim());
+          await saveDirectItem({
+            type: classification.type,
+            title: classification.type === "youtube" ? "YouTube Video" : classification.type === "quote" ? "Saved Quote" : "",
+            content: text.trim(),
+            previewImage: classification.thumbnail || (classification.type === "image" ? text.trim() : ""),
+            metadata: classification.videoId ? { videoId: classification.videoId } : {},
+            sourceUrl: text.trim().startsWith("http") ? text.trim() : "",
+          });
+          return;
+        }
+      }
+
+      // If clipboard empty or denied, trigger file picker
+      if (dropFileInput) dropFileInput.click();
+    } catch (err) {
+      if (dropFileInput) dropFileInput.click();
+    }
+  });
+
+  // 3. File Input Change Handler (Photo / Text file picker)
+  if (dropFileInput) {
+    dropFileInput.addEventListener("change", async (e) => {
+      const file = e.target.files?.[0];
+      if (!file) return;
+      if (file.type.startsWith("image/")) {
+        const reader = new FileReader();
+        reader.onload = async (ev) => {
+          await saveDirectItem({
+            type: "image",
+            title: file.name.replace(/\.[^/.]+$/, ""),
+            content: ev.target.result,
+            previewImage: ev.target.result,
+            sourceTitle: file.name,
+          });
+        };
+        reader.readAsDataURL(file);
+      } else {
+        const reader = new FileReader();
+        reader.onload = async (ev) => {
+          await saveDirectItem({
+            type: "text",
+            title: file.name.replace(/\.[^/.]+$/, ""),
+            content: ev.target.result,
+            sourceTitle: file.name,
+          });
+        };
+        reader.readAsText(file);
+      }
+      dropFileInput.value = "";
+    });
+  }
+
+  // 4. Keyboard navigation: Space or Enter on focused square triggers action
+  quickDropZone.addEventListener("keydown", (e) => {
+    if (e.key === "Enter" || e.key === " ") {
+      e.preventDefault();
+      quickDropZone.click();
+    }
+  });
+
+  // 5. Global Paste Listener: ⌘V anywhere in popup unless typing in an input
+  document.addEventListener("paste", async (e) => {
+    const activeEl = document.activeElement;
+    const isTyping =
+      activeEl &&
+      (activeEl.tagName === "INPUT" ||
+        activeEl.tagName === "TEXTAREA" ||
+        activeEl.isContentEditable);
+    if (isTyping && activeEl !== quickDropZone) {
+      return; // Allow normal native paste into inputs
+    }
+
+    if (e.clipboardData) {
+      e.preventDefault();
+      await handleDropOrPaste(e.clipboardData);
+    }
+  });
+}
+
+function getActiveTargetContainer() {
+  if (containers.length === 0) {
+    const defaultCont = {
+      id: "cont_" + generateId(),
+      name: "General",
+      color: "#2563EB",
+      note: "Default container",
+      createdAt: Date.now(),
+      order: 0,
+    };
+    containers.push(defaultCont);
+    chrome.storage.local.set({ containers });
+    populateContainerSelect(saveContSelect, defaultCont.id);
+  }
+
+  const selectedId = saveContSelect ? saveContSelect.value : "";
+  if (selectedId) {
+    const found = containers.find((c) => c.id === selectedId);
+    if (found) return found;
+  }
+
+  if (activeContainerFilter && activeContainerFilter !== "all") {
+    const found = containers.find((c) => c.id === activeContainerFilter);
+    if (found) return found;
+  }
+
+  return containers[0];
+}
+
+async function handleDropOrPaste(dataTransfer) {
+  // A. Check for files (Images or Text documents)
+  if (dataTransfer.files && dataTransfer.files.length > 0) {
+    const file = dataTransfer.files[0];
+    if (file.type.startsWith("image/")) {
+      const reader = new FileReader();
+      reader.onload = async (ev) => {
+        await saveDirectItem({
+          type: "image",
+          title: file.name ? file.name.replace(/\.[^/.]+$/, "") : "Dropped Photo",
+          content: ev.target.result,
+          previewImage: ev.target.result,
+          sourceTitle: file.name || "Photo",
+        });
+      };
+      reader.readAsDataURL(file);
+      return;
+    } else {
+      const reader = new FileReader();
+      reader.onload = async (ev) => {
+        await saveDirectItem({
+          type: "text",
+          title: file.name ? file.name.replace(/\.[^/.]+$/, "") : "Dropped File",
+          content: ev.target.result,
+          sourceTitle: file.name || "Document",
+        });
+      };
+      reader.readAsText(file);
       return;
     }
-
-    // Default target
-    if (collections.length === 0) {
-      await handleSaveCurrentTab();
-    }
-    const targetCol = collections[0];
-    const targetCont = containers.find((c) => c.collectionId === targetCol.id) || containers[0];
-
-    const classification = classifyContent(text.trim());
-    const newItem = {
-      id: generateId(),
-      type: classification.type,
-      title: classification.type === "youtube" ? "YouTube Video" : classification.type === "quote" ? "Saved Quote" : "",
-      content: text.trim(),
-      containerId: targetCont.id,
-      collectionId: targetCol.id,
-      previewImage: classification.thumbnail || (classification.type === "image" ? text.trim() : ""),
-      metadata: classification.videoId ? { videoId: classification.videoId } : {},
-      sourceUrl: text.trim().startsWith("http") ? text.trim() : "",
-      sourceTitle: "",
-      tags: [],
-      favorite: false,
-      createdAt: Date.now(),
-    };
-
-    allItems.unshift(newItem);
-    await chrome.storage.local.set({ items: allItems });
-    SyncService.pushToCloud(allItems, containers, collections).catch(() => {});
-
-    updateVaultCounters();
-    populateVaultBoxFilter();
-    renderItems();
-    switchToTab("vault");
-    showToast(`Saved to 📦 ${targetCont.name}`);
-  } catch (err) {
-    showToast("Clipboard access denied. Use ⌘+V");
   }
+
+  // B. Check for clipboard image blobs (e.g. pasted screenshots)
+  if (dataTransfer.items && dataTransfer.items.length > 0) {
+    for (let i = 0; i < dataTransfer.items.length; i++) {
+      const item = dataTransfer.items[i];
+      if (item.type.indexOf("image") !== -1) {
+        const blob = item.getAsFile();
+        if (blob) {
+          const reader = new FileReader();
+          reader.onload = async (ev) => {
+            await saveDirectItem({
+              type: "image",
+              title: "Pasted Screenshot",
+              content: ev.target.result,
+              previewImage: ev.target.result,
+              sourceTitle: "Clipboard Image",
+            });
+          };
+          reader.readAsDataURL(blob);
+          return;
+        }
+      }
+    }
+  }
+
+  // C. Check for dragged HTML image from webpage
+  const html = dataTransfer.getData ? dataTransfer.getData("text/html") : "";
+  if (html) {
+    const match = html.match(/<img[^>]+src=["']([^"']+)["']/i);
+    if (match && match[1]) {
+      const imgSrc = match[1];
+      await saveDirectItem({
+        type: "image",
+        title: "Web Image",
+        content: imgSrc,
+        previewImage: imgSrc,
+        sourceUrl: imgSrc,
+        sourceTitle: "Dragged Image",
+      });
+      return;
+    }
+  }
+
+  // D. Check for URI / Link URL
+  let uri = dataTransfer.getData ? dataTransfer.getData("text/uri-list") : "";
+  if (!uri && dataTransfer.getData) {
+    const plain = dataTransfer.getData("text/plain") || "";
+    if (/^https?:\/\//i.test(plain.trim())) {
+      uri = plain.trim();
+    }
+  }
+  if (uri) {
+    const cleanUrl = uri.split("\r\n")[0].split("\n")[0].trim();
+    const classification = classifyContent(cleanUrl);
+    await saveDirectItem({
+      type: classification.type,
+      title: classification.type === "youtube" ? "YouTube Video" : (cleanUrl.replace(/^https?:\/\/(www\.)?/, "").split("/")[0] || "Web Link"),
+      content: cleanUrl,
+      previewImage: classification.thumbnail || (classification.type === "image" ? cleanUrl : ""),
+      metadata: classification.videoId ? { videoId: classification.videoId } : {},
+      sourceUrl: cleanUrl,
+      sourceTitle: "Dropped Link",
+    });
+    return;
+  }
+
+  // E. Plain text snippet or quote
+  const text = dataTransfer.getData ? dataTransfer.getData("text/plain") : "";
+  if (text && text.trim()) {
+    const classification = classifyContent(text.trim());
+    await saveDirectItem({
+      type: classification.type === "quote" ? "quote" : "text",
+      title: classification.type === "quote" ? "Saved Quote" : "Note Snippet",
+      content: text.trim(),
+      sourceTitle: "Pasted Text",
+    });
+    return;
+  }
+
+  showToast("No photos, text, or links detected");
+}
+
+async function saveDirectItem(itemPartial) {
+  const targetCont = getActiveTargetContainer();
+
+  // Attach optional memo & tags if user entered any in the inputs
+  const note = saveNoteInput ? saveNoteInput.value.trim() : "";
+  const rawTags = saveTagsInput ? saveTagsInput.value : "";
+  const tags = rawTags
+    .split(",")
+    .map((t) => t.trim())
+    .filter(Boolean);
+
+  const fullItem = {
+    id: generateId(),
+    type: itemPartial.type || "text",
+    title: itemPartial.title || "Saved Item",
+    content: itemPartial.content || "",
+    containerId: targetCont.id,
+    note: note || "",
+    tags: tags,
+    previewImage: itemPartial.previewImage || "",
+    metadata: itemPartial.metadata || {},
+    sourceUrl: itemPartial.sourceUrl || "",
+    sourceTitle: itemPartial.sourceTitle || "",
+    favorite: false,
+    createdAt: Date.now(),
+  };
+
+  allItems.unshift(fullItem);
+  await chrome.storage.local.set({ items: allItems, lastActiveContainer: targetCont.id });
+  SyncService.pushToCloud(allItems, containers, []).catch(() => {});
+
+  // Clear memo / tags after saving
+  if (saveNoteInput) saveNoteInput.value = "";
+  if (saveTagsInput) saveTagsInput.value = "";
+
+  updateVaultCounters();
+  renderContainersPills();
+  renderItems();
+
+  // Visual success feedback on square drop zone
+  showDropSuccessState(fullItem, targetCont);
+  showToast(`Saved to 📦 ${targetCont.name}`);
+}
+
+function showDropSuccessState(item, targetCont) {
+  if (!quickDropZone) return;
+  quickDropZone.classList.remove("drag-over");
+  quickDropZone.classList.add("drop-success-active");
+
+  if (dropZoneIdle) dropZoneIdle.classList.add("hidden");
+  if (dropZoneActive) dropZoneActive.classList.add("hidden");
+  if (dropZoneSuccess) dropZoneSuccess.classList.remove("hidden");
+
+  if (dropSuccessTitle) {
+    const typeLabels = {
+      image: "Photo Saved!",
+      quote: "Quote Saved!",
+      youtube: "Video Saved!",
+      link: "Link Saved!",
+      text: "Snippet Saved!",
+    };
+    dropSuccessTitle.textContent = typeLabels[item.type] || "Saved!";
+  }
+
+  if (dropSuccessMeta) {
+    dropSuccessMeta.textContent = `📦 ${targetCont.name}`;
+  }
+
+  if (dropSuccessThumb) {
+    if (item.type === "image" && item.previewImage) {
+      dropSuccessThumb.src = item.previewImage;
+      dropSuccessThumb.classList.remove("hidden");
+    } else {
+      dropSuccessThumb.classList.add("hidden");
+    }
+  }
+
+  // Smoothly revert to idle state after 2.3 seconds
+  setTimeout(() => {
+    resetDropZoneUI();
+  }, 2300);
+}
+
+function resetDropZoneUI() {
+  if (!quickDropZone) return;
+  quickDropZone.classList.remove("drag-over", "drop-success-active");
+  if (dropZoneIdle) dropZoneIdle.classList.remove("hidden");
+  if (dropZoneActive) dropZoneActive.classList.add("hidden");
+  if (dropZoneSuccess) dropZoneSuccess.classList.add("hidden");
 }
 
 // ── Add Item Modal Logic ──
+let popupModalContId = null;
+
 function openAddModal() {
-  if (collections.length === 0) {
-    showToast("Please create a collection folder first");
-    openCollectionModal();
-    return;
-  }
   if (containers.length === 0) {
-    showToast("Please create a storage box first");
+    showToast("Please create a container first");
     openContainerModal();
     return;
   }
 
-  populateCollectionSelect(addColSelect, activeCollectionId !== "all" ? activeCollectionId : collections[0]?.id);
-  populateContainerSelect(addContSelect, addColSelect.value, activeContainerId !== "all" ? activeContainerId : undefined);
-  addTitle.value = "";
+  popupModalContId = activeContainerFilter !== "all" ? activeContainerFilter : (saveContSelect?.value || containers[0]?.id);
+  const target = containers.find((c) => c.id === popupModalContId);
+  if (addModalTitle) {
+    addModalTitle.textContent = target ? `Save Item to 📦 ${target.name}` : "Save Item";
+  }
+
   addContent.value = "";
   if (addNote) addNote.value = "";
   addTags.value = "";
@@ -865,55 +1222,65 @@ async function handleSaveNewItem() {
     return;
   }
 
-  const colId = addColSelect.value;
-  const contId = addContSelect.value;
-  const title = addTitle.value.trim();
+  const contId = popupModalContId || containers[0]?.id;
+  const targetCont = containers.find((c) => c.id === contId);
   const note = addNote ? addNote.value.trim() : "";
   const tags = addTags.value
     .split(",")
     .map((t) => t.trim())
     .filter(Boolean);
 
-  const classification = classifyContent(content);
+  const isUrl = /^https?:\/\//i.test(content);
+  const classification = classifyContent(content, isUrl ? content : "");
+
+  let title = "";
+  if (classification.type === "youtube") {
+    title = "YouTube Video";
+  } else if (classification.type === "quote") {
+    title = "Saved Quote";
+  } else if (isUrl) {
+    title = content.replace(/^https?:\/\/(www\.)?/, "").split("/")[0] || "Web Link";
+  } else {
+    title = content.length > 40 ? content.slice(0, 40) + "…" : content;
+  }
 
   const newItem = {
     id: generateId(),
     type: classification.type,
-    title: title || (classification.type === "youtube" ? "Saved YouTube" : ""),
+    title,
     content,
     note,
     containerId: contId,
-    collectionId: colId,
     previewImage: classification.thumbnail || (classification.type === "image" ? content : ""),
     metadata: classification.videoId ? { videoId: classification.videoId } : {},
-    sourceUrl: content.startsWith("http") ? content : "",
+    sourceUrl: isUrl ? content : "",
+    sourceTitle: title,
     tags,
     favorite: false,
     createdAt: Date.now(),
   };
 
   allItems.unshift(newItem);
-  await chrome.storage.local.set({ items: allItems });
-  SyncService.pushToCloud(allItems, containers, collections).catch(() => {});
+  await chrome.storage.local.set({ items: allItems, lastActiveContainer: contId });
+  SyncService.pushToCloud(allItems, containers, []).catch(() => {});
 
   closeAddModal();
   updateVaultCounters();
-  populateVaultBoxFilter();
+  renderContainersPills();
   renderItems();
-  switchToTab("vault");
-  showToast("Item saved!");
+  switchToTab("library");
+  showToast(`Saved to 📦 ${targetCont ? targetCont.name : "Container"}!`);
 }
 
 // ── Edit Item Modal Logic ──
 function openEditModal(item) {
   editingItemId = item.id;
-  populateCollectionSelect(editColSelect, item.collectionId);
-  populateContainerSelect(editContSelect, item.collectionId, item.containerId);
-  editTitle.value = item.title || "";
+  popupModalContId = item.containerId;
   editContent.value = item.content || "";
   if (editNote) editNote.value = item.note || "";
   editTags.value = (item.tags || []).join(", ");
   editModal.classList.remove("hidden");
+  editContent.focus();
 }
 
 function closeEditModal() {
@@ -929,100 +1296,40 @@ async function handleSaveEditItem() {
   const itemIndex = allItems.findIndex((i) => i.id === editingItemId);
   if (itemIndex === -1) return;
 
-  const colId = editColSelect.value;
-  const contId = editContSelect.value;
-  const title = editTitle.value.trim();
+  const contId = allItems[itemIndex].containerId;
   const note = editNote ? editNote.value.trim() : "";
   const tags = editTags.value
     .split(",")
     .map((t) => t.trim())
     .filter(Boolean);
 
-  const classification = classifyContent(content);
+  const isUrl = /^https?:\/\//i.test(content);
+  const classification = classifyContent(content, isUrl ? content : "");
 
   allItems[itemIndex] = {
     ...allItems[itemIndex],
     content,
-    title,
     note,
-    collectionId: colId,
     containerId: contId,
     tags,
     type: classification.type,
     previewImage: classification.thumbnail || (classification.type === "image" ? content : allItems[itemIndex].previewImage),
+    sourceUrl: isUrl ? content : (allItems[itemIndex].sourceUrl || ""),
     updatedAt: Date.now(),
   };
 
   await chrome.storage.local.set({ items: allItems });
-  SyncService.pushToCloud(allItems, containers, collections).catch(() => {});
+  SyncService.pushToCloud(allItems, containers, []).catch(() => {});
 
   closeEditModal();
   updateVaultCounters();
-  populateVaultBoxFilter();
+  renderContainersPills();
   renderItems();
   showToast("Item updated!");
 }
 
-// ── Collection Modal Logic ──
-function openCollectionModal() {
-  colNameInput.value = "";
-  selectedColColor = "#4F46E5";
-  collectionModal.classList.remove("hidden");
-  colNameInput.focus();
-}
-
-function closeCollectionModal() {
-  collectionModal.classList.add("hidden");
-}
-
-async function handleCreateCollection() {
-  const name = colNameInput.value.trim();
-  if (!name) return;
-
-  const newCol = {
-    id: "col_" + generateId(),
-    name,
-    color: selectedColColor,
-    createdAt: Date.now(),
-    order: collections.length,
-  };
-
-  collections.push(newCol);
-
-  // Automatically create a default storage box inside this new collection
-  const defaultCont = {
-    id: "cont_" + generateId(),
-    collectionId: newCol.id,
-    name: "General",
-    icon: "archive",
-    description: "Default storage box for " + name,
-    createdAt: Date.now(),
-    order: 0,
-  };
-  containers.push(defaultCont);
-
-  activeCollectionId = newCol.id;
-  activeContainerId = defaultCont.id;
-
-  await chrome.storage.local.set({
-    collections,
-    containers,
-    activeCollectionId,
-    activeContainerId,
-  });
-
-  SyncService.pushToCloud(allItems, containers, collections).catch(() => {});
-
-  closeCollectionModal();
-  populateSaveDestinationSelects();
-  populateVaultBoxFilter();
-  renderItems();
-  showToast(`Created Collection: 📁 ${name}`);
-}
-
 // ── Container Modal Logic ──
 function openContainerModal() {
-  populateCollectionSelect(contParentColSelect, activeCollectionId !== "all" ? activeCollectionId : collections[0]?.id);
   containerNameInput.value = "";
   containerDescInput.value = "";
   containerModal.classList.remove("hidden");
@@ -1035,13 +1342,11 @@ function closeContainerModal() {
 
 async function handleCreateContainer() {
   const name = containerNameInput.value.trim();
-  const parentColId = contParentColSelect.value;
-  if (!name || !parentColId) return;
+  if (!name) return;
 
   const desc = containerDescInput.value.trim();
   const newCont = {
     id: "cont_" + generateId(),
-    collectionId: parentColId,
     name,
     icon: "archive",
     color: selectedContColor || "#2563EB",
@@ -1052,23 +1357,22 @@ async function handleCreateContainer() {
   };
 
   containers.push(newCont);
-  activeCollectionId = parentColId;
-  activeContainerId = newCont.id;
+  activeContainerFilter = newCont.id;
 
   await chrome.storage.local.set({
     containers,
-    activeCollectionId,
-    activeContainerId,
+    activeContainerFilter,
     lastActiveContainer: newCont.id,
   });
 
-  SyncService.pushToCloud(allItems, containers, collections).catch(() => {});
+  SyncService.pushToCloud(allItems, containers, []).catch(() => {});
 
   closeContainerModal();
-  populateSaveDestinationSelects();
-  populateVaultBoxFilter();
+  updateVaultCounters();
+  populateContainerSelect(saveContSelect, newCont.id);
+  renderContainersPills();
   renderItems();
-  showToast(`Created Box: 📦 ${name}`);
+  showToast(`Created Container: 📦 ${name}`);
 }
 
 // ── Item Actions (Fav, Copy, Delete) ──
@@ -1077,7 +1381,7 @@ async function toggleFavorite(id) {
   if (!item) return;
   item.favorite = !item.favorite;
   await chrome.storage.local.set({ items: allItems });
-  SyncService.pushToCloud(allItems, containers, collections).catch(() => {});
+  SyncService.pushToCloud(allItems, containers, []).catch(() => {});
   renderItems();
   showToast(item.favorite ? "Added to Favorites ★" : "Removed from Favorites");
 }
@@ -1094,9 +1398,9 @@ async function copyToClipboard(text) {
 async function deleteItem(id) {
   allItems = allItems.filter((i) => i.id !== id);
   await chrome.storage.local.set({ items: allItems });
-  SyncService.pushToCloud(allItems, containers, collections).catch(() => {});
+  SyncService.pushToCloud(allItems, containers, []).catch(() => {});
   updateVaultCounters();
-  populateVaultBoxFilter();
+  renderContainersPills();
   renderItems();
   showToast("Item deleted");
 }
@@ -1105,7 +1409,6 @@ async function deleteItem(id) {
 function handleExport() {
   dropdownMenu.classList.add("hidden");
   const data = {
-    collections,
     containers,
     items: allItems,
     exportedAt: new Date().toISOString(),
@@ -1131,11 +1434,6 @@ async function handleImport(e) {
 
     let importedItems = Array.isArray(data) ? data : data.items || [];
     let importedContainers = data.containers || [];
-    let importedCollections = data.collections || [];
-
-    const colMap = new Map();
-    collections.forEach((c) => colMap.set(c.id, c));
-    importedCollections.forEach((c) => { if (c && c.id && !colMap.has(c.id)) colMap.set(c.id, c); });
 
     const contMap = new Map();
     containers.forEach((c) => contMap.set(c.id, c));
@@ -1145,17 +1443,16 @@ async function handleImport(e) {
     allItems.forEach((i) => itemMap.set(i.id, i));
     importedItems.forEach((i) => { if (i && i.id && !itemMap.has(i.id)) itemMap.set(i.id, i); });
 
-    collections = Array.from(colMap.values());
     containers = Array.from(contMap.values());
     allItems = Array.from(itemMap.values());
 
-    await chrome.storage.local.set({ collections, containers, items: allItems });
+    await chrome.storage.local.set({ containers, items: allItems });
     await SyncService.ensureInitializedAndMigrated();
-    SyncService.pushToCloud(allItems, containers, collections).catch(() => {});
+    SyncService.pushToCloud(allItems, containers, []).catch(() => {});
 
     updateVaultCounters();
-    populateSaveDestinationSelects();
-    populateVaultBoxFilter();
+    populateContainerSelect(saveContSelect);
+    renderContainersPills();
     renderItems();
     showToast(`Imported ${importedItems.length} items!`);
   } catch (err) {
@@ -1165,13 +1462,13 @@ async function handleImport(e) {
 
 async function handleClearAll() {
   dropdownMenu.classList.add("hidden");
-  if (!confirm("Are you sure you want to clear all saved items? Collections and storage boxes will be kept.")) return;
+  if (!confirm("Are you sure you want to clear all saved items? Storage containers will be kept.")) return;
 
   allItems = [];
   await chrome.storage.local.set({ items: [] });
-  SyncService.pushToCloud([], containers, collections).catch(() => {});
+  SyncService.pushToCloud([], containers, []).catch(() => {});
   updateVaultCounters();
-  populateVaultBoxFilter();
+  renderContainersPills();
   renderItems();
   showToast("All items cleared");
 }
@@ -1251,12 +1548,11 @@ async function handleManualSync() {
     showToast("Syncing with cloud...");
     const res = await SyncService.syncNow();
     if (res) {
-      collections = res.collections || [];
       containers = res.containers || [];
       allItems = res.items || [];
       updateVaultCounters();
-      populateSaveDestinationSelects();
-      populateVaultBoxFilter();
+      populateContainerSelect(saveContSelect);
+      renderContainersPills();
       renderItems();
       showToast("Vault synchronized!");
     }
@@ -1351,7 +1647,7 @@ function classifyContent(text) {
     return { type: "link" };
   }
 
-  // Quote heuristic: starts and ends with quotation marks or contains quotation
+  // Quote heuristic
   if ((str.startsWith('"') && str.endsWith('"')) || (str.startsWith('“') && str.endsWith('”'))) {
     return { type: "quote" };
   }

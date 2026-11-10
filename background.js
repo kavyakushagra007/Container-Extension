@@ -47,14 +47,12 @@ function setupContextMenus() {
   });
 }
 
-// ── Get Active Destination (Collection & Container) ──
+// ── Get Active Destination (Container Only) ──
 async function getTargetDestination() {
   const data = await chrome.storage.local.get([
-    "collections",
     "containers",
     "lastActiveContainer",
   ]);
-  let collections = data.collections || [];
   let containers = data.containers || [];
   const lastActiveContainer = data.lastActiveContainer;
 
@@ -68,22 +66,9 @@ async function getTargetDestination() {
       targetCont = containers[0];
     } else {
       // First save when vault is completely brand new
-      let parentCol = collections[0];
-      if (!parentCol) {
-        parentCol = {
-          id: "col_" + Date.now(),
-          name: "My Vault",
-          color: "#4F46E5",
-          createdAt: Date.now(),
-          order: 0,
-        };
-        collections.push(parentCol);
-        await chrome.storage.local.set({ collections });
-      }
       targetCont = {
         id: "cont_" + Date.now(),
-        collectionId: parentCol.id,
-        name: "Saved Items",
+        name: "General Saves",
         color: "#2563EB",
         note: "",
         description: "",
@@ -93,19 +78,13 @@ async function getTargetDestination() {
       containers.push(targetCont);
       await chrome.storage.local.set({ containers, lastActiveContainer: targetCont.id });
     }
-    if (targetCont) {
-      chrome.storage.local.set({ lastActiveContainer: targetCont.id }).catch(() => {});
-    }
   }
 
-  const parentCol =
-    collections.find((col) => col.id === targetCont.collectionId) ||
-    collections[0];
+  if (targetCont) {
+    chrome.storage.local.set({ lastActiveContainer: targetCont.id }).catch(() => {});
+  }
 
-  return {
-    collection: parentCol,
-    container: targetCont,
-  };
+  return { container: targetCont };
 }
 
 // ── Handle Context Menu Clicks ──
@@ -115,7 +94,7 @@ chrome.contextMenus.onClicked.addListener(async (info, tab) => {
     return;
   }
 
-  const { collection, container } = await getTargetDestination();
+  const { container } = await getTargetDestination();
   let item = null;
 
   if (info.menuItemId === "saveit-selection" && info.selectionText) {
@@ -127,7 +106,6 @@ chrome.contextMenus.onClicked.addListener(async (info, tab) => {
       title: tab?.title ? `From: ${tab.title}` : "Saved Snippet",
       content: text,
       containerId: container.id,
-      collectionId: collection.id,
       sourceUrl: tab?.url || "",
       sourceTitle: tab?.title || "",
       createdAt: Date.now(),
@@ -142,7 +120,6 @@ chrome.contextMenus.onClicked.addListener(async (info, tab) => {
       content: info.srcUrl,
       previewImage: info.srcUrl,
       containerId: container.id,
-      collectionId: collection.id,
       sourceUrl: tab?.url || info.pageUrl || "",
       sourceTitle: tab?.title || "",
       createdAt: Date.now(),
@@ -157,7 +134,6 @@ chrome.contextMenus.onClicked.addListener(async (info, tab) => {
       title: info.selectionText || tab?.title || info.linkUrl,
       content: info.linkUrl,
       containerId: container.id,
-      collectionId: collection.id,
       previewImage: classification.thumbnail || "",
       metadata: classification.videoId ? { videoId: classification.videoId } : {},
       sourceUrl: info.linkUrl,
@@ -175,7 +151,6 @@ chrome.contextMenus.onClicked.addListener(async (info, tab) => {
       title: tab?.title || "Web Bookmark",
       content: pageUrl,
       containerId: container.id,
-      collectionId: collection.id,
       previewImage: classification.thumbnail || "",
       metadata: classification.videoId ? { videoId: classification.videoId } : {},
       sourceUrl: pageUrl,
@@ -187,14 +162,14 @@ chrome.contextMenus.onClicked.addListener(async (info, tab) => {
   }
 
   if (item) {
-    await saveItem(item, collection, container);
+    await saveItem(item, container);
   }
 });
 
 // ── Keyboard shortcut handler ──
 chrome.commands.onCommand.addListener(async (command) => {
   if (command === "save-selection") {
-    const { collection, container } = await getTargetDestination();
+    const { container } = await getTargetDestination();
 
     chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
       if (tabs[0]) {
@@ -213,14 +188,13 @@ chrome.commands.onCommand.addListener(async (command) => {
                 title: tabs[0].title ? `From: ${tabs[0].title}` : "Saved Snippet",
                 content: text.trim(),
                 containerId: container.id,
-                collectionId: collection.id,
                 sourceUrl: tabs[0].url || "",
                 sourceTitle: tabs[0].title || "",
                 createdAt: Date.now(),
                 tags: [],
                 favorite: false,
               };
-              saveItem(item, collection, container);
+              saveItem(item, container);
             }
           });
       }
@@ -240,7 +214,7 @@ function clearBadge() {
 
 chrome.runtime.onStartup.addListener(clearBadge);
 
-async function saveItem(item, collection, container) {
+async function saveItem(item, container) {
   const { items = [], containers = [], collections = [] } = await chrome.storage.local.get([
     "items",
     "containers",
@@ -257,11 +231,10 @@ async function saveItem(item, collection, container) {
 
   clearBadge();
 
-  // Notify content script with rich destination information
+  // Notify content script with container information
   try {
     const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
     if (tab?.id) {
-      const colName = collection?.name || "Collection";
       const contName = container?.name || "Container";
       const preview = item.content.length > 60 ? item.content.slice(0, 60) + "…" : item.content;
 
@@ -269,7 +242,6 @@ async function saveItem(item, collection, container) {
         action: "showSaveNotification",
         type: item.type,
         preview,
-        collectionName: colName,
         containerName: contName,
       }).catch(() => {});
     }
@@ -291,8 +263,8 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 
   if (message.action === "saveItem") {
     (async () => {
-      const { collection, container } = await getTargetDestination();
-      await saveItem(message.item, collection, container);
+      const { container } = await getTargetDestination();
+      await saveItem(message.item, container);
       sendResponse({ success: true });
     })();
     return true;

@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>SaveIt – Web Vault & Collections</title>
+  <title>SaveIt – Web Vault & Containers</title>
   <link rel="stylesheet" href="popup.css" />
 </head>
 <body>
@@ -18,7 +18,7 @@
         </div>
         <div>
           <h1>SaveIt</h1>
-          <span class="header-subtitle">Vault & Collections</span>
+          <span class="header-subtitle">Vault & Containers</span>
         </div>
       </div>
       <div class="header-actions">
@@ -37,10 +37,6 @@
 
     <!-- Dropdown Menu -->
     <div id="dropdown-menu" class="dropdown-menu hidden">
-      <button id="menu-add-collection" class="dropdown-item">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/><line x1="12" y1="11" x2="12" y2="17"/><line x1="9" y1="14" x2="15" y2="14"/></svg>
-        New Collection
-      </button>
       <button id="menu-add-container" class="dropdown-item">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="21 8 21 21 3 21 3 8"/><rect x="1" y="3" width="22" height="5"/><line x1="10" y1="12" x2="14" y2="12"/></svg>
         New Container Box
@@ -65,16 +61,16 @@
       </button>
     </div>
 
-    <!-- Segmented Tab Switcher (Option 2: Save Page vs. Recent Vault) -->
+    <!-- Segmented Tab Switcher (Save Page vs. Library) -->
     <div class="segmented-control-bar">
       <div class="segmented-tabs">
         <button id="tab-save-page" class="tab-btn active" type="button">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
           <span>Save Page</span>
         </button>
-        <button id="tab-recent-vault" class="tab-btn" type="button">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><polyline points="21 8 21 21 3 21 3 8"/><rect x="1" y="3" width="22" height="5"/><line x1="10" y1="12" x2="14" y2="12"/></svg>
-          <span>Recent Vault</span>
+        <button id="tab-library" class="tab-btn" type="button">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>
+          <span>Library</span>
           <span class="tab-badge" id="tab-vault-count">0</span>
         </button>
       </div>
@@ -100,24 +96,13 @@
         </div>
       </div>
 
-      <!-- Save Destination (Folder & Box) -->
+      <!-- Save Destination (Container Only) -->
       <div class="destination-section">
-        <div class="destination-row">
-          <div class="destination-col">
-            <div class="destination-label-wrap">
-              <label for="save-col-select">📁 Collection Folder</label>
-              <button type="button" id="btn-quick-new-col" class="quick-add-link">+ New</button>
-            </div>
-            <select id="save-col-select" class="clean-select"></select>
-          </div>
-          <div class="destination-col">
-            <div class="destination-label-wrap">
-              <label for="save-cont-select">📦 Storage Box</label>
-              <button type="button" id="btn-quick-new-cont" class="quick-add-link">+ New</button>
-            </div>
-            <select id="save-cont-select" class="clean-select"></select>
-          </div>
+        <div class="destination-label-wrap">
+          <label for="save-cont-select">📦 SELECT CONTAINER</label>
+          <button type="button" id="btn-quick-new-cont" class="quick-add-link">+ New Container</button>
         </div>
+        <select id="save-cont-select" class="clean-select"></select>
       </div>
 
       <!-- Swayed Sticky Note Memo Input -->
@@ -142,30 +127,101 @@
       <!-- Primary Save Button -->
       <button type="button" id="btn-save-current-page" class="btn-save-page">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-        <span id="btn-save-text">Save Page to Vault</span>
+        <span id="btn-save-text">Save Page to Container</span>
       </button>
 
-      <!-- Paste Clipboard Link -->
-      <div class="save-alt-actions">
-        <button type="button" id="btn-paste-clipboard" class="alt-action-btn">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="13" height="13"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><rect x="8" y="2" width="8" height="4" rx="1" ry="1"/></svg>
-          <span>Paste & Save from Clipboard</span>
-        </button>
+      <!-- Square Area: Drag & Drop or Paste (Photos / Texts / Links) -->
+      <div class="dropzone-section">
+        <div class="dropzone-divider">
+          <span>OR DROP & PASTE</span>
+        </div>
+
+        <div id="quick-drop-zone" class="square-drop-zone" tabindex="0" role="button" aria-label="Drop or paste photos, texts, or links into container">
+          <!-- State 1: Idle -->
+          <div class="drop-zone-idle" id="drop-zone-idle">
+            <div class="drop-icon-box">
+              <svg class="drop-icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+                <rect x="3" y="3" width="18" height="18" rx="4"/>
+                <circle cx="8.5" cy="8.5" r="1.5"/>
+                <polyline points="21 15 16 10 5 21"/>
+              </svg>
+              <span class="drop-key-badge">⌘V</span>
+            </div>
+            <div class="drop-zone-text">
+              <span class="drop-main-title">Drop or Paste</span>
+              <span class="drop-sub-title">Photos • Texts • Links</span>
+            </div>
+          </div>
+
+          <!-- State 2: Drag Over -->
+          <div class="drop-zone-active hidden" id="drop-zone-active">
+            <span class="drop-active-icon">📥</span>
+            <span class="drop-active-title">Release to Save!</span>
+            <span class="drop-active-sub" id="drop-active-target">Into Container</span>
+          </div>
+
+          <!-- State 3: Success Confirmation -->
+          <div class="drop-zone-success hidden" id="drop-zone-success">
+            <div class="drop-success-icon-wrap">
+              <span class="drop-success-check">✓</span>
+            </div>
+            <div class="drop-success-info">
+              <span class="drop-success-title" id="drop-success-title">Item Saved!</span>
+              <span class="drop-success-meta" id="drop-success-meta">📦 Container</span>
+            </div>
+            <img id="drop-success-thumb" class="drop-thumb-preview hidden" alt="Saved thumbnail" />
+          </div>
+
+          <!-- Hidden File Input for click to browse/upload -->
+          <input type="file" id="drop-file-input" class="hidden" accept="image/*,text/*" />
+        </div>
       </div>
     </div>
 
-    <!-- ── SCREEN B: RECENT VAULT ── -->
-    <div id="view-recent-vault" class="view-panel custom-scroll hidden">
-      <!-- Search & Box Filter -->
-      <div class="vault-filter-bar">
+    <!-- ── SCREEN B: LIBRARY (All Saved Things + Containers Explorer) ── -->
+    <div id="view-library" class="view-panel custom-scroll hidden">
+      <!-- Library Toolbar -->
+      <div class="library-toolbar">
         <div class="vault-search-box">
           <svg class="search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-          <input type="text" id="vault-search-input" placeholder="Search quotes, links, notes..." />
+          <input type="text" id="vault-search-input" placeholder="Search saved things, notes, tags..." />
           <button type="button" id="vault-search-clear" class="search-clear hidden">&times;</button>
         </div>
-        <select id="vault-box-filter" class="vault-box-select">
-          <option value="all">All Boxes ▾</option>
-        </select>
+        <button type="button" id="btn-new-container-toolbar" class="btn-new-folder-toolbar" title="Create New Container (like New Folder on PC)">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="13" height="13"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+          <span>New Container</span>
+        </button>
+      </div>
+
+      <!-- Inline Desktop-Style New Container Creator (Like New Folder in PC/Mac) -->
+      <div id="inline-container-creator" class="inline-creator-card hidden">
+        <div class="inline-creator-row">
+          <span class="creator-box-icon">📦</span>
+          <input type="text" id="inline-container-name" class="inline-creator-input" placeholder="New container name..." maxlength="30" />
+          <div class="inline-creator-actions">
+            <button type="button" id="btn-inline-cont-confirm" class="inline-btn-check" title="Create Container (Enter)">✓</button>
+            <button type="button" id="btn-inline-cont-cancel" class="inline-btn-cancel" title="Cancel (Esc)">✕</button>
+          </div>
+        </div>
+        <div class="inline-color-row" id="inline-color-picker">
+          <button type="button" class="color-dot active" data-color="#2563EB" style="background:#2563EB"></button>
+          <button type="button" class="color-dot" data-color="#059669" style="background:#059669"></button>
+          <button type="button" class="color-dot" data-color="#D97706" style="background:#D97706"></button>
+          <button type="button" class="color-dot" data-color="#DC2626" style="background:#DC2626"></button>
+          <button type="button" class="color-dot" data-color="#7C3AED" style="background:#7C3AED"></button>
+          <button type="button" class="color-dot" data-color="#475569" style="background:#475569"></button>
+        </div>
+      </div>
+
+      <!-- Containers Explorer Strip (Like Desktop Folders) -->
+      <div class="containers-explorer-section">
+        <div class="containers-strip-header">
+          <span class="containers-strip-title">CONTAINERS</span>
+          <span class="containers-strip-count" id="containers-count-badge">0 containers</span>
+        </div>
+        <div class="containers-scroll-strip" id="containers-pills-list">
+          <!-- "All Items" pill + container pills rendered by JS -->
+        </div>
       </div>
 
       <!-- Type Filter Chips -->
@@ -177,7 +233,7 @@
         <button type="button" class="type-filter-chip" data-filter="favorite">★ Favs</button>
       </div>
 
-      <!-- Items List -->
+      <!-- Items List (All saved things show here) -->
       <div id="items-container" class="items-list">
         <!-- Rendered dynamically -->
       </div>
@@ -191,8 +247,8 @@
             <line x1="10" y1="12" x2="14" y2="12"/>
           </svg>
         </div>
-        <p class="empty-title">No items found</p>
-        <span class="empty-hint">Switch to the "Save Page" tab to capture this page,<br/>or right-click any link or text to save.</span>
+        <p class="empty-title">No items in this container</p>
+        <span class="empty-hint">Switch to the "Save Page" tab to capture this page,<br/>or save new items into this container.</span>
       </div>
     </div>
 
@@ -214,26 +270,12 @@
       <div class="modal-backdrop"></div>
       <div class="modal-content">
         <div class="modal-header">
-          <h2>Save to Container</h2>
+          <h2 id="add-modal-title">Save Item</h2>
           <button class="btn-close-modal" id="modal-close-x">&times;</button>
-        </div>
-        <div class="form-row-2">
-          <div class="form-group">
-            <label for="add-col-select">Collection (📁)</label>
-            <select id="add-col-select" class="light-select"></select>
-          </div>
-          <div class="form-group">
-            <label for="add-cont-select">Container (🗄️)</label>
-            <select id="add-cont-select" class="light-select"></select>
-          </div>
-        </div>
-        <div class="form-group">
-          <label for="add-title">Title <span class="hint">(optional)</span></label>
-          <input type="text" id="add-title" placeholder="e.g. Design Inspiration, Quote by Steve Jobs" />
         </div>
         <div class="form-group">
           <label for="add-content">Content / URL / Quote</label>
-          <textarea id="add-content" rows="3" placeholder="Paste article text, quote, YouTube URL, product link, or image URL..."></textarea>
+          <textarea id="add-content" rows="4" placeholder="Paste article text, quote, YouTube URL, product link, or image URL..."></textarea>
         </div>
         <div class="form-group">
           <label for="add-note">Personal Note <span class="hint">(optional note on this item)</span></label>
@@ -245,7 +287,7 @@
         </div>
         <div class="modal-actions">
           <button id="modal-cancel" class="btn btn-secondary">Cancel</button>
-          <button id="modal-save" class="btn btn-primary">Save to Container</button>
+          <button id="modal-save" class="btn btn-primary">Save Item</button>
         </div>
       </div>
     </div>
@@ -258,23 +300,9 @@
           <h2>Edit Item</h2>
           <button class="btn-close-modal" id="edit-close-x">&times;</button>
         </div>
-        <div class="form-row-2">
-          <div class="form-group">
-            <label for="edit-col-select">Collection (📁)</label>
-            <select id="edit-col-select" class="light-select"></select>
-          </div>
-          <div class="form-group">
-            <label for="edit-cont-select">Container (🗄️)</label>
-            <select id="edit-cont-select" class="light-select"></select>
-          </div>
-        </div>
         <div class="form-group">
-          <label for="edit-title">Title</label>
-          <input type="text" id="edit-title" />
-        </div>
-        <div class="form-group">
-          <label for="edit-content">Content</label>
-          <textarea id="edit-content" rows="3"></textarea>
+          <label for="edit-content">Content / URL / Quote</label>
+          <textarea id="edit-content" rows="4"></textarea>
         </div>
         <div class="form-group">
           <label for="edit-note">Personal Note</label>
@@ -291,36 +319,6 @@
       </div>
     </div>
 
-    <!-- Create Collection Modal -->
-    <div id="collection-modal" class="modal hidden">
-      <div class="modal-backdrop"></div>
-      <div class="modal-content">
-        <div class="modal-header">
-          <h2>Create New Collection</h2>
-          <button class="btn-close-modal" id="col-modal-close-x">&times;</button>
-        </div>
-        <div class="form-group">
-          <label for="col-name-input">Collection Name (📁)</label>
-          <input type="text" id="col-name-input" placeholder="e.g. Projects, Personal, Work" maxlength="30" />
-        </div>
-        <div class="form-group">
-          <label>Collection Color Accent</label>
-          <div class="color-picker-row" id="col-color-picker">
-            <button type="button" class="color-swatch active" data-color="#4F46E5" style="background:#4F46E5"></button>
-            <button type="button" class="color-swatch" data-color="#2563EB" style="background:#2563EB"></button>
-            <button type="button" class="color-swatch" data-color="#0D9488" style="background:#0D9488"></button>
-            <button type="button" class="color-swatch" data-color="#F59E0B" style="background:#F59E0B"></button>
-            <button type="button" class="color-swatch" data-color="#DC2626" style="background:#DC2626"></button>
-            <button type="button" class="color-swatch" data-color="#9333EA" style="background:#9333EA"></button>
-          </div>
-        </div>
-        <div class="modal-actions">
-          <button id="col-modal-cancel" class="btn btn-secondary">Cancel</button>
-          <button id="col-modal-save" class="btn btn-primary">Create Collection</button>
-        </div>
-      </div>
-    </div>
-
     <!-- Create Container Modal -->
     <div id="container-modal" class="modal hidden">
       <div class="modal-backdrop"></div>
@@ -330,11 +328,7 @@
           <button class="btn-close-modal" id="cont-modal-close-x">&times;</button>
         </div>
         <div class="form-group">
-          <label for="cont-parent-col-select">Parent Collection (📁)</label>
-          <select id="cont-parent-col-select" class="light-select"></select>
-        </div>
-        <div class="form-group">
-          <label for="container-name-input">Container Name (🗄️)</label>
+          <label for="container-name-input">Container Name (📦)</label>
           <input type="text" id="container-name-input" placeholder="e.g. Design Inspo, Research, Guides" maxlength="30" />
         </div>
         <div class="form-group">
@@ -343,7 +337,7 @@
             <button type="button" class="color-swatch active" data-color="#2563EB" style="background:#2563EB"></button>
             <button type="button" class="color-swatch" data-color="#059669" style="background:#059669"></button>
             <button type="button" class="color-swatch" data-color="#D97706" style="background:#D97706"></button>
-            <button type="button" class="color-swatch" data-color="#E11D48" style="background:#E11D48"></button>
+            <button type="button" class="color-swatch" data-color="#DC2626" style="background:#DC2626"></button>
             <button type="button" class="color-swatch" data-color="#7C3AED" style="background:#7C3AED"></button>
             <button type="button" class="color-swatch" data-color="#475569" style="background:#475569"></button>
           </div>
@@ -381,7 +375,7 @@
           </div>
         </div>
         <div id="auth-logged-out-view">
-          <p class="auth-desc">Log in to sync your collections, containers, and saved items across devices.</p>
+          <p class="auth-desc">Log in to sync your containers and saved items across devices.</p>
           <div class="form-group">
             <label for="auth-email-input">Email</label>
             <input type="email" id="auth-email-input" placeholder="you@example.com" />

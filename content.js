@@ -44,7 +44,7 @@
   }
 
   // ── Floating Light-Mode Notification Pill ──
-  function showNotification({ type, preview, collectionName, containerName }) {
+  function showNotification({ type, preview, containerName }) {
     const existing = document.getElementById("saveit-notification");
     if (existing) existing.remove();
 
@@ -66,9 +66,9 @@
         <div class="saveit-notif-icon">${icon}</div>
         <div class="saveit-notif-body">
           <div class="saveit-notif-header">
-            <span class="saveit-notif-title">Saved to SaveIt</span>
+            <span class="saveit-notif-title">Saved to Container</span>
             <span class="saveit-notif-path">
-              📁 <strong>${escapeHTML(collectionName || "Collection")}</strong> › 🗄️ <strong>${escapeHTML(containerName || "Container")}</strong>
+              📦 <strong>${escapeHTML(containerName || "Container")}</strong>
             </span>
           </div>
           <div class="saveit-notif-preview">${escapeHTML(preview || "")}</div>
