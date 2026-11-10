@@ -1,50 +1,68 @@
-// ── SaveIt: Popup Controller (Collections, Containers & Polymorphic Vault) ──
+// ── SaveIt: Popup Controller (Option 2: Two-Tab Mode - Save vs. Browse) ──
 
 let collections = [];
 let containers = [];
 let allItems = [];
 
-let activeCollectionId = "all"; // "all" or collection ID
-let activeContainerId = "all";  // "all" or container ID
+let activeCollectionId = "all";
+let activeContainerId = "all";
+let activeVaultBoxId = "all";
 let currentFilter = "all";
 let searchQuery = "";
 let editingItemId = null;
 let selectedColColor = "#4F46E5";
 let selectedContColor = "#2563EB";
 let authIsSignUp = false;
+let currentTabInfo = null;
 
 // ── DOM References ──
-const collectionsList = document.getElementById("collections-list");
-const containersList = document.getElementById("containers-list");
+// Segmented Tabs & Views
+const tabSavePage = document.getElementById("tab-save-page");
+const tabRecentVault = document.getElementById("tab-recent-vault");
+const tabVaultCount = document.getElementById("tab-vault-count");
+const viewSavePage = document.getElementById("view-save-page");
+const viewRecentVault = document.getElementById("view-recent-vault");
+
+// Screen A (Save Page)
+const savePageTypeChip = document.getElementById("save-page-type-chip");
+const savePageTitle = document.getElementById("save-page-title");
+const savePageUrl = document.getElementById("save-page-url");
+const saveColSelect = document.getElementById("save-col-select");
+const saveContSelect = document.getElementById("save-cont-select");
+const btnQuickNewCol = document.getElementById("btn-quick-new-col");
+const btnQuickNewCont = document.getElementById("btn-quick-new-cont");
+const saveNoteInput = document.getElementById("save-note-input");
+const saveTagsInput = document.getElementById("save-tags-input");
+const btnSaveCurrentPage = document.getElementById("btn-save-current-page");
+const btnSaveText = document.getElementById("btn-save-text");
+const btnPasteClipboard = document.getElementById("btn-paste-clipboard");
+
+// Screen B (Recent Vault)
+const vaultSearchInput = document.getElementById("vault-search-input");
+const vaultSearchClear = document.getElementById("vault-search-clear");
+const vaultBoxFilter = document.getElementById("vault-box-filter");
+const typeFilterChips = document.querySelectorAll(".type-filter-chip");
 const itemsContainer = document.getElementById("items-container");
 const emptyState = document.getElementById("empty-state");
-const searchInput = document.getElementById("search-input");
-const searchClear = document.getElementById("search-clear");
-const filterBtns = document.querySelectorAll(".filter-btn");
-const pathBreadcrumbs = document.getElementById("path-breadcrumbs");
-const itemCount = document.getElementById("item-count");
 
-// Header actions
-const btnAdd = document.getElementById("btn-add");
-const btnPaste = document.getElementById("btn-paste");
+// Header actions & Menu
 const btnDashboard = document.getElementById("btn-dashboard");
-const btnAuth = document.getElementById("btn-auth");
+const btnAdd = document.getElementById("btn-add");
 const btnMenu = document.getElementById("btn-menu");
 const dropdownMenu = document.getElementById("dropdown-menu");
-
-// Section Add Buttons
-const btnAddCollectionQuick = document.getElementById("btn-add-collection-quick");
-const btnAddContainerQuick = document.getElementById("btn-add-container-quick");
-
-// Menu items
 const menuAddCollection = document.getElementById("menu-add-collection");
 const menuAddContainer = document.getElementById("menu-add-container");
+const menuAuth = document.getElementById("menu-auth");
 const menuExport = document.getElementById("menu-export");
 const menuImport = document.getElementById("menu-import");
 const menuClear = document.getElementById("menu-clear");
 const importFile = document.getElementById("import-file");
 
-// Add Modal
+// Footer Status
+const footerStatusText = document.getElementById("footer-status-text");
+const footerItemCount = document.getElementById("footer-item-count");
+
+// Add Modal (Manual Clip)
 const addModal = document.getElementById("add-modal");
 const addColSelect = document.getElementById("add-col-select");
 const addContSelect = document.getElementById("add-cont-select");
@@ -110,6 +128,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   setupEventListeners();
   checkAuthStatus();
   autoSyncBackground();
+  await populateActiveTabPreview();
 });
 
 async function loadState() {
@@ -130,9 +149,9 @@ async function loadState() {
     activeCollectionId = "all";
   }
 
-  renderCollectionsBar();
-  renderContainersBar();
-  renderBreadcrumbs();
+  updateVaultCounters();
+  populateSaveDestinationSelects();
+  populateVaultBoxFilter();
   renderItems();
 }
 
@@ -145,9 +164,9 @@ async function autoSyncBackground() {
       collections = res.collections || [];
       containers = res.containers || [];
       allItems = res.items || [];
-      renderCollectionsBar();
-      renderContainersBar();
-      renderBreadcrumbs();
+      updateVaultCounters();
+      populateSaveDestinationSelects();
+      populateVaultBoxFilter();
       renderItems();
     }
   } catch (err) {
@@ -155,104 +174,171 @@ async function autoSyncBackground() {
   }
 }
 
+function updateVaultCounters() {
+  const total = allItems.length;
+  if (tabVaultCount) tabVaultCount.textContent = total;
+  if (footerItemCount) footerItemCount.textContent = `${total} ${total === 1 ? "item" : "items"} in vault`;
+}
+
 // ── Event Listeners ──
 function setupEventListeners() {
-  // Search
-  searchInput.addEventListener("input", (e) => {
-    searchQuery = e.target.value.trim().toLowerCase();
-    searchClear.classList.toggle("hidden", searchQuery.length === 0);
-    renderItems();
-  });
+  // Segmented Tabs
+  if (tabSavePage && tabRecentVault) {
+    tabSavePage.addEventListener("click", () => switchToTab("save"));
+    tabRecentVault.addEventListener("click", () => switchToTab("vault"));
+  }
 
-  searchClear.addEventListener("click", () => {
-    searchInput.value = "";
-    searchQuery = "";
-    searchClear.classList.add("hidden");
-    renderItems();
-  });
+  // Active Tab Save Action
+  if (btnSaveCurrentPage) {
+    btnSaveCurrentPage.addEventListener("click", handleSaveCurrentTab);
+  }
 
-  // Filter Buttons
-  filterBtns.forEach((btn) => {
+  // Quick Paste
+  if (btnPasteClipboard) {
+    btnPasteClipboard.addEventListener("click", handleQuickPaste);
+  }
+
+  // Destination selects in Save Page tab
+  if (saveColSelect) {
+    saveColSelect.addEventListener("change", () => {
+      populateContainerSelect(saveContSelect, saveColSelect.value);
+    });
+  }
+  if (btnQuickNewCol) {
+    btnQuickNewCol.addEventListener("click", openCollectionModal);
+  }
+  if (btnQuickNewCont) {
+    btnQuickNewCont.addEventListener("click", () => {
+      openContainerModal();
+      if (saveColSelect && saveColSelect.value) {
+        contParentColSelect.value = saveColSelect.value;
+      }
+    });
+  }
+
+  // Recent Vault: Search
+  if (vaultSearchInput) {
+    vaultSearchInput.addEventListener("input", (e) => {
+      searchQuery = e.target.value.trim().toLowerCase();
+      if (vaultSearchClear) vaultSearchClear.classList.toggle("hidden", searchQuery.length === 0);
+      renderItems();
+    });
+  }
+  if (vaultSearchClear) {
+    vaultSearchClear.addEventListener("click", () => {
+      vaultSearchInput.value = "";
+      searchQuery = "";
+      vaultSearchClear.classList.add("hidden");
+      renderItems();
+    });
+  }
+
+  // Recent Vault: Box filter dropdown
+  if (vaultBoxFilter) {
+    vaultBoxFilter.addEventListener("change", (e) => {
+      activeVaultBoxId = e.target.value;
+      renderItems();
+    });
+  }
+
+  // Recent Vault: Type filter chips
+  typeFilterChips.forEach((btn) => {
     btn.addEventListener("click", () => {
-      filterBtns.forEach((b) => b.classList.remove("active"));
+      typeFilterChips.forEach((b) => b.classList.remove("active"));
       btn.classList.add("active");
       currentFilter = btn.dataset.filter;
       renderItems();
     });
   });
 
-  // Header Buttons
-  btnDashboard.addEventListener("click", () => {
-    chrome.tabs.create({ url: chrome.runtime.getURL("dashboard.html") });
-  });
-
-  btnPaste.addEventListener("click", handleQuickPaste);
-
-  btnMenu.addEventListener("click", (e) => {
-    e.stopPropagation();
-    dropdownMenu.classList.toggle("hidden");
-  });
-
+  // Header Actions
+  if (btnDashboard) {
+    btnDashboard.addEventListener("click", () => {
+      chrome.tabs.create({ url: chrome.runtime.getURL("dashboard.html") });
+    });
+  }
+  if (btnAdd) {
+    btnAdd.addEventListener("click", openAddModal);
+  }
+  if (btnMenu) {
+    btnMenu.addEventListener("click", (e) => {
+      e.stopPropagation();
+      dropdownMenu.classList.toggle("hidden");
+    });
+  }
   document.addEventListener("click", (e) => {
-    if (!dropdownMenu.contains(e.target) && e.target !== btnMenu) {
+    if (dropdownMenu && !dropdownMenu.contains(e.target) && e.target !== btnMenu) {
       dropdownMenu.classList.add("hidden");
     }
   });
 
-  // Modal Openers
-  btnAdd.addEventListener("click", () => openAddModal());
-  btnAddCollectionQuick.addEventListener("click", () => openCollectionModal());
-  btnAddContainerQuick.addEventListener("click", () => openContainerModal());
-  menuAddCollection.addEventListener("click", () => {
-    dropdownMenu.classList.add("hidden");
-    openCollectionModal();
-  });
-  menuAddContainer.addEventListener("click", () => {
-    dropdownMenu.classList.add("hidden");
-    openContainerModal();
-  });
-
-  // Export / Import / Clear
-  menuExport.addEventListener("click", handleExport);
-  menuImport.addEventListener("click", () => {
-    dropdownMenu.classList.add("hidden");
-    importFile.click();
-  });
-  importFile.addEventListener("change", handleImport);
-  menuClear.addEventListener("click", handleClearAll);
-
-  // Add Item Modal Events
-  modalCloseX.addEventListener("click", closeAddModal);
-  modalCancel.addEventListener("click", closeAddModal);
-  modalSave.addEventListener("click", handleSaveNewItem);
-  addColSelect.addEventListener("change", () => {
-    populateContainerSelect(addContSelect, addColSelect.value);
-  });
-
-  // Edit Item Modal Events
-  editCloseX.addEventListener("click", closeEditModal);
-  editCancel.addEventListener("click", closeEditModal);
-  editSave.addEventListener("click", handleSaveEditItem);
-  editColSelect.addEventListener("change", () => {
-    populateContainerSelect(editContSelect, editColSelect.value);
-  });
-
-  // Collection Modal Events
-  colModalCloseX.addEventListener("click", closeCollectionModal);
-  colModalCancel.addEventListener("click", closeCollectionModal);
-  colModalSave.addEventListener("click", handleCreateCollection);
-  colColorPicker.querySelectorAll(".color-swatch").forEach((swatch) => {
-    swatch.addEventListener("click", () => {
-      colColorPicker.querySelectorAll(".color-swatch").forEach((s) => s.classList.remove("active"));
-      swatch.classList.add("active");
-      selectedColColor = swatch.dataset.color;
+  // Dropdown Menu Items
+  if (menuAddCollection) {
+    menuAddCollection.addEventListener("click", () => {
+      dropdownMenu.classList.add("hidden");
+      openCollectionModal();
     });
-  });
+  }
+  if (menuAddContainer) {
+    menuAddContainer.addEventListener("click", () => {
+      dropdownMenu.classList.add("hidden");
+      openContainerModal();
+    });
+  }
+  if (menuAuth) {
+    menuAuth.addEventListener("click", () => {
+      dropdownMenu.classList.add("hidden");
+      openAuthModal();
+    });
+  }
+  if (menuExport) menuExport.addEventListener("click", handleExport);
+  if (menuImport) {
+    menuImport.addEventListener("click", () => {
+      dropdownMenu.classList.add("hidden");
+      importFile.click();
+    });
+  }
+  if (importFile) importFile.addEventListener("change", handleImport);
+  if (menuClear) menuClear.addEventListener("click", handleClearAll);
 
-  // Container Modal Events
-  contModalCloseX.addEventListener("click", closeContainerModal);
-  containerModalCancel.addEventListener("click", closeContainerModal);
-  containerModalSave.addEventListener("click", handleCreateContainer);
+  // Add Item Modal
+  if (modalCloseX) modalCloseX.addEventListener("click", closeAddModal);
+  if (modalCancel) modalCancel.addEventListener("click", closeAddModal);
+  if (modalSave) modalSave.addEventListener("click", handleSaveNewItem);
+  if (addColSelect) {
+    addColSelect.addEventListener("change", () => {
+      populateContainerSelect(addContSelect, addColSelect.value);
+    });
+  }
+
+  // Edit Item Modal
+  if (editCloseX) editCloseX.addEventListener("click", closeEditModal);
+  if (editCancel) editCancel.addEventListener("click", closeEditModal);
+  if (editSave) editSave.addEventListener("click", handleSaveEditItem);
+  if (editColSelect) {
+    editColSelect.addEventListener("change", () => {
+      populateContainerSelect(editContSelect, editColSelect.value);
+    });
+  }
+
+  // Collection Modal
+  if (colModalCloseX) colModalCloseX.addEventListener("click", closeCollectionModal);
+  if (colModalCancel) colModalCancel.addEventListener("click", closeCollectionModal);
+  if (colModalSave) colModalSave.addEventListener("click", handleCreateCollection);
+  if (colColorPicker) {
+    colColorPicker.querySelectorAll(".color-swatch").forEach((swatch) => {
+      swatch.addEventListener("click", () => {
+        colColorPicker.querySelectorAll(".color-swatch").forEach((s) => s.classList.remove("active"));
+        swatch.classList.add("active");
+        selectedColColor = swatch.dataset.color;
+      });
+    });
+  }
+
+  // Container Modal
+  if (contModalCloseX) contModalCloseX.addEventListener("click", closeContainerModal);
+  if (containerModalCancel) containerModalCancel.addEventListener("click", closeContainerModal);
+  if (containerModalSave) containerModalSave.addEventListener("click", handleCreateContainer);
   if (contColorPicker) {
     contColorPicker.querySelectorAll(".color-swatch").forEach((swatch) => {
       swatch.addEventListener("click", () => {
@@ -263,159 +349,261 @@ function setupEventListeners() {
     });
   }
 
-  // Auth Modal Events
-  btnAuth.addEventListener("click", openAuthModal);
-  authCloseX.addEventListener("click", closeAuthModal);
-  authModalCancel.addEventListener("click", closeAuthModal);
-  authToggleMode.addEventListener("click", toggleAuthMode);
-  authSubmitBtn.addEventListener("click", handleAuthSubmit);
-  btnSyncNow.addEventListener("click", handleManualSync);
-  btnLogout.addEventListener("click", handleLogout);
+  // Auth Modal
+  if (authCloseX) authCloseX.addEventListener("click", closeAuthModal);
+  if (authModalCancel) authModalCancel.addEventListener("click", closeAuthModal);
+  if (authToggleMode) authToggleMode.addEventListener("click", toggleAuthMode);
+  if (authSubmitBtn) authSubmitBtn.addEventListener("click", handleAuthSubmit);
+  if (btnSyncNow) btnSyncNow.addEventListener("click", handleManualSync);
+  if (btnLogout) btnLogout.addEventListener("click", handleLogout);
 }
 
-// ── Render Collections Bar (📁 Folders) ──
-function renderCollectionsBar() {
-  collectionsList.innerHTML = "";
+// ── Tab Switching ──
+function switchToTab(tabName) {
+  if (tabName === "save") {
+    tabSavePage.classList.add("active");
+    tabRecentVault.classList.remove("active");
+    viewSavePage.classList.remove("hidden");
+    viewRecentVault.classList.add("hidden");
+    populateActiveTabPreview();
+  } else {
+    tabRecentVault.classList.add("active");
+    tabSavePage.classList.remove("active");
+    viewRecentVault.classList.remove("hidden");
+    viewSavePage.classList.add("hidden");
+    populateVaultBoxFilter();
+    renderItems();
+  }
+}
 
+// ── Screen A: Detect & Populate Active Browser Tab ──
+async function populateActiveTabPreview() {
+  try {
+    const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
+    if (!tabs || tabs.length === 0) return;
+    const tab = tabs[0];
+    const url = tab.url || "";
+    const title = tab.title || "";
+
+    currentTabInfo = {
+      title,
+      url,
+      favIconUrl: tab.favIconUrl || "",
+    };
+
+    if (savePageTitle) savePageTitle.value = title;
+    if (savePageUrl) {
+      savePageUrl.textContent = url || "Browser system page";
+      savePageUrl.title = url;
+    }
+
+    // Auto classify type chip
+    const classification = classifyContent(url);
+    if (savePageTypeChip) {
+      savePageTypeChip.textContent = classification.type.toUpperCase();
+      savePageTypeChip.className = `tab-type-chip type-${classification.type}`;
+    }
+
+    // Check if current tab is already saved
+    const existing = allItems.find((i) => i.sourceUrl === url || i.content === url);
+    if (existing) {
+      if (btnSaveText) btnSaveText.textContent = "Update Saved Page";
+      if (saveNoteInput) saveNoteInput.value = existing.note || "";
+      if (saveTagsInput) saveTagsInput.value = (existing.tags || []).join(", ");
+      if (existing.collectionId && saveColSelect) {
+        saveColSelect.value = existing.collectionId;
+        populateContainerSelect(saveContSelect, existing.collectionId, existing.containerId);
+      }
+    } else {
+      if (btnSaveText) btnSaveText.textContent = "Save Page to Vault";
+    }
+
+    if (footerStatusText) {
+      footerStatusText.textContent = existing ? "Saved in Vault" : "Ready to Save";
+    }
+  } catch (err) {
+    console.warn("Could not query active tab:", err);
+    if (savePageUrl) savePageUrl.textContent = "Unable to read active tab";
+  }
+}
+
+// ── Screen A: Save Current Tab ──
+async function handleSaveCurrentTab() {
+  const url = currentTabInfo?.url || (savePageUrl ? savePageUrl.textContent : "");
+  if (!url || url.startsWith("chrome://") || url.startsWith("edge://")) {
+    showToast("Cannot clip browser internal pages");
+    return;
+  }
+
+  // Ensure user has at least one collection & container
   if (collections.length === 0) {
-    const emptyPill = document.createElement("button");
-    emptyPill.className = "nav-pill-action";
-    emptyPill.innerHTML = `<span>📁 + New Collection</span>`;
-    emptyPill.addEventListener("click", () => openCollectionModal());
-    collectionsList.appendChild(emptyPill);
-    return;
+    const defaultCol = {
+      id: "col_" + generateId(),
+      name: "General",
+      color: "#4F46E5",
+      createdAt: Date.now(),
+      order: 0,
+    };
+    collections.push(defaultCol);
+    const defaultCont = {
+      id: "cont_" + generateId(),
+      collectionId: defaultCol.id,
+      name: "Quick Saves",
+      icon: "archive",
+      color: "#2563EB",
+      description: "Default storage box",
+      createdAt: Date.now(),
+      order: 0,
+    };
+    containers.push(defaultCont);
+    await chrome.storage.local.set({ collections, containers });
+    populateSaveDestinationSelects();
   }
 
-  // "All Collections" Pill
-  const allPill = document.createElement("button");
-  allPill.className = `nav-pill ${activeCollectionId === "all" ? "active" : ""}`;
-  allPill.innerHTML = `
-    <span class="pill-symbol">📁</span>
-    <span>All</span>
-    <span class="pill-count">${allItems.length}</span>
-  `;
-  allPill.addEventListener("click", () => {
-    activeCollectionId = "all";
-    activeContainerId = "all";
-    chrome.storage.local.set({ activeCollectionId, activeContainerId });
-    renderCollectionsBar();
-    renderContainersBar();
-    renderBreadcrumbs();
-    renderItems();
-  });
-  collectionsList.appendChild(allPill);
+  let colId = saveColSelect ? saveColSelect.value : collections[0]?.id;
+  let contId = saveContSelect ? saveContSelect.value : containers[0]?.id;
 
-  collections.forEach((col) => {
-    const colItemCount = allItems.filter((i) => i.collectionId === col.id).length;
-    const pill = document.createElement("button");
-    pill.className = `nav-pill ${activeCollectionId === col.id ? "active" : ""}`;
-    pill.style.setProperty("--pill-accent", col.color || "#4F46E5");
-    pill.innerHTML = `
-      <span class="pill-symbol" style="color:${col.color || "#4F46E5"}">📁</span>
-      <span>${escapeHTML(col.name)}</span>
-      <span class="pill-count">${colItemCount}</span>
-    `;
-    pill.addEventListener("click", () => {
-      activeCollectionId = col.id;
-      activeContainerId = "all";
-      chrome.storage.local.set({ activeCollectionId, activeContainerId });
-      renderCollectionsBar();
-      renderContainersBar();
-      renderBreadcrumbs();
-      renderItems();
-    });
-    collectionsList.appendChild(pill);
-  });
+  if (!colId && collections.length > 0) colId = collections[0].id;
+  if (!contId && containers.length > 0) {
+    const matched = containers.find((c) => c.collectionId === colId);
+    contId = matched ? matched.id : containers[0].id;
+  }
+
+  const title = savePageTitle ? savePageTitle.value.trim() : (currentTabInfo?.title || "");
+  const note = saveNoteInput ? saveNoteInput.value.trim() : "";
+  const rawTags = saveTagsInput ? saveTagsInput.value : "";
+  const tags = rawTags
+    .split(",")
+    .map((t) => t.trim())
+    .filter(Boolean);
+
+  const classification = classifyContent(url);
+  const existingIndex = allItems.findIndex((i) => i.sourceUrl === url || i.content === url);
+
+  const targetBox = containers.find((c) => c.id === contId);
+  const boxName = targetBox ? targetBox.name : "Storage Box";
+
+  if (existingIndex !== -1) {
+    // Update existing item
+    allItems[existingIndex] = {
+      ...allItems[existingIndex],
+      title: title || allItems[existingIndex].title,
+      note,
+      tags,
+      collectionId: colId,
+      containerId: contId,
+      updatedAt: Date.now(),
+    };
+    showToast(`Updated in 📦 ${boxName}!`);
+  } else {
+    // Create new item
+    const newItem = {
+      id: generateId(),
+      type: classification.type,
+      title: title || classification.title || "Saved Web Page",
+      content: url,
+      note,
+      containerId: contId,
+      collectionId: colId,
+      previewImage: classification.thumbnail || "",
+      metadata: classification.videoId ? { videoId: classification.videoId } : {},
+      sourceUrl: url,
+      sourceTitle: title,
+      tags,
+      favorite: false,
+      createdAt: Date.now(),
+    };
+    allItems.unshift(newItem);
+    showToast(`Saved to 📦 ${boxName}!`);
+  }
+
+  await chrome.storage.local.set({ items: allItems });
+  SyncService.pushToCloud(allItems, containers, collections).catch(() => {});
+
+  updateVaultCounters();
+  populateVaultBoxFilter();
+  renderItems();
+
+  // Switch to Recent Vault tab to show the new card immediately
+  switchToTab("vault");
 }
 
-// ── Render Containers Bar (🗄️ Archives) ──
-function renderContainersBar() {
-  containersList.innerHTML = "";
+// ── Destination Select Helpers ──
+function populateSaveDestinationSelects() {
+  if (!saveColSelect) return;
+  populateCollectionSelect(saveColSelect, activeCollectionId !== "all" ? activeCollectionId : collections[0]?.id);
+  populateContainerSelect(saveContSelect, saveColSelect.value, activeContainerId !== "all" ? activeContainerId : undefined);
+}
 
-  // Available containers according to activeCollectionId
-  const visibleContainers =
-    activeCollectionId === "all"
-      ? containers
-      : containers.filter((c) => c.collectionId === activeCollectionId);
+function populateVaultBoxFilter() {
+  if (!vaultBoxFilter) return;
+  const currentVal = activeVaultBoxId || "all";
+  vaultBoxFilter.innerHTML = "";
 
-  if (visibleContainers.length === 0) {
-    const emptyPill = document.createElement("button");
-    emptyPill.className = "nav-pill-action";
-    emptyPill.innerHTML = `<span>📦 + New Box</span>`;
-    emptyPill.addEventListener("click", () => openContainerModal());
-    containersList.appendChild(emptyPill);
-    return;
-  }
+  const allOpt = document.createElement("option");
+  allOpt.value = "all";
+  allOpt.textContent = `All Boxes (${allItems.length}) ▾`;
+  if (currentVal === "all") allOpt.selected = true;
+  vaultBoxFilter.appendChild(allOpt);
 
-  // "All Containers" Pill
-  const allPill = document.createElement("button");
-  allPill.className = `nav-pill ${activeContainerId === "all" ? "active" : ""}`;
-
-  const currentPoolItems =
-    activeCollectionId === "all"
-      ? allItems
-      : allItems.filter((i) => i.collectionId === activeCollectionId);
-
-  allPill.innerHTML = `
-    <span class="pill-symbol">📦</span>
-    <span>All</span>
-    <span class="pill-count">${currentPoolItems.length}</span>
-  `;
-  allPill.addEventListener("click", () => {
-    activeContainerId = "all";
-    chrome.storage.local.set({ activeContainerId });
-    renderContainersBar();
-    renderBreadcrumbs();
-    renderItems();
-  });
-  containersList.appendChild(allPill);
-
-  visibleContainers.forEach((cont) => {
+  containers.forEach((cont) => {
     const count = allItems.filter((i) => i.containerId === cont.id).length;
-    const pill = document.createElement("button");
-    pill.className = `nav-pill ${activeContainerId === cont.id ? "active" : ""}`;
-    pill.innerHTML = `
-      <span class="pill-symbol">📦</span>
-      <span>${escapeHTML(cont.name)}</span>
-      <span class="pill-count">${count}</span>
-    `;
-    pill.addEventListener("click", () => {
-      activeContainerId = cont.id;
-      // Also update lastActiveContainer for context menu saves
-      chrome.storage.local.set({ activeContainerId, lastActiveContainer: cont.id });
-      renderContainersBar();
-      renderBreadcrumbs();
-      renderItems();
-    });
-    containersList.appendChild(pill);
+    const opt = document.createElement("option");
+    opt.value = cont.id;
+    opt.textContent = `📦 ${cont.name} (${count})`;
+    if (cont.id === currentVal) opt.selected = true;
+    vaultBoxFilter.appendChild(opt);
   });
 }
 
-// ── Render Breadcrumbs & Counter ──
-function renderBreadcrumbs() {
-  const col = collections.find((c) => c.id === activeCollectionId);
-  const cont = containers.find((c) => c.id === activeContainerId);
-
-  const colText = col ? `📁 ${escapeHTML(col.name)}` : "📁 All Collections";
-  const contText = cont ? `📦 ${escapeHTML(cont.name)}` : "📦 All Boxes";
-
-  pathBreadcrumbs.innerHTML = `
-    <span class="crumb col-crumb">${colText}</span>
-    <span class="crumb-separator">›</span>
-    <span class="crumb cont-crumb">${contText}</span>
-  `;
+function populateCollectionSelect(selectEl, selectedColId) {
+  if (!selectEl) return;
+  selectEl.innerHTML = "";
+  if (collections.length === 0) {
+    const opt = document.createElement("option");
+    opt.value = "";
+    opt.textContent = "(No collections created)";
+    selectEl.appendChild(opt);
+    return;
+  }
+  collections.forEach((col) => {
+    const opt = document.createElement("option");
+    opt.value = col.id;
+    opt.textContent = `📁 ${col.name}`;
+    if (col.id === selectedColId) opt.selected = true;
+    selectEl.appendChild(opt);
+  });
 }
 
-// ── Render Items (Polymorphic Cards) ──
+function populateContainerSelect(selectEl, colId, selectedContId) {
+  if (!selectEl) return;
+  selectEl.innerHTML = "";
+  const matching = containers.filter((c) => c.collectionId === colId);
+  if (matching.length === 0) {
+    const opt = document.createElement("option");
+    opt.value = "";
+    opt.textContent = "(No boxes in this folder)";
+    selectEl.appendChild(opt);
+    return;
+  }
+
+  matching.forEach((cont) => {
+    const opt = document.createElement("option");
+    opt.value = cont.id;
+    opt.textContent = `📦 ${cont.name}`;
+    if (cont.id === selectedContId) opt.selected = true;
+    selectEl.appendChild(opt);
+  });
+}
+
+// ── Screen B: Render Items (Cards Feed) ──
 function renderItems() {
+  if (!itemsContainer) return;
   let filtered = [...allItems];
 
-  // Hierarchy filter
-  if (activeCollectionId !== "all") {
-    filtered = filtered.filter((i) => i.collectionId === activeCollectionId);
-  }
-  if (activeContainerId !== "all") {
-    filtered = filtered.filter((i) => i.containerId === activeContainerId);
+  // Box filter dropdown
+  if (activeVaultBoxId && activeVaultBoxId !== "all") {
+    filtered = filtered.filter((i) => i.containerId === activeVaultBoxId);
   }
 
   // Type filter
@@ -434,24 +622,22 @@ function renderItems() {
     filtered = filtered.filter((i) => {
       const titleMatch = (i.title || "").toLowerCase().includes(searchQuery);
       const contentMatch = (i.content || "").toLowerCase().includes(searchQuery);
+      const noteMatch = (i.note || "").toLowerCase().includes(searchQuery);
       const tagMatch = (i.tags || []).some((t) => t.toLowerCase().includes(searchQuery));
       const sourceMatch = (i.sourceTitle || i.sourceUrl || "").toLowerCase().includes(searchQuery);
-      return titleMatch || contentMatch || tagMatch || sourceMatch;
+      return titleMatch || contentMatch || noteMatch || tagMatch || sourceMatch;
     });
   }
-
-  // Update item count badge
-  itemCount.textContent = `${filtered.length} ${filtered.length === 1 ? "item" : "items"}`;
 
   // Empty state check
   if (filtered.length === 0) {
     itemsContainer.innerHTML = "";
-    emptyState.classList.remove("hidden");
+    if (emptyState) emptyState.classList.remove("hidden");
     return;
   }
-  emptyState.classList.add("hidden");
+  if (emptyState) emptyState.classList.add("hidden");
 
-  // Render items
+  // Render cards
   itemsContainer.innerHTML = "";
   filtered.forEach((item) => {
     const card = createItemCard(item);
@@ -467,10 +653,9 @@ function createItemCard(item) {
 
   const parentCol = collections.find((c) => c.id === item.collectionId);
   const parentCont = containers.find((c) => c.id === item.containerId);
-  const colName = parentCol ? parentCol.name : "Collection";
-  const contName = parentCont ? parentCont.name : "Container";
+  const colName = parentCol ? parentCol.name : "Folder";
+  const contName = parentCont ? parentCont.name : "Storage Box";
 
-  // Type chips
   const typeIcons = {
     youtube: "🎬 YouTube",
     quote: "💬 Quote",
@@ -481,14 +666,17 @@ function createItemCard(item) {
     text: "📝 Note",
   };
   const typeLabel = typeIcons[item.type] || "📄 Clip";
+  const timeStr = formatRelativeTime(item.createdAt);
+  const targetUrl = item.sourceUrl || (item.content.startsWith("http") ? item.content : "");
 
-  // Top Row
   let cardHtml = `
     <div class="card-top-row">
-      <span class="card-type-chip ${item.type || "text"}">${typeLabel}</span>
-      <span class="card-hierarchy-tag" title="📁 ${escapeHTML(colName)} › 📦 ${escapeHTML(contName)}">
-        📁 ${escapeHTML(colName)} › 📦 ${escapeHTML(contName)}
-      </span>
+      <div style="display:flex;align-items:center;gap:6px;">
+        <span class="card-type-chip ${item.type || "text"}">${typeLabel}</span>
+        <span class="card-hierarchy-tag" title="📁 ${escapeHTML(colName)} › 📦 ${escapeHTML(contName)}">
+          📦 ${escapeHTML(contName)}
+        </span>
+      </div>
       <div class="card-actions-quick">
         <button class="card-action-btn fav-btn ${item.favorite ? "active" : ""}" title="${item.favorite ? "Unfavorite" : "Favorite"}">
           <svg viewBox="0 0 24 24" fill="${item.favorite ? "currentColor" : "none"}" stroke="currentColor" stroke-width="2" width="13" height="13"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
@@ -506,12 +694,12 @@ function createItemCard(item) {
     </div>
   `;
 
-  // Title if present
+  // Title
   if (item.title && item.title.trim()) {
     cardHtml += `<div class="card-title">${escapeHTML(item.title)}</div>`;
   }
 
-  // Type specific rendering
+  // Type specific content
   if (item.type === "youtube") {
     const thumb = item.previewImage || (item.metadata?.videoId ? `https://img.youtube.com/vi/${item.metadata.videoId}/hqdefault.jpg` : "");
     if (thumb) {
@@ -538,6 +726,16 @@ function createItemCard(item) {
     cardHtml += `<div class="card-content-text">${escapeHTML(item.content)}</div>`;
   }
 
+  // Mini Swayed Yellow Sticky Note Memo
+  if (item.note && item.note.trim()) {
+    cardHtml += `
+      <div class="card-sticky-memo">
+        <span class="sticky-icon">📌</span>
+        <span class="sticky-text">${escapeHTML(item.note)}</span>
+      </div>
+    `;
+  }
+
   // Tags
   if (item.tags && item.tags.length > 0) {
     cardHtml += `
@@ -547,19 +745,7 @@ function createItemCard(item) {
     `;
   }
 
-  // Personal Note on item
-  if (item.note && item.note.trim()) {
-    cardHtml += `
-      <div class="card-note-chip" style="display:flex;align-items:center;gap:4px;font-size:10.5px;color:#4338CA;background:#EEF2FF;padding:2px 6px;border-radius:4px;margin-top:2px;">
-        💡 ${escapeHTML(item.note)}
-      </div>
-    `;
-  }
-
-  // Bottom Source & Time Row
-  const timeStr = formatRelativeTime(item.createdAt);
-  const targetUrl = item.sourceUrl || (item.content.startsWith("http") ? item.content : "");
-
+  // Bottom Row: Source & Timestamp
   cardHtml += `
     <div class="card-source-row">
       ${
@@ -578,18 +764,17 @@ function createItemCard(item) {
 
   // Event handlers
   const favBtn = card.querySelector(".fav-btn");
-  favBtn.addEventListener("click", () => toggleFavorite(item.id));
+  if (favBtn) favBtn.addEventListener("click", () => toggleFavorite(item.id));
 
   const copyBtn = card.querySelector(".copy-btn");
-  copyBtn.addEventListener("click", () => copyToClipboard(item.content));
+  if (copyBtn) copyBtn.addEventListener("click", () => copyToClipboard(item.content));
 
   const editBtn = card.querySelector(".edit-btn");
-  editBtn.addEventListener("click", () => openEditModal(item));
+  if (editBtn) editBtn.addEventListener("click", () => openEditModal(item));
 
   const deleteBtn = card.querySelector(".delete-btn");
-  deleteBtn.addEventListener("click", () => deleteItem(item.id));
+  if (deleteBtn) deleteBtn.addEventListener("click", () => deleteItem(item.id));
 
-  // Click on media banner opens target URL
   const mediaBanner = card.querySelector(".card-media-banner, .card-image-box");
   if (mediaBanner && targetUrl) {
     mediaBanner.style.cursor = "pointer";
@@ -608,16 +793,21 @@ async function handleQuickPaste() {
       return;
     }
 
-    const { collection, container } = getActiveTarget();
-    const classification = classifyContent(text.trim());
+    // Default target
+    if (collections.length === 0) {
+      await handleSaveCurrentTab();
+    }
+    const targetCol = collections[0];
+    const targetCont = containers.find((c) => c.collectionId === targetCol.id) || containers[0];
 
+    const classification = classifyContent(text.trim());
     const newItem = {
       id: generateId(),
       type: classification.type,
       title: classification.type === "youtube" ? "YouTube Video" : classification.type === "quote" ? "Saved Quote" : "",
       content: text.trim(),
-      containerId: container.id,
-      collectionId: collection.id,
+      containerId: targetCont.id,
+      collectionId: targetCol.id,
       previewImage: classification.thumbnail || (classification.type === "image" ? text.trim() : ""),
       metadata: classification.videoId ? { videoId: classification.videoId } : {},
       sourceUrl: text.trim().startsWith("http") ? text.trim() : "",
@@ -631,29 +821,14 @@ async function handleQuickPaste() {
     await chrome.storage.local.set({ items: allItems });
     SyncService.pushToCloud(allItems, containers, collections).catch(() => {});
 
-    renderCollectionsBar();
-    renderContainersBar();
+    updateVaultCounters();
+    populateVaultBoxFilter();
     renderItems();
-    showToast(`Saved to 🗄️ ${container.name}`);
+    switchToTab("vault");
+    showToast(`Saved to 📦 ${targetCont.name}`);
   } catch (err) {
     showToast("Clipboard access denied. Use ⌘+V");
   }
-}
-
-function getActiveTarget() {
-  let targetCol = collections.find((c) => c.id === activeCollectionId) || collections[0];
-
-  let targetCont = null;
-  if (targetCol) {
-    if (activeContainerId !== "all") {
-      targetCont = containers.find((c) => c.id === activeContainerId);
-    }
-    if (!targetCont) {
-      targetCont = containers.find((c) => c.collectionId === targetCol.id) || containers[0];
-    }
-  }
-
-  return { collection: targetCol, container: targetCont };
 }
 
 // ── Add Item Modal Logic ──
@@ -664,7 +839,7 @@ function openAddModal() {
     return;
   }
   if (containers.length === 0) {
-    showToast("Please create a container crate first");
+    showToast("Please create a storage box first");
     openContainerModal();
     return;
   }
@@ -722,9 +897,10 @@ async function handleSaveNewItem() {
   SyncService.pushToCloud(allItems, containers, collections).catch(() => {});
 
   closeAddModal();
-  renderCollectionsBar();
-  renderContainersBar();
+  updateVaultCounters();
+  populateVaultBoxFilter();
   renderItems();
+  switchToTab("vault");
   showToast("Item saved!");
 }
 
@@ -781,8 +957,8 @@ async function handleSaveEditItem() {
   SyncService.pushToCloud(allItems, containers, collections).catch(() => {});
 
   closeEditModal();
-  renderCollectionsBar();
-  renderContainersBar();
+  updateVaultCounters();
+  populateVaultBoxFilter();
   renderItems();
   showToast("Item updated!");
 }
@@ -813,13 +989,13 @@ async function handleCreateCollection() {
 
   collections.push(newCol);
 
-  // Automatically create a default container inside this new collection
+  // Automatically create a default storage box inside this new collection
   const defaultCont = {
     id: "cont_" + generateId(),
     collectionId: newCol.id,
     name: "General",
     icon: "archive",
-    description: "Default container for " + name,
+    description: "Default storage box for " + name,
     createdAt: Date.now(),
     order: 0,
   };
@@ -838,9 +1014,8 @@ async function handleCreateCollection() {
   SyncService.pushToCloud(allItems, containers, collections).catch(() => {});
 
   closeCollectionModal();
-  renderCollectionsBar();
-  renderContainersBar();
-  renderBreadcrumbs();
+  populateSaveDestinationSelects();
+  populateVaultBoxFilter();
   renderItems();
   showToast(`Created Collection: 📁 ${name}`);
 }
@@ -890,43 +1065,10 @@ async function handleCreateContainer() {
   SyncService.pushToCloud(allItems, containers, collections).catch(() => {});
 
   closeContainerModal();
-  renderCollectionsBar();
-  renderContainersBar();
-  renderBreadcrumbs();
+  populateSaveDestinationSelects();
+  populateVaultBoxFilter();
   renderItems();
-  showToast(`Created Container: 🗄️ ${name}`);
-}
-
-// ── Select Helper Utilities ──
-function populateCollectionSelect(selectEl, selectedColId) {
-  selectEl.innerHTML = "";
-  collections.forEach((col) => {
-    const opt = document.createElement("option");
-    opt.value = col.id;
-    opt.textContent = `📁 ${col.name}`;
-    if (col.id === selectedColId) opt.selected = true;
-    selectEl.appendChild(opt);
-  });
-}
-
-function populateContainerSelect(selectEl, colId, selectedContId) {
-  selectEl.innerHTML = "";
-  const matching = containers.filter((c) => c.collectionId === colId);
-  if (matching.length === 0) {
-    const opt = document.createElement("option");
-    opt.value = "";
-    opt.textContent = "(No containers in this collection)";
-    selectEl.appendChild(opt);
-    return;
-  }
-
-  matching.forEach((cont) => {
-    const opt = document.createElement("option");
-    opt.value = cont.id;
-    opt.textContent = `🗄️ ${cont.name}`;
-    if (cont.id === selectedContId) opt.selected = true;
-    selectEl.appendChild(opt);
-  });
+  showToast(`Created Box: 📦 ${name}`);
 }
 
 // ── Item Actions (Fav, Copy, Delete) ──
@@ -953,8 +1095,8 @@ async function deleteItem(id) {
   allItems = allItems.filter((i) => i.id !== id);
   await chrome.storage.local.set({ items: allItems });
   SyncService.pushToCloud(allItems, containers, collections).catch(() => {});
-  renderCollectionsBar();
-  renderContainersBar();
+  updateVaultCounters();
+  populateVaultBoxFilter();
   renderItems();
   showToast("Item deleted");
 }
@@ -987,12 +1129,10 @@ async function handleImport(e) {
     const text = await file.text();
     const data = JSON.parse(text);
 
-    // Support both old array format and new vault format
     let importedItems = Array.isArray(data) ? data : data.items || [];
     let importedContainers = data.containers || [];
     let importedCollections = data.collections || [];
 
-    // Merge
     const colMap = new Map();
     collections.forEach((c) => colMap.set(c.id, c));
     importedCollections.forEach((c) => { if (c && c.id && !colMap.has(c.id)) colMap.set(c.id, c); });
@@ -1013,9 +1153,9 @@ async function handleImport(e) {
     await SyncService.ensureInitializedAndMigrated();
     SyncService.pushToCloud(allItems, containers, collections).catch(() => {});
 
-    renderCollectionsBar();
-    renderContainersBar();
-    renderBreadcrumbs();
+    updateVaultCounters();
+    populateSaveDestinationSelects();
+    populateVaultBoxFilter();
     renderItems();
     showToast(`Imported ${importedItems.length} items!`);
   } catch (err) {
@@ -1025,13 +1165,13 @@ async function handleImport(e) {
 
 async function handleClearAll() {
   dropdownMenu.classList.add("hidden");
-  if (!confirm("Are you sure you want to clear all saved items? Collections and containers will be kept.")) return;
+  if (!confirm("Are you sure you want to clear all saved items? Collections and storage boxes will be kept.")) return;
 
   allItems = [];
   await chrome.storage.local.set({ items: [] });
   SyncService.pushToCloud([], containers, collections).catch(() => {});
-  renderCollectionsBar();
-  renderContainersBar();
+  updateVaultCounters();
+  populateVaultBoxFilter();
   renderItems();
   showToast("All items cleared");
 }
@@ -1040,9 +1180,9 @@ async function handleClearAll() {
 async function checkAuthStatus() {
   const session = await SyncService.getUser();
   if (session) {
-    btnAuth.title = `Cloud Sync Active (${session.user.email})`;
+    if (footerStatusText) footerStatusText.textContent = "Synced with Cloud";
   } else {
-    btnAuth.title = "Cloud Sync & Account (Logged Out)";
+    if (footerStatusText) footerStatusText.textContent = "Offline Ready";
   }
 }
 
@@ -1114,9 +1254,9 @@ async function handleManualSync() {
       collections = res.collections || [];
       containers = res.containers || [];
       allItems = res.items || [];
-      renderCollectionsBar();
-      renderContainersBar();
-      renderBreadcrumbs();
+      updateVaultCounters();
+      populateSaveDestinationSelects();
+      populateVaultBoxFilter();
       renderItems();
       showToast("Vault synchronized!");
     }
@@ -1174,4 +1314,47 @@ function formatRelativeTime(timestamp) {
   const days = Math.floor(hours / 24);
   if (days < 30) return `${days}d ago`;
   return new Date(timestamp).toLocaleDateString(undefined, { month: "short", day: "numeric" });
+}
+
+// ── Content Classifier Helper ──
+function classifyContent(text) {
+  if (!text) return { type: "text" };
+  const str = text.trim();
+
+  // YouTube
+  const ytMatch = str.match(/(?:youtube\.com\/(?:watch\?v=|shorts\/)|youtu\.be\/)([\w-]{11})/i);
+  if (ytMatch) {
+    return {
+      type: "youtube",
+      videoId: ytMatch[1],
+      thumbnail: `https://img.youtube.com/vi/${ytMatch[1]}/hqdefault.jpg`,
+    };
+  }
+
+  // Image URL
+  if (str.match(/\.(jpeg|jpg|gif|png|webp|svg)(\?.*)?$/i)) {
+    return { type: "image" };
+  }
+
+  // Product URLs
+  if (str.match(/(amazon\.[a-z.]+|ebay\.[a-z.]+|etsy\.com|shopify\.com|aliexpress\.com|walmart\.com)/i)) {
+    return { type: "product" };
+  }
+
+  // Social URLs
+  if (str.match(/(twitter\.com|x\.com|reddit\.com|linkedin\.com|instagram\.com|threads\.net)/i)) {
+    return { type: "social" };
+  }
+
+  // General URL
+  if (str.startsWith("http://") || str.startsWith("https://")) {
+    return { type: "link" };
+  }
+
+  // Quote heuristic: starts and ends with quotation marks or contains quotation
+  if ((str.startsWith('"') && str.endsWith('"')) || (str.startsWith('“') && str.endsWith('”'))) {
+    return { type: "quote" };
+  }
+
+  return { type: "text" };
 }

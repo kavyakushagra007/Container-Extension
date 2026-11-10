@@ -22,17 +22,12 @@
         </div>
       </div>
       <div class="header-actions">
-        <button id="btn-paste" class="icon-btn" title="Paste & Save from Clipboard">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><rect x="8" y="2" width="8" height="4" rx="1" ry="1"/></svg>
+        <button id="btn-dashboard" class="btn-dashboard-pill" title="Open Full Dashboard">
+          <span>Dashboard</span>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="12" height="12"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
         </button>
-        <button id="btn-add" class="icon-btn primary-action" title="Create New Item">
+        <button id="btn-add" class="icon-btn" title="Create New Item Manually">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-        </button>
-        <button id="btn-dashboard" class="icon-btn" title="Open Full Dashboard">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
-        </button>
-        <button id="btn-auth" class="icon-btn" title="Cloud Sync & Account">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
         </button>
         <button id="btn-menu" class="icon-btn" title="More Options">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="1"/><circle cx="12" cy="5" r="1"/><circle cx="12" cy="19" r="1"/></svg>
@@ -48,9 +43,13 @@
       </button>
       <button id="menu-add-container" class="dropdown-item">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="21 8 21 21 3 21 3 8"/><rect x="1" y="3" width="22" height="5"/><line x1="10" y1="12" x2="14" y2="12"/></svg>
-        New Container
+        New Container Box
       </button>
       <div class="dropdown-divider"></div>
+      <button id="menu-auth" class="dropdown-item">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+        Cloud Sync & Account
+      </button>
       <button id="menu-export" class="dropdown-item">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
         Export All Data
@@ -66,96 +65,147 @@
       </button>
     </div>
 
-    <!-- Navigation Tier 1: Collections (📁 Folder Metaphor) -->
-    <div class="nav-section collections-section">
-      <div class="nav-header">
-        <span class="nav-label">
-          <svg class="nav-type-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/>
-          </svg>
-          COLLECTIONS
-        </span>
-        <button id="btn-add-collection-quick" class="section-add-btn" title="Create Collection">+ New</button>
-      </div>
-      <div class="collections-scroll" id="collections-list">
-        <!-- Rendered by JS -->
+    <!-- Segmented Tab Switcher (Option 2: Save Page vs. Recent Vault) -->
+    <div class="segmented-control-bar">
+      <div class="segmented-tabs">
+        <button id="tab-save-page" class="tab-btn active" type="button">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+          <span>Save Page</span>
+        </button>
+        <button id="tab-recent-vault" class="tab-btn" type="button">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><polyline points="21 8 21 21 3 21 3 8"/><rect x="1" y="3" width="22" height="5"/><line x1="10" y1="12" x2="14" y2="12"/></svg>
+          <span>Recent Vault</span>
+          <span class="tab-badge" id="tab-vault-count">0</span>
+        </button>
       </div>
     </div>
 
-    <!-- Navigation Tier 2: Containers (🗄️ Archive / Storage Box Metaphor) -->
-    <div class="nav-section containers-section">
-      <div class="nav-header">
-        <span class="nav-label">
-          <svg class="nav-type-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+    <!-- ── SCREEN A: SAVE PAGE ── -->
+    <div id="view-save-page" class="view-panel custom-scroll">
+      <!-- Active Tab Card -->
+      <div class="tab-preview-card">
+        <div class="tab-preview-header">
+          <div class="tab-live-badge">
+            <span class="live-dot"></span>
+            <span>CURRENT TAB</span>
+          </div>
+          <span id="save-page-type-chip" class="tab-type-chip">LINK</span>
+        </div>
+        <div class="tab-title-wrap">
+          <input type="text" id="save-page-title" class="tab-title-field" placeholder="Page Title..." />
+        </div>
+        <div class="tab-url-wrap">
+          <span class="tab-url-icon">🌐</span>
+          <span id="save-page-url" class="tab-url-text" title="">Detecting active browser tab...</span>
+        </div>
+      </div>
+
+      <!-- Save Destination (Folder & Box) -->
+      <div class="destination-section">
+        <div class="destination-row">
+          <div class="destination-col">
+            <div class="destination-label-wrap">
+              <label for="save-col-select">📁 Collection Folder</label>
+              <button type="button" id="btn-quick-new-col" class="quick-add-link">+ New</button>
+            </div>
+            <select id="save-col-select" class="clean-select"></select>
+          </div>
+          <div class="destination-col">
+            <div class="destination-label-wrap">
+              <label for="save-cont-select">📦 Storage Box</label>
+              <button type="button" id="btn-quick-new-cont" class="quick-add-link">+ New</button>
+            </div>
+            <select id="save-cont-select" class="clean-select"></select>
+          </div>
+        </div>
+      </div>
+
+      <!-- Swayed Sticky Note Memo Input -->
+      <div class="sticky-memo-section">
+        <div class="sticky-memo-header">
+          <label for="save-note-input" class="sticky-memo-title">
+            <span>📝 STICKY NOTE MEMO</span>
+            <span class="memo-optional">Optional</span>
+          </label>
+        </div>
+        <div class="sticky-curl-card">
+          <textarea id="save-note-input" rows="2" placeholder="Write any personal notes, ideas, or reminders for this save..."></textarea>
+        </div>
+      </div>
+
+      <!-- Tags Input -->
+      <div class="tags-section">
+        <label for="save-tags-input" class="field-label">🏷️ TAGS <span class="field-hint">(comma separated)</span></label>
+        <input type="text" id="save-tags-input" class="clean-input" placeholder="e.g. poetry, design, article" />
+      </div>
+
+      <!-- Primary Save Button -->
+      <button type="button" id="btn-save-current-page" class="btn-save-page">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+        <span id="btn-save-text">Save Page to Vault</span>
+      </button>
+
+      <!-- Paste Clipboard Link -->
+      <div class="save-alt-actions">
+        <button type="button" id="btn-paste-clipboard" class="alt-action-btn">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="13" height="13"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><rect x="8" y="2" width="8" height="4" rx="1" ry="1"/></svg>
+          <span>Paste & Save from Clipboard</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- ── SCREEN B: RECENT VAULT ── -->
+    <div id="view-recent-vault" class="view-panel custom-scroll hidden">
+      <!-- Search & Box Filter -->
+      <div class="vault-filter-bar">
+        <div class="vault-search-box">
+          <svg class="search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+          <input type="text" id="vault-search-input" placeholder="Search quotes, links, notes..." />
+          <button type="button" id="vault-search-clear" class="search-clear hidden">&times;</button>
+        </div>
+        <select id="vault-box-filter" class="vault-box-select">
+          <option value="all">All Boxes ▾</option>
+        </select>
+      </div>
+
+      <!-- Type Filter Chips -->
+      <div class="vault-type-chips">
+        <button type="button" class="type-filter-chip active" data-filter="all">All</button>
+        <button type="button" class="type-filter-chip" data-filter="link">Links</button>
+        <button type="button" class="type-filter-chip" data-filter="quote">Quotes</button>
+        <button type="button" class="type-filter-chip" data-filter="media">Media</button>
+        <button type="button" class="type-filter-chip" data-filter="favorite">★ Favs</button>
+      </div>
+
+      <!-- Items List -->
+      <div id="items-container" class="items-list">
+        <!-- Rendered dynamically -->
+      </div>
+
+      <!-- Empty State -->
+      <div id="empty-state" class="empty-state hidden">
+        <div class="empty-icon-wrap">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" width="36" height="36">
             <polyline points="21 8 21 21 3 21 3 8"/>
             <rect x="1" y="3" width="22" height="5"/>
             <line x1="10" y1="12" x2="14" y2="12"/>
           </svg>
-          CONTAINERS
-        </span>
-        <button id="btn-add-container-quick" class="section-add-btn" title="Create Container">+ New</button>
-      </div>
-      <div class="containers-scroll" id="containers-list">
-        <!-- Rendered by JS -->
+        </div>
+        <p class="empty-title">No items found</p>
+        <span class="empty-hint">Switch to the "Save Page" tab to capture this page,<br/>or right-click any link or text to save.</span>
       </div>
     </div>
 
-    <!-- Search & Type Filters -->
-    <div class="search-section">
-      <div class="search-bar">
-        <svg class="search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-        <input type="text" id="search-input" placeholder="Search saved quotes, links, media..." />
-        <button id="search-clear" class="search-clear hidden">&times;</button>
+    <!-- Micro Footer Status Bar -->
+    <footer class="popup-footer">
+      <div class="footer-status">
+        <span class="status-dot"></span>
+        <span id="footer-status-text">Ready to Save</span>
       </div>
-
-      <div class="filters">
-        <button class="filter-btn active" data-filter="all">All</button>
-        <button class="filter-btn" data-filter="quote">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="12" height="12"><path d="M3 21c3 0 7-1 7-8V5c0-1.25-.75-2-2-2H4c-1.25 0-2 .75-2 2v6c0 7 3 10 3 10zm14 0c3 0 7-1 7-8V5c0-1.25-.75-2-2-2h-4c-1.25 0-2 .75-2 2v6c0 7 3 10 3 10z"/></svg>
-          Quotes
-        </button>
-        <button class="filter-btn" data-filter="link">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="12" height="12"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
-          Links
-        </button>
-        <button class="filter-btn" data-filter="media">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="12" height="12"><polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2" ry="2"/></svg>
-          Media
-        </button>
-        <button class="filter-btn" data-filter="favorite">
-          <svg viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" stroke-width="1" width="12" height="12"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
-          Favs
-        </button>
+      <div class="footer-count">
+        <span id="footer-item-count">0 items in vault</span>
       </div>
-    </div>
-
-    <!-- Active Path & Count Bar -->
-    <div class="active-path-bar">
-      <div class="path-breadcrumbs" id="path-breadcrumbs">
-        <span class="crumb col-crumb">📁 All Collections</span>
-        <span class="crumb-separator">›</span>
-        <span class="crumb cont-crumb">🗄️ All Containers</span>
-      </div>
-      <span class="badge-count" id="item-count">0 items</span>
-    </div>
-
-    <!-- Items List Container -->
-    <div id="items-container" class="items-container">
-      <!-- Items dynamically populated -->
-    </div>
-
-    <!-- Empty State -->
-    <div id="empty-state" class="empty-state hidden">
-      <div class="empty-icon-wrap">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" width="36" height="36">
-          <polyline points="21 8 21 21 3 21 3 8"/>
-          <rect x="1" y="3" width="22" height="5"/>
-          <line x1="10" y1="12" x2="14" y2="12"/>
-        </svg>
-      </div>
-      <p class="empty-title">This container is empty</p>
-      <span class="empty-hint">Highlight text, right-click any link or image,<br/>or click <strong>+</strong> above to save.</span>
-    </div>
+    </footer>
 
     <!-- ── MODALS ── -->
 
