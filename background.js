@@ -2,7 +2,7 @@ importScripts("sync.js");
 
 // ── Context Menu Setup ──
 chrome.runtime.onInstalled.addListener(() => {
-  updateBadge();
+  clearBadge();
   chrome.contextMenus.create({
     id: "saveit-selection",
     title: 'Save "%s" to SaveIt',
@@ -119,20 +119,14 @@ function getSelectedText() {
   return window.getSelection()?.toString() || "";
 }
 
-// ── Storage helpers ──
-async function updateBadge() {
+// ── Clear Badge ──
+function clearBadge() {
   try {
-    const { items = [] } = await chrome.storage.local.get("items");
-    const count = items.length;
-    chrome.action.setBadgeText({ text: count > 0 ? String(count) : "" });
-    chrome.action.setBadgeBackgroundColor({ color: "#BEFA4F" });
-    if (chrome.action.setBadgeTextColor) {
-      chrome.action.setBadgeTextColor({ color: "#000000" });
-    }
+    chrome.action.setBadgeText({ text: "" });
   } catch {}
 }
 
-chrome.runtime.onStartup.addListener(updateBadge);
+chrome.runtime.onStartup.addListener(clearBadge);
 
 async function saveItem(item) {
   const { items = [], containers = [] } = await chrome.storage.local.get(["items", "containers"]);
@@ -141,16 +135,15 @@ async function saveItem(item) {
 
   // Sync to cloud in background if user is logged in
   if (typeof SyncService !== "undefined" && SyncService.pushToCloud) {
-    SyncService.pushToCloud(items, containers).catch(() => {});
+    const safeContainers =
+      containers && containers.length > 0
+        ? containers
+        : [{ id: "default", name: "Quick Saves", icon: "⚡", createdAt: 0 }];
+    SyncService.pushToCloud(items, safeContainers).catch(() => {});
   }
 
-  // Show neon confirmation badge briefly
-  chrome.action.setBadgeText({ text: "✓" });
-  chrome.action.setBadgeBackgroundColor({ color: "#BEFA4F" });
-  if (chrome.action.setBadgeTextColor) {
-    chrome.action.setBadgeTextColor({ color: "#000000" });
-  }
-  setTimeout(updateBadge, 1500);
+  // Ensure no badge is shown
+  clearBadge();
 
   // Show floating notification on the active tab
   try {
