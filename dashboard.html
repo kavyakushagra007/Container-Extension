@@ -32,15 +32,6 @@
           <span class="sidebar-label">Starred Saves</span>
           <span class="sidebar-badge" id="badge-starred-items">0</span>
         </button>
-
-        <!-- Containers Section -->
-        <div class="sidebar-section-header">
-          <span>CONTAINERS</span>
-          <button id="btn-sidebar-new-cont" class="sidebar-action-btn" title="Create Container (📦)">+</button>
-        </div>
-        <div id="sidebar-containers-list" class="sidebar-collections-list">
-          <!-- Dynamically populated containers -->
-        </div>
       </nav>
 
       <!-- Sidebar Footer -->
@@ -147,22 +138,10 @@
               </div>
               <div class="library-top-actions">
                 <span class="library-counter-badge" id="library-counter">0 items</span>
-                <button id="btn-library-new-cont" class="btn btn-secondary">
-                  <span>📦+</span>
-                  <span>New Container</span>
-                </button>
                 <button id="btn-library-add-item" class="btn btn-primary">
                   <span>+</span>
                   <span>Save Item</span>
                 </button>
-              </div>
-            </div>
-
-            <!-- Horizontal Container Filter Strip -->
-            <div class="library-containers-strip-wrap">
-              <span class="strip-label">CONTAINERS</span>
-              <div class="library-containers-strip" id="library-containers-strip">
-                <!-- Dynamically populated: 📦 All Containers, 📦 Theme Ideas, etc. -->
               </div>
             </div>
 
@@ -189,76 +168,6 @@
             <h3>Your library is empty</h3>
             <p>Save articles, quotes, YouTube videos, and images to build your personal knowledge vault.</p>
             <button class="btn btn-primary" id="btn-create-first-save">+ Save Item</button>
-          </div>
-        </section>
-
-        <!-- 4. Container View: Inside a Container (Items Grid + Container Note) -->
-        <section id="view-container" class="view-panel hidden">
-          <div class="view-nav-header">
-            <button class="btn-back" id="btn-back-to-home">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16">
-                <polyline points="15 18 9 12 15 6" />
-              </svg>
-              <span>Back to Library</span>
-            </button>
-            <div class="view-nav-actions">
-              <button id="btn-edit-cont-details" class="btn btn-secondary">Container Settings</button>
-              <button id="btn-add-item-to-current-cont" class="btn btn-primary">+ Save Item Here</button>
-            </div>
-          </div>
-
-          <!-- Container Crate Hero Banner with Editable Note -->
-          <div class="container-crate-hero" id="cont-hero-crate">
-            <div class="crate-hero-stripe" id="cont-hero-stripe"></div>
-            <div class="crate-hero-body">
-              <div class="crate-hero-left">
-                <div class="crate-hero-icon" id="cont-hero-icon">📦</div>
-                <div>
-                  <h1 class="crate-hero-name" id="cont-hero-title">Container</h1>
-                  <span class="crate-hero-meta" id="cont-hero-meta">0 items</span>
-                </div>
-              </div>
-
-              <!-- Container Note Box -->
-              <div class="crate-hero-note-box">
-                <div class="crate-note-top">
-                  <span>📝 BOX NOTE</span>
-                  <button id="btn-edit-cont-note" class="btn-note-edit">Edit Note</button>
-                </div>
-                <div class="crate-note-text" id="cont-hero-note-text">
-                  (No note yet. Click "Edit Note" to add guidelines or hex palettes)
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <!-- Items inside Container (Uniform Cards Grid) -->
-          <div class="container-items-section">
-            <div class="panel-header">
-              <div>
-                <h2 class="panel-title">Saved Items</h2>
-                <p class="panel-subtitle" id="container-items-subtitle">All cards in this box</p>
-              </div>
-              <div class="filter-pills" id="container-type-filters">
-                <button class="chip-filter active" data-filter="all">All</button>
-                <button class="chip-filter" data-filter="quote">💬 Quotes</button>
-                <button class="chip-filter" data-filter="youtube">🎬 YouTube</button>
-                <button class="chip-filter" data-filter="image">🖼️ Images</button>
-                <button class="chip-filter" data-filter="link">🔗 Links</button>
-                <button class="chip-filter" data-filter="favorite">★ Starred</button>
-              </div>
-            </div>
-
-            <div id="container-items-grid" class="uniform-cards-grid">
-              <!-- Uniform cards rendered by JS -->
-            </div>
-
-            <div id="container-empty-state" class="empty-state-card hidden">
-              <div class="empty-icon-box">📦</div>
-              <h3>This box is empty</h3>
-              <p>Save quotes, links, YouTube videos, or images into this box.</p>
-              <button class="btn btn-primary" id="btn-empty-cont-add">+ Add First Item</button>
-            </div>
           </div>
         </section>
       </main>
@@ -300,62 +209,62 @@
       </div>
     </div>
 
-    <!-- Create / Edit Container Modal (Color + Note!) -->
-    <div id="cont-modal" class="modal hidden">
+    <!-- Item Detailed View Modal -->
+    <div id="item-detail-modal" class="modal hidden">
       <div class="modal-backdrop"></div>
-      <div class="modal-card">
+      <div class="modal-card modal-detail-card">
         <div class="modal-header">
-          <h2 id="cont-modal-title">New Container (📦)</h2>
-          <button class="modal-close-x" id="cont-modal-close">&times;</button>
-        </div>
-        <div class="modal-form">
-          <div class="form-field">
-            <label for="cont-name-input">Container Name</label>
-            <input type="text" id="cont-name-input" placeholder="e.g. Design Inspo, Research, Guides" maxlength="35" />
+          <div class="detail-header-left">
+            <span id="dash-detail-type-badge" class="uniform-type-chip text">Clip</span>
+            <span id="dash-detail-date" class="detail-meta-date">Date</span>
           </div>
-          <div class="form-field">
-            <label>Container Crate Color</label>
-            <div class="color-palette-row" id="cont-color-palette">
-              <button type="button" class="swatch active" data-color="#2563EB" style="background:#2563EB"></button>
-              <button type="button" class="swatch" data-color="#059669" style="background:#059669"></button>
-              <button type="button" class="swatch" data-color="#D97706" style="background:#D97706"></button>
-              <button type="button" class="swatch" data-color="#E11D48" style="background:#E11D48"></button>
-              <button type="button" class="swatch" data-color="#7C3AED" style="background:#7C3AED"></button>
-              <button type="button" class="swatch" data-color="#0891B2" style="background:#0891B2"></button>
-              <button type="button" class="swatch" data-color="#475569" style="background:#475569"></button>
+          <button class="modal-close-x" id="dash-detail-close-x">&times;</button>
+        </div>
+        <div class="modal-detail-body">
+          <!-- Media Preview (YouTube or Image) -->
+          <div id="dash-detail-media-wrap" class="modal-detail-media hidden">
+            <img id="dash-detail-media-img" src="" alt="Preview image" />
+          </div>
+
+          <!-- Title -->
+          <h2 id="dash-detail-title" class="modal-detail-title"></h2>
+
+          <!-- Full Content / Quote -->
+          <div id="dash-detail-content-wrap" class="modal-detail-content-wrap">
+            <p id="dash-detail-content" class="modal-detail-text"></p>
+          </div>
+
+          <!-- Note / Memo -->
+          <div id="dash-detail-note-wrap" class="modal-detail-note hidden">
+            <span class="note-pin">📌</span>
+            <div class="modal-detail-note-content">
+              <strong>Personal Note</strong>
+              <p id="dash-detail-note-text"></p>
             </div>
           </div>
-          <div class="form-field">
-            <label for="cont-note-input">Container Note <span class="hint">(guidelines or description)</span></label>
-            <textarea id="cont-note-input" rows="2"
-              placeholder="e.g. Palettes, hex codes, visual identity guidelines and moodboards"></textarea>
-          </div>
-        </div>
-        <div class="modal-footer">
-          <button id="cont-modal-cancel" class="btn btn-secondary">Cancel</button>
-          <button id="cont-modal-save" class="btn btn-primary">Save Container</button>
-        </div>
-      </div>
-    </div>
 
-    <!-- Container Note Quick-Edit Modal -->
-    <div id="note-modal" class="modal hidden">
-      <div class="modal-backdrop"></div>
-      <div class="modal-card">
-        <div class="modal-header">
-          <h2>Edit Container Note</h2>
-          <button class="modal-close-x" id="note-modal-close">&times;</button>
-        </div>
-        <div class="modal-form">
-          <div class="form-field">
-            <label for="quick-note-textarea">Container Note / Guidelines</label>
-            <textarea id="quick-note-textarea" rows="4"
-              placeholder="Write any notes, reminders, or descriptions for this container..."></textarea>
+          <!-- Tags -->
+          <div id="dash-detail-tags-wrap" class="modal-detail-tags hidden">
+            <div id="dash-detail-tags-list" class="tags-badge-list"></div>
           </div>
         </div>
-        <div class="modal-footer">
-          <button id="note-modal-cancel" class="btn btn-secondary">Cancel</button>
-          <button id="note-modal-save" class="btn btn-primary">Update Note</button>
+
+        <div class="modal-footer detail-modal-footer">
+          <div class="detail-footer-left">
+            <a id="dash-detail-link-btn" href="#" target="_blank" class="btn btn-secondary detail-link-btn hidden">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+              <span>Visit Link</span>
+            </a>
+          </div>
+          <div class="detail-footer-right">
+            <button id="dash-detail-fav-btn" class="btn btn-secondary" title="Toggle Favorite">★ Star</button>
+            <button id="dash-detail-copy-btn" class="btn btn-secondary" title="Copy Content">Copy</button>
+            <button id="dash-detail-edit-btn" class="btn btn-secondary" title="Edit Item">Edit</button>
+            <button id="dash-detail-delete-btn" class="btn btn-danger-ghost" title="Delete Item">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>
+              <span>Delete</span>
+            </button>
+          </div>
         </div>
       </div>
     </div>
@@ -382,7 +291,7 @@
           </div>
         </div>
         <div id="auth-logged-out-view">
-          <p class="auth-intro">Sign in to sync your containers, saved items, and notes across all your Chrome profiles.
+          <p class="auth-intro">Sign in to sync your saved items and notes across all your Chrome profiles.
           </p>
           <div class="modal-form">
             <div class="form-field">

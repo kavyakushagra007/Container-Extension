@@ -399,27 +399,10 @@ const SyncService = {
       });
     }
 
-    // 3. Migrate items to include containerId, collectionId, and enriched types
-    const containerCollectionMap = new Map();
-    containers.forEach((c) => containerCollectionMap.set(c.id, c.collectionId));
-
-    const defaultContId = containers[0]?.id;
-    const defaultColId = containers[0]?.collectionId || collections[0]?.id;
-
+    // 3. Migrate items to enriched types
     items = items.map((item) => {
       let itemChanged = false;
-      const cId = item.containerId || defaultContId;
-      const parentColId = containerCollectionMap.get(cId) || item.collectionId || defaultColId;
-
       const newItem = { ...item };
-      if (!newItem.containerId) {
-        newItem.containerId = cId;
-        itemChanged = true;
-      }
-      if (!newItem.collectionId || newItem.collectionId !== parentColId) {
-        newItem.collectionId = parentColId;
-        itemChanged = true;
-      }
 
       // Check for type enrichment (e.g. YouTube, Quote)
       if (newItem.type === "link" || newItem.type === "text" || !newItem.type) {

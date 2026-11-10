@@ -1,18 +1,15 @@
-// ── SaveIt: Desktop Icon View & Relevant Sidebar Workspace Controller (Containers Only) ──
+// ── SaveIt: Digital Workspace & Web Vault (Library Only) ──
 
-let containers = [];
 let allItems = [];
 
 // Navigation State
-let currentView = "home"; // "home" | "container" | "favorites" | "search"
-let currentContId = null;
-let contTypeFilter = "all";
+let currentView = "home"; // "home" | "favorites" | "search"
 let searchQuery = "";
+let activeLibTypeFilter = "all";
 
 // Modals State
 let editingItemId = null;
-let editingContId = null;
-let selectedContColor = "#2563EB";
+let activeDetailItem = null;
 let authIsSignUp = false;
 
 // ── DOM References ──
@@ -22,8 +19,6 @@ const navLinkHome = document.getElementById("nav-link-home");
 const navLinkStarred = document.getElementById("nav-link-starred");
 const badgeTotalItems = document.getElementById("badge-total-items");
 const badgeStarredItems = document.getElementById("badge-starred-items");
-const btnSidebarNewCont = document.getElementById("btn-sidebar-new-cont");
-const sidebarContainersList = document.getElementById("sidebar-containers-list");
 const btnSidebarAuth = document.getElementById("btn-sidebar-auth");
 const sidebarAuthEmail = document.getElementById("sidebar-auth-email");
 const sidebarAuthStatus = document.getElementById("sidebar-auth-status");
@@ -39,36 +34,16 @@ const importFile = document.getElementById("import-file");
 
 // Panels
 const viewHome = document.getElementById("view-home");
-const viewContainer = document.getElementById("view-container");
 const viewFavorites = document.getElementById("view-favorites");
 const viewSearchResults = document.getElementById("view-search-results");
 
-// Library View (Main Canvas Grid Matching User Sketch)
+// Library View
 const libraryItemsGrid = document.getElementById("library-items-grid");
 const libraryEmpty = document.getElementById("library-empty");
 const libraryCounter = document.getElementById("library-counter");
-const libraryContainersStrip = document.getElementById("library-containers-strip");
 const btnLibraryAddItem = document.getElementById("btn-library-add-item");
-const btnLibraryNewCont = document.getElementById("btn-library-new-cont");
 const btnCreateFirstSave = document.getElementById("btn-create-first-save");
 const libraryTypeFilters = document.getElementById("library-type-filters");
-
-let activeLibContainerFilter = "all";
-let activeLibTypeFilter = "all";
-
-// Container View
-const btnBackToHome = document.getElementById("btn-back-to-home");
-const contHeroStripe = document.getElementById("cont-hero-stripe");
-const contHeroTitle = document.getElementById("cont-hero-title");
-const contHeroMeta = document.getElementById("cont-hero-meta");
-const contHeroNoteText = document.getElementById("cont-hero-note-text");
-const btnEditContNote = document.getElementById("btn-edit-cont-note");
-const btnEditContDetails = document.getElementById("btn-edit-cont-details");
-const btnAddItemToCurrentCont = document.getElementById("btn-add-item-to-current-cont");
-const containerItemsGrid = document.getElementById("container-items-grid");
-const containerEmptyState = document.getElementById("container-empty-state");
-const btnEmptyContAdd = document.getElementById("btn-empty-cont-add");
-const containerTypeFilters = document.getElementById("container-type-filters");
 
 // Favorites View
 const favoritesItemsGrid = document.getElementById("favorites-items-grid");
@@ -80,7 +55,7 @@ const searchItemsGrid = document.getElementById("search-items-grid");
 const searchResultsMeta = document.getElementById("search-results-meta");
 const btnExitSearch = document.getElementById("btn-exit-search");
 
-// Item Modal
+// Item Edit / Add Modal
 const itemModal = document.getElementById("item-modal");
 const itemModalTitle = document.getElementById("item-modal-title");
 const itemModalClose = document.getElementById("item-modal-close");
@@ -89,24 +64,25 @@ const itemModalSave = document.getElementById("item-modal-save");
 const itemContentInput = document.getElementById("item-content-input");
 const itemNoteInput = document.getElementById("item-note-input");
 const itemTagsInput = document.getElementById("item-tags-input");
-let modalActiveContId = null;
 
-// Container Modal
-const contModal = document.getElementById("cont-modal");
-const contModalTitle = document.getElementById("cont-modal-title");
-const contModalClose = document.getElementById("cont-modal-close");
-const contModalCancel = document.getElementById("cont-modal-cancel");
-const contModalSave = document.getElementById("cont-modal-save");
-const contNameInput = document.getElementById("cont-name-input");
-const contNoteInput = document.getElementById("cont-note-input");
-const contColorPalette = document.getElementById("cont-color-palette");
-
-// Quick Note Modal
-const noteModal = document.getElementById("note-modal");
-const noteModalClose = document.getElementById("note-modal-close");
-const noteModalCancel = document.getElementById("note-modal-cancel");
-const noteModalSave = document.getElementById("note-modal-save");
-const quickNoteTextarea = document.getElementById("quick-note-textarea");
+// Item Detailed View Modal
+const itemDetailModal = document.getElementById("item-detail-modal");
+const dashDetailCloseX = document.getElementById("dash-detail-close-x");
+const dashDetailTypeBadge = document.getElementById("dash-detail-type-badge");
+const dashDetailDate = document.getElementById("dash-detail-date");
+const dashDetailMediaWrap = document.getElementById("dash-detail-media-wrap");
+const dashDetailMediaImg = document.getElementById("dash-detail-media-img");
+const dashDetailTitle = document.getElementById("dash-detail-title");
+const dashDetailContent = document.getElementById("dash-detail-content");
+const dashDetailNoteWrap = document.getElementById("dash-detail-note-wrap");
+const dashDetailNoteText = document.getElementById("dash-detail-note-text");
+const dashDetailTagsWrap = document.getElementById("dash-detail-tags-wrap");
+const dashDetailTagsList = document.getElementById("dash-detail-tags-list");
+const dashDetailLinkBtn = document.getElementById("dash-detail-link-btn");
+const dashDetailFavBtn = document.getElementById("dash-detail-fav-btn");
+const dashDetailCopyBtn = document.getElementById("dash-detail-copy-btn");
+const dashDetailEditBtn = document.getElementById("dash-detail-edit-btn");
+const dashDetailDeleteBtn = document.getElementById("dash-detail-delete-btn");
 
 // Auth Modal
 const authModal = document.getElementById("auth-modal");
@@ -136,30 +112,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 
 async function loadState() {
   const state = await SyncService.ensureInitializedAndMigrated();
-  containers = state.containers || [];
   allItems = state.items || [];
-
-  // If no containers exist, create default
-  if (containers.length === 0) {
-    const defaultCont = {
-      id: "cont_" + generateId(),
-      name: "General",
-      icon: "archive",
-      color: "#2563EB",
-      note: "Default container for all saves",
-      createdAt: Date.now(),
-      order: 0,
-    };
-    containers.push(defaultCont);
-    await chrome.storage.local.set({ containers });
-  }
-
-  const stored = await chrome.storage.local.get(["lastActiveContainer"]);
-  if (stored.lastActiveContainer && containers.some((c) => c.id === stored.lastActiveContainer)) {
-    currentContId = stored.lastActiveContainer;
-  } else {
-    currentContId = containers[0]?.id;
-  }
 
   updateSidebar();
   renderLibraryView();
@@ -171,7 +124,6 @@ async function autoSyncBackground() {
   try {
     const res = await SyncService.syncNow();
     if (res) {
-      containers = res.containers || [];
       allItems = res.items || [];
       refreshActiveView();
     }
@@ -183,53 +135,55 @@ async function autoSyncBackground() {
 // ── Event Listeners ──
 function setupEventListeners() {
   // Navigation
-  sidebarBrandHome.addEventListener("click", navigateToHome);
-  navLinkHome.addEventListener("click", navigateToHome);
-  navLinkStarred.addEventListener("click", navigateToStarred);
-
-  if (btnSidebarNewCont) {
-    btnSidebarNewCont.addEventListener("click", () => openContModal());
-  }
+  if (sidebarBrandHome) sidebarBrandHome.addEventListener("click", navigateToHome);
+  if (navLinkHome) navLinkHome.addEventListener("click", navigateToHome);
+  if (navLinkStarred) navLinkStarred.addEventListener("click", navigateToStarred);
 
   // Auth Button in Sidebar
-  btnSidebarAuth.addEventListener("click", openAuthModal);
+  if (btnSidebarAuth) btnSidebarAuth.addEventListener("click", openAuthModal);
 
   // Topbar Actions
-  btnTopAddItem.addEventListener("click", () => openItemModal(currentContId));
-  btnExportBackup.addEventListener("click", handleExportBackup);
-  btnImportBackup.addEventListener("click", () => importFile.click());
-  importFile.addEventListener("change", handleImportBackup);
+  if (btnTopAddItem) btnTopAddItem.addEventListener("click", () => openItemModal());
+  if (btnExportBackup) btnExportBackup.addEventListener("click", handleExportBackup);
+  if (btnImportBackup) btnImportBackup.addEventListener("click", () => importFile.click());
+  if (importFile) importFile.addEventListener("change", handleImportBackup);
 
   // Search Input
-  globalSearchInput.addEventListener("input", (e) => {
-    searchQuery = e.target.value.trim().toLowerCase();
-    searchClearBtn.classList.toggle("hidden", searchQuery.length === 0);
-    if (searchQuery.length > 0) {
-      navigateToSearch();
-    } else {
+  if (globalSearchInput) {
+    globalSearchInput.addEventListener("input", (e) => {
+      searchQuery = e.target.value.trim().toLowerCase();
+      if (searchClearBtn) searchClearBtn.classList.toggle("hidden", searchQuery.length === 0);
+      if (searchQuery.length > 0) {
+        navigateToSearch();
+      } else {
+        exitSearch();
+      }
+    });
+  }
+
+  if (searchClearBtn) {
+    searchClearBtn.addEventListener("click", () => {
+      globalSearchInput.value = "";
+      searchQuery = "";
+      searchClearBtn.classList.add("hidden");
       exitSearch();
-    }
-  });
+    });
+  }
 
-  searchClearBtn.addEventListener("click", () => {
-    globalSearchInput.value = "";
-    searchQuery = "";
-    searchClearBtn.classList.add("hidden");
-    exitSearch();
-  });
-
-  btnExitSearch.addEventListener("click", () => {
-    globalSearchInput.value = "";
-    searchQuery = "";
-    searchClearBtn.classList.add("hidden");
-    exitSearch();
-  });
+  if (btnExitSearch) {
+    btnExitSearch.addEventListener("click", () => {
+      globalSearchInput.value = "";
+      searchQuery = "";
+      if (searchClearBtn) searchClearBtn.classList.add("hidden");
+      exitSearch();
+    });
+  }
 
   // Hotkeys
   window.addEventListener("keydown", (e) => {
     if (e.key === "/" && document.activeElement !== globalSearchInput && !isModalOpen()) {
       e.preventDefault();
-      globalSearchInput.focus();
+      if (globalSearchInput) globalSearchInput.focus();
     } else if (e.key === "Escape") {
       if (isModalOpen()) closeAllModals();
       else if (currentView === "search") exitSearch();
@@ -239,9 +193,6 @@ function setupEventListeners() {
   // Library View Actions & Filters
   if (btnLibraryAddItem) {
     btnLibraryAddItem.addEventListener("click", () => openItemModal());
-  }
-  if (btnLibraryNewCont) {
-    btnLibraryNewCont.addEventListener("click", () => openContModal());
   }
   if (btnCreateFirstSave) {
     btnCreateFirstSave.addEventListener("click", () => openItemModal());
@@ -257,62 +208,62 @@ function setupEventListeners() {
     });
   }
 
-  // Container View Buttons
-  btnBackToHome.addEventListener("click", navigateToHome);
-  btnEditContNote.addEventListener("click", () => openQuickNoteModal(currentContId));
-  btnEditContDetails.addEventListener("click", () => {
-    const cont = containers.find((c) => c.id === currentContId);
-    if (cont) openContModal(cont);
-  });
-  btnAddItemToCurrentCont.addEventListener("click", () => openItemModal(currentContId));
-  btnEmptyContAdd.addEventListener("click", () => openItemModal(currentContId));
-
-  // Container Type Filters
-  containerTypeFilters.querySelectorAll(".chip-filter").forEach((btn) => {
-    btn.addEventListener("click", () => {
-      containerTypeFilters.querySelectorAll(".chip-filter").forEach((b) => b.classList.remove("active"));
-      btn.classList.add("active");
-      contTypeFilter = btn.dataset.filter;
-      renderContainerItems();
-    });
-  });
-
   // Item Modal Listeners
-  itemModalClose.addEventListener("click", closeItemModal);
-  itemModalCancel.addEventListener("click", closeItemModal);
-  itemModalSave.addEventListener("click", handleSaveItemModal);
+  if (itemModalClose) itemModalClose.addEventListener("click", closeItemModal);
+  if (itemModalCancel) itemModalCancel.addEventListener("click", closeItemModal);
+  if (itemModalSave) itemModalSave.addEventListener("click", handleSaveItemModal);
 
-  // Container Modal Listeners
-  contModalClose.addEventListener("click", closeContModal);
-  contModalCancel.addEventListener("click", closeContModal);
-  contModalSave.addEventListener("click", handleSaveContModal);
-  contColorPalette.querySelectorAll(".swatch").forEach((swatch) => {
-    swatch.addEventListener("click", () => {
-      contColorPalette.querySelectorAll(".swatch").forEach((s) => s.classList.remove("active"));
-      swatch.classList.add("active");
-      selectedContColor = swatch.dataset.color;
+  // Item Detailed View Modal Listeners
+  if (dashDetailCloseX) dashDetailCloseX.addEventListener("click", closeItemDetailModal);
+  if (itemDetailModal) {
+    const backdrop = itemDetailModal.querySelector(".modal-backdrop");
+    if (backdrop) backdrop.addEventListener("click", closeItemDetailModal);
+  }
+  if (dashDetailFavBtn) {
+    dashDetailFavBtn.addEventListener("click", () => {
+      if (activeDetailItem) {
+        toggleFavorite(activeDetailItem.id);
+        openItemDetailModal(activeDetailItem);
+      }
     });
-  });
-
-  // Note Modal Listeners
-  noteModalClose.addEventListener("click", closeQuickNoteModal);
-  noteModalCancel.addEventListener("click", closeQuickNoteModal);
-  noteModalSave.addEventListener("click", handleSaveQuickNote);
+  }
+  if (dashDetailCopyBtn) {
+    dashDetailCopyBtn.addEventListener("click", () => {
+      if (activeDetailItem) copyToClipboard(activeDetailItem.content);
+    });
+  }
+  if (dashDetailEditBtn) {
+    dashDetailEditBtn.addEventListener("click", () => {
+      if (activeDetailItem) {
+        const itemToEdit = activeDetailItem;
+        closeItemDetailModal();
+        openItemModal(itemToEdit);
+      }
+    });
+  }
+  if (dashDetailDeleteBtn) {
+    dashDetailDeleteBtn.addEventListener("click", () => {
+      if (activeDetailItem) {
+        const idToDelete = activeDetailItem.id;
+        closeItemDetailModal();
+        deleteItem(idToDelete);
+      }
+    });
+  }
 
   // Auth Modal Listeners
-  authModalClose.addEventListener("click", closeAuthModal);
-  authModalCancel.addEventListener("click", closeAuthModal);
-  authToggleMode.addEventListener("click", toggleAuthMode);
-  authSubmitBtn.addEventListener("click", handleAuthSubmit);
-  btnSyncNow.addEventListener("click", handleManualSync);
-  btnLogout.addEventListener("click", handleLogout);
+  if (authModalClose) authModalClose.addEventListener("click", closeAuthModal);
+  if (authModalCancel) authModalCancel.addEventListener("click", closeAuthModal);
+  if (authToggleMode) authToggleMode.addEventListener("click", toggleAuthMode);
+  if (authSubmitBtn) authSubmitBtn.addEventListener("click", handleAuthSubmit);
+  if (btnSyncNow) btnSyncNow.addEventListener("click", handleManualSync);
+  if (btnLogout) btnLogout.addEventListener("click", handleLogout);
 }
 
 // ── Routing & Navigation ──
 
 function navigateToHome() {
   currentView = "home";
-  currentContId = null;
 
   highlightSidebarLink(navLinkHome);
   showPanel(viewHome);
@@ -324,7 +275,6 @@ function navigateToHome() {
 
 function navigateToStarred() {
   currentView = "favorites";
-  currentContId = null;
 
   highlightSidebarLink(navLinkStarred);
   showPanel(viewFavorites);
@@ -335,27 +285,6 @@ function navigateToStarred() {
 
   updateSidebar();
   renderFavorites();
-}
-
-function navigateToContainer(contId) {
-  const cont = containers.find((c) => c.id === contId);
-  if (!cont) return navigateToHome();
-
-  currentView = "container";
-  currentContId = contId;
-
-  chrome.storage.local.set({ lastActiveContainer: contId });
-
-  highlightSidebarContainer(contId);
-  showPanel(viewContainer);
-  updateBreadcrumbs([
-    { label: "Library", action: navigateToHome },
-    { label: `📦 ${cont.name}`, active: true },
-  ]);
-
-  updateSidebar();
-  renderContainerHero(cont);
-  renderContainerItems();
 }
 
 function navigateToSearch() {
@@ -369,18 +298,18 @@ function navigateToSearch() {
 }
 
 function exitSearch() {
-  if (currentContId) navigateToContainer(currentContId);
-  else navigateToHome();
+  navigateToHome();
 }
 
 function showPanel(targetPanel) {
-  [viewHome, viewContainer, viewFavorites, viewSearchResults].forEach((panel) => {
-    panel.classList.toggle("hidden", panel !== targetPanel);
+  [viewHome, viewFavorites, viewSearchResults].forEach((panel) => {
+    if (panel) panel.classList.toggle("hidden", panel !== targetPanel);
   });
   window.scrollTo({ top: 0, behavior: "smooth" });
 }
 
 function updateBreadcrumbs(crumbs) {
+  if (!breadcrumbTrail) return;
   breadcrumbTrail.innerHTML = "";
   crumbs.forEach((crumb, idx) => {
     if (idx > 0) {
@@ -402,47 +331,16 @@ function updateBreadcrumbs(crumbs) {
 
 function refreshActiveView() {
   updateSidebar();
-  if (currentView === "home") navigateToHome();
-  else if (currentView === "favorites") navigateToStarred();
-  else if (currentView === "container" && currentContId) navigateToContainer(currentContId);
+  if (currentView === "home") renderLibraryView();
+  else if (currentView === "favorites") renderFavorites();
   else if (currentView === "search") renderSearchResults();
 }
 
 // ── SIDEBAR RENDERING ──
 
 function updateSidebar() {
-  badgeTotalItems.textContent = allItems.length;
-  badgeStarredItems.textContent = allItems.filter((i) => i.favorite).length;
-
-  sidebarContainersList.innerHTML = "";
-
-  if (containers.length === 0) {
-    sidebarContainersList.innerHTML = `
-      <div style="padding: 10px 12px; font-size: 11.5px; color: var(--text-muted); font-style: italic;">
-        No containers yet
-      </div>
-    `;
-    return;
-  }
-
-  containers.forEach((cont) => {
-    const contItems = allItems.filter((i) => i.containerId === cont.id);
-    const isCurrentCont = currentView === "container" && currentContId === cont.id;
-
-    const btn = document.createElement("button");
-    btn.className = `sidebar-link ${isCurrentCont ? "active" : ""}`;
-    btn.dataset.contId = cont.id;
-
-    const crateColor = cont.color || "#2563EB";
-    btn.innerHTML = `
-      <span class="sidebar-icon" style="color: ${crateColor}">📦</span>
-      <span class="sidebar-label" title="${escapeHTML(cont.name)}">${escapeHTML(cont.name)}</span>
-      <span class="sidebar-badge">${contItems.length}</span>
-    `;
-
-    btn.addEventListener("click", () => navigateToContainer(cont.id));
-    sidebarContainersList.appendChild(btn);
-  });
+  if (badgeTotalItems) badgeTotalItems.textContent = allItems.length;
+  if (badgeStarredItems) badgeStarredItems.textContent = allItems.filter((i) => i.favorite).length;
 }
 
 function highlightSidebarLink(activeBtn) {
@@ -450,74 +348,12 @@ function highlightSidebarLink(activeBtn) {
   if (activeBtn) activeBtn.classList.add("active");
 }
 
-function highlightSidebarContainer(contId) {
-  document.querySelectorAll(".workspace-sidebar .sidebar-link").forEach((btn) => {
-    btn.classList.toggle("active", btn.dataset.contId === contId);
-  });
-}
-
-// ── VIEW 1: LIBRARY (Expansive Grid of Uniform Cards Matching Sketch) ──
-
-function renderLibraryContainersStrip() {
-  if (!libraryContainersStrip) return;
-  libraryContainersStrip.innerHTML = "";
-
-  // 1. "All" Pill
-  const allBtn = document.createElement("button");
-  allBtn.className = `lib-cont-pill ${activeLibContainerFilter === "all" ? "active" : ""}`;
-  allBtn.innerHTML = `
-    <span>📦 All</span>
-    <span class="lib-pill-count">${allItems.length}</span>
-  `;
-  allBtn.addEventListener("click", () => {
-    activeLibContainerFilter = "all";
-    renderLibraryView();
-  });
-  libraryContainersStrip.appendChild(allBtn);
-
-  // 2. Individual Container Pills
-  containers.forEach((cont) => {
-    const contItems = allItems.filter((i) => i.containerId === cont.id);
-    const crateColor = cont.color || "#2563EB";
-    const isActive = activeLibContainerFilter === cont.id;
-
-    const pill = document.createElement("button");
-    pill.className = `lib-cont-pill ${isActive ? "active" : ""}`;
-    pill.innerHTML = `
-      <span class="lib-cont-dot" style="background: ${crateColor};"></span>
-      <span class="lib-cont-name" title="${escapeHTML(cont.name)}">${escapeHTML(cont.name)}</span>
-      <span class="lib-pill-count">${contItems.length}</span>
-    `;
-
-    pill.addEventListener("click", () => {
-      if (activeLibContainerFilter === cont.id) {
-        activeLibContainerFilter = "all";
-      } else {
-        activeLibContainerFilter = cont.id;
-      }
-      renderLibraryView();
-    });
-
-    pill.addEventListener("dblclick", (e) => {
-      e.stopPropagation();
-      navigateToContainer(cont.id);
-    });
-
-    libraryContainersStrip.appendChild(pill);
-  });
-}
+// ── VIEW 1: LIBRARY (Expansive Grid of Uniform Cards) ──
 
 function renderLibraryView() {
   if (!libraryItemsGrid) return;
 
-  renderLibraryContainersStrip();
-
   let items = [...allItems];
-
-  // Container Filter
-  if (activeLibContainerFilter !== "all") {
-    items = items.filter((i) => i.containerId === activeLibContainerFilter);
-  }
 
   // Type Filter
   if (activeLibTypeFilter !== "all") {
@@ -533,7 +369,7 @@ function renderLibraryView() {
 
   // Update counter
   if (libraryCounter) {
-    if (activeLibContainerFilter === "all" && activeLibTypeFilter === "all") {
+    if (activeLibTypeFilter === "all") {
       libraryCounter.textContent = `${items.length} ${items.length === 1 ? "item" : "items"}`;
     } else {
       libraryCounter.textContent = `${items.length} of ${allItems.length} items`;
@@ -552,7 +388,7 @@ function renderLibraryView() {
         if (emptyText) emptyText.textContent = "Save articles, quotes, YouTube videos, and images to build your personal knowledge vault.";
       } else {
         if (emptyTitle) emptyTitle.textContent = "No matching items found";
-        if (emptyText) emptyText.textContent = "Try selecting a different container or type filter.";
+        if (emptyText) emptyText.textContent = "Try selecting a different type filter.";
       }
     }
     return;
@@ -567,83 +403,43 @@ function renderLibraryView() {
   });
 }
 
-const renderDesktopContainers = renderLibraryView;
-
-// ── VIEW 2: CONTAINER (Inside Container - Uniform Grid & Note Hero) ──
-
-function renderContainerHero(cont) {
-  const crateColor = cont.color || "#2563EB";
-  contHeroStripe.style.background = crateColor;
-  contHeroTitle.textContent = cont.name;
-
-  const contItems = allItems.filter((i) => i.containerId === cont.id);
-  contHeroMeta.textContent = `${contItems.length} saved items`;
-
-  const noteText = (cont.note || cont.description || "").trim();
-  if (noteText) {
-    contHeroNoteText.textContent = noteText;
-    contHeroNoteText.classList.remove("empty-note");
-  } else {
-    contHeroNoteText.textContent = "(No note yet. Click 'Edit Note' to add guidelines or hex palettes)";
-    contHeroNoteText.classList.add("empty-note");
-  }
-}
-
-function renderContainerItems() {
-  containerItemsGrid.innerHTML = "";
-  let items = allItems.filter((i) => i.containerId === currentContId);
-
-  // Type Filter
-  if (contTypeFilter !== "all") {
-    if (contTypeFilter === "favorite") {
-      items = items.filter((i) => i.favorite);
-    } else {
-      items = items.filter((i) => i.type === contTypeFilter);
-    }
-  }
-
-  if (items.length === 0) {
-    containerEmptyState.classList.remove("hidden");
-    return;
-  }
-  containerEmptyState.classList.add("hidden");
-
-  items.forEach((item) => {
-    const card = createUniformCard(item);
-    containerItemsGrid.appendChild(card);
-  });
-}
-
-// ── VIEW 3: FAVORITES ──
+// ── VIEW 2: FAVORITES / STARRED ──
 
 function renderFavorites() {
-  favoritesItemsGrid.innerHTML = "";
-  const favItems = allItems.filter((i) => i.favorite);
+  if (!favoritesItemsGrid) return;
+  const starred = allItems.filter((i) => i.favorite);
+  starred.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
 
-  favoritesMeta.textContent = `${favItems.length} starred items`;
+  if (favoritesMeta) {
+    favoritesMeta.textContent = `${starred.length} ${starred.length === 1 ? "item" : "items"} marked as favorite`;
+  }
 
-  if (favItems.length === 0) {
-    favoritesEmpty.classList.remove("hidden");
+  if (starred.length === 0) {
+    favoritesItemsGrid.innerHTML = "";
+    if (favoritesEmpty) favoritesEmpty.classList.remove("hidden");
     return;
   }
-  favoritesEmpty.classList.add("hidden");
 
-  favItems.forEach((item) => {
+  if (favoritesEmpty) favoritesEmpty.classList.add("hidden");
+  favoritesItemsGrid.innerHTML = "";
+
+  starred.forEach((item) => {
     const card = createUniformCard(item);
     favoritesItemsGrid.appendChild(card);
   });
 }
 
-// ── VIEW 4: SEARCH RESULTS ──
+// ── VIEW 3: SEARCH RESULTS ──
 
 function renderSearchResults() {
-  searchItemsGrid.innerHTML = "";
+  if (!searchItemsGrid) return;
+
   if (!searchQuery) {
-    searchResultsMeta.textContent = "Type to search";
+    exitSearch();
     return;
   }
 
-  const matches = allItems.filter((i) => {
+  const results = allItems.filter((i) => {
     const titleMatch = (i.title || "").toLowerCase().includes(searchQuery);
     const contentMatch = (i.content || "").toLowerCase().includes(searchQuery);
     const noteMatch = (i.note || "").toLowerCase().includes(searchQuery);
@@ -652,35 +448,36 @@ function renderSearchResults() {
     return titleMatch || contentMatch || noteMatch || tagMatch || sourceMatch;
   });
 
-  searchResultsMeta.textContent = `${matches.length} matching saves found for "${searchQuery}"`;
+  results.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
 
-  if (matches.length === 0) {
+  if (searchResultsMeta) {
+    searchResultsMeta.textContent = `Found ${results.length} ${results.length === 1 ? "result" : "results"} for "${searchQuery}"`;
+  }
+
+  if (results.length === 0) {
     searchItemsGrid.innerHTML = `
       <div class="empty-state-card" style="grid-column: 1 / -1;">
         <div class="empty-icon-box">🔍</div>
-        <h3>No matching saves</h3>
-        <p>Try searching for different keywords, URLs, or notes.</p>
+        <h3>No matches found</h3>
+        <p>No saved items matched "${escapeHTML(searchQuery)}". Try searching with different keywords.</p>
       </div>
     `;
     return;
   }
 
-  matches.forEach((item) => {
+  searchItemsGrid.innerHTML = "";
+  results.forEach((item) => {
     const card = createUniformCard(item);
     searchItemsGrid.appendChild(card);
   });
 }
 
-// ── UNIFORM CARD BUILDER FACTORY (STRICT SAME SIZE) ──
+// ── UNIFORM CARD BUILDER FACTORY ──
 
 function createUniformCard(item) {
   const card = document.createElement("div");
   card.className = `uniform-save-card type-${item.type || "text"}`;
   card.dataset.id = item.id;
-
-  const parentCont = containers.find((c) => c.id === item.containerId);
-  const contName = parentCont ? parentCont.name : "Container";
-  const contColor = parentCont ? parentCont.color || "#2563EB" : "#2563EB";
 
   const typeLabels = {
     youtube: "🎬 YouTube",
@@ -721,14 +518,10 @@ function createUniformCard(item) {
   }
 
   card.innerHTML = `
-    <!-- Top Row: Type Pill + Container Badge + Quick Hover Actions -->
+    <!-- Top Row: Type Pill + Quick Hover Actions -->
     <div class="uniform-card-header">
       <div class="uniform-header-left">
         <span class="uniform-type-chip ${item.type || "text"}">${typeText}</span>
-        <button class="uniform-cont-tag" title="Container: ${escapeHTML(contName)}" data-cont-id="${item.containerId}">
-          <span class="cont-tag-dot" style="background: ${contColor};"></span>
-          <span>${escapeHTML(contName)}</span>
-        </button>
       </div>
 
       <div class="uniform-hover-actions">
@@ -742,7 +535,7 @@ function createUniformCard(item) {
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="13" height="13"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
         </button>
         <button class="u-action-btn delete-btn" title="Delete Item">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="13" height="13"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="13" height="13"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>
         </button>
       </div>
     </div>
@@ -757,68 +550,72 @@ function createUniformCard(item) {
     </div>
 
     <!-- Swayed / Curled Note on Item if present -->
-    ${
-      item.note && item.note.trim()
-        ? `
+    ${item.note && item.note.trim()
+      ? `
         <div class="uniform-card-note" title="Personal note: ${escapeHTML(item.note)}">
           <span class="note-pin">📌</span>
           <span class="note-text">${escapeHTML(item.note)}</span>
         </div>
         `
-        : ""
+      : ""
     }
 
     <!-- Bottom Footer Row: Source Hostname + Timestamp -->
     <div class="uniform-card-footer">
-      ${
-        targetUrl
-          ? `<a href="${escapeHTML(targetUrl)}" target="_blank" class="uniform-source-link" title="${escapeHTML(targetUrl)}">
+      ${targetUrl
+      ? `<a href="${escapeHTML(targetUrl)}" target="_blank" class="uniform-source-link" title="${escapeHTML(targetUrl)}">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="11" height="11"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
               <span>${escapeHTML(extractHostname(targetUrl))}</span>
             </a>`
-          : `<span></span>`
-      }
+      : `<span></span>`
+    }
       <span class="uniform-time">${timeStr}</span>
     </div>
   `;
 
   // Event Handlers
   const favBtn = card.querySelector(".fav-btn");
-  favBtn.addEventListener("click", (e) => {
-    e.stopPropagation();
-    toggleFavorite(item.id);
-  });
+  if (favBtn) {
+    favBtn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      toggleFavorite(item.id);
+    });
+  }
 
   const copyBtn = card.querySelector(".copy-btn");
-  copyBtn.addEventListener("click", (e) => {
-    e.stopPropagation();
-    copyToClipboard(item.content);
-  });
+  if (copyBtn) {
+    copyBtn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      copyToClipboard(item.content);
+    });
+  }
 
   const editBtn = card.querySelector(".edit-btn");
-  editBtn.addEventListener("click", (e) => {
-    e.stopPropagation();
-    openItemModal(item.containerId, item);
-  });
+  if (editBtn) {
+    editBtn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      openItemModal(item);
+    });
+  }
 
   const deleteBtn = card.querySelector(".delete-btn");
-  deleteBtn.addEventListener("click", (e) => {
-    e.stopPropagation();
-    deleteItem(item.id);
-  });
+  if (deleteBtn) {
+    deleteBtn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      deleteItem(item.id);
+    });
+  }
 
-  const contTag = card.querySelector(".uniform-cont-tag");
-  contTag.addEventListener("click", (e) => {
-    e.stopPropagation();
-    navigateToContainer(item.containerId);
-  });
+  const sourceLink = card.querySelector(".uniform-source-link");
+  if (sourceLink) {
+    sourceLink.addEventListener("click", (e) => {
+      e.stopPropagation();
+    });
+  }
 
+  // Click card opens detailed view (not direct link navigation!)
   card.addEventListener("click", () => {
-    if (targetUrl) {
-      chrome.tabs.create({ url: targetUrl });
-    } else {
-      openItemModal(item.containerId, item);
-    }
+    openItemDetailModal(item);
   });
 
   return card;
@@ -827,18 +624,12 @@ function createUniformCard(item) {
 // ── MODALS LOGIC ──
 
 // 1. Item Modal (Save / Edit with Note)
-function openItemModal(contId = null, editItem = null) {
-  if (containers.length === 0) {
-    showToast("Please create a container first");
-    openContModal();
-    return;
-  }
-
+function openItemModal(editItem = null) {
   editingItemId = editItem ? editItem.id : null;
-  modalActiveContId = editItem ? editItem.containerId : (contId || currentContId || containers[0]?.id);
-  const targetCont = containers.find((c) => c.id === modalActiveContId);
 
-  itemModalTitle.textContent = editItem ? "Edit Saved Item" : (targetCont ? `Save to 📦 ${targetCont.name}` : "Save Item");
+  if (itemModalTitle) {
+    itemModalTitle.textContent = editItem ? "Edit Saved Item" : "Save Item to Library";
+  }
 
   itemContentInput.value = editItem ? editItem.content || "" : "";
   itemNoteInput.value = editItem ? editItem.note || "" : "";
@@ -860,8 +651,6 @@ async function handleSaveItemModal() {
     return;
   }
 
-  const contId = modalActiveContId || (containers.length > 0 ? containers[0].id : "");
-  const targetCont = containers.find((c) => c.id === contId);
   const note = itemNoteInput.value.trim();
   const tags = itemTagsInput.value
     .split(",")
@@ -894,7 +683,6 @@ async function handleSaveItemModal() {
         note,
         sourceUrl: allItems[idx].sourceUrl || sourceUrl,
         tags,
-        containerId: contId,
         type: classification.type,
         previewImage: classification.thumbnail || (classification.type === "image" ? content : allItems[idx].previewImage),
         updatedAt: Date.now(),
@@ -908,7 +696,6 @@ async function handleSaveItemModal() {
       title,
       content,
       note,
-      containerId: contId,
       previewImage: classification.thumbnail || (classification.type === "image" ? content : ""),
       metadata: classification.videoId ? { videoId: classification.videoId } : {},
       sourceUrl,
@@ -918,134 +705,120 @@ async function handleSaveItemModal() {
       createdAt: Date.now(),
     };
     allItems.unshift(newItem);
-    showToast(`Saved to 📦 ${targetCont ? targetCont.name : "Container"}!`);
+    showToast("Saved to Library!");
   }
 
   await chrome.storage.local.set({ items: allItems });
-  SyncService.pushToCloud(allItems, containers, []).catch(() => {});
+  SyncService.pushToCloud(allItems, [], []).catch(() => {});
 
   closeItemModal();
   refreshActiveView();
 }
 
-// 2. Container Modal (Create / Edit with color and note)
-function openContModal(editCont = null) {
-  editingContId = editCont ? editCont.id : null;
-  contModalTitle.textContent = editCont ? "Edit Container (📦)" : "New Container (📦)";
+// 2. Item Detailed View Modal
+function openItemDetailModal(item) {
+  activeDetailItem = item;
+  if (!itemDetailModal) return;
 
-  contNameInput.value = editCont ? editCont.name : "";
-  contNoteInput.value = editCont ? editCont.note || editCont.description || "" : "";
-  selectedContColor = editCont ? editCont.color || "#2563EB" : "#2563EB";
+  const typeLabels = {
+    youtube: "🎬 YouTube",
+    quote: "💬 Quote",
+    image: "🖼️ Image",
+    product: "🛍️ Product",
+    social: "📱 Social",
+    link: "🔗 Link",
+    text: "📝 Note",
+  };
+  const typeText = typeLabels[item.type] || "📄 Clip";
 
-  contColorPalette.querySelectorAll(".swatch").forEach((s) => {
-    s.classList.toggle("active", s.dataset.color === selectedContColor);
-  });
+  if (dashDetailTypeBadge) {
+    dashDetailTypeBadge.textContent = typeText;
+    dashDetailTypeBadge.className = `uniform-type-chip ${item.type || "text"}`;
+  }
 
-  contModal.classList.remove("hidden");
-  contNameInput.focus();
-}
+  if (dashDetailDate) {
+    dashDetailDate.textContent = item.createdAt
+      ? new Date(item.createdAt).toLocaleDateString(undefined, {
+          month: "short",
+          day: "numeric",
+          year: "numeric",
+          hour: "2-digit",
+          minute: "2-digit",
+        })
+      : "";
+  }
 
-function closeContModal() {
-  contModal.classList.add("hidden");
-  editingContId = null;
-}
+  // Media preview
+  const mediaSrc = item.previewImage || (item.type === "image" ? item.content : "");
+  if (mediaSrc && (item.type === "image" || item.type === "youtube")) {
+    if (dashDetailMediaImg) dashDetailMediaImg.src = mediaSrc;
+    if (dashDetailMediaWrap) dashDetailMediaWrap.classList.remove("hidden");
+  } else {
+    if (dashDetailMediaWrap) dashDetailMediaWrap.classList.add("hidden");
+  }
 
-async function handleSaveContModal() {
-  const name = contNameInput.value.trim();
-  const note = contNoteInput.value.trim();
-  if (!name) return;
-
-  if (editingContId) {
-    const idx = containers.findIndex((c) => c.id === editingContId);
-    if (idx !== -1) {
-      containers[idx] = {
-        ...containers[idx],
-        name,
-        color: selectedContColor,
-        note,
-        description: note,
-      };
-      showToast("Container updated!");
+  // Title
+  if (dashDetailTitle) {
+    if (item.title && item.title.trim()) {
+      dashDetailTitle.textContent = item.title;
+      dashDetailTitle.classList.remove("hidden");
+    } else {
+      dashDetailTitle.classList.add("hidden");
     }
-  } else {
-    const newCont = {
-      id: "cont_" + generateId(),
-      name,
-      icon: "archive",
-      color: selectedContColor,
-      note,
-      description: note,
-      createdAt: Date.now(),
-      order: containers.length,
-    };
-    containers.push(newCont);
-    showToast(`Created container: 📦 ${name}`);
   }
 
-  await chrome.storage.local.set({ containers, items: allItems });
-  SyncService.pushToCloud(allItems, containers, []).catch(() => {});
-
-  closeContModal();
-  refreshActiveView();
-}
-
-// 3. Quick Note Modal
-let activeNoteContId = null;
-
-function openQuickNoteModal(targetContId) {
-  activeNoteContId = targetContId || currentContId;
-  const cont = containers.find((c) => c.id === activeNoteContId);
-  if (!cont) return;
-  quickNoteTextarea.value = cont.note || cont.description || "";
-  noteModal.classList.remove("hidden");
-  quickNoteTextarea.focus();
-}
-
-function closeQuickNoteModal() {
-  noteModal.classList.add("hidden");
-  activeNoteContId = null;
-}
-
-async function handleSaveQuickNote() {
-  const note = quickNoteTextarea.value.trim();
-  const contId = activeNoteContId || currentContId;
-  const cont = containers.find((c) => c.id === contId);
-  if (!cont) return;
-
-  cont.note = note;
-  cont.description = note;
-
-  await chrome.storage.local.set({ containers });
-  SyncService.pushToCloud(allItems, containers, []).catch(() => {});
-
-  closeQuickNoteModal();
-  if (currentView === "container" && currentContId === cont.id) {
-    renderContainerHero(cont);
-  } else {
-    renderLibraryView();
-  }
-  showToast("Container note updated!");
-}
-
-// ── Select Helpers ──
-
-function populateContainerSelect(selectEl, selectedContId) {
-  selectEl.innerHTML = "";
-  if (containers.length === 0) {
-    const opt = document.createElement("option");
-    opt.value = "";
-    opt.textContent = "(No containers created)";
-    selectEl.appendChild(opt);
-    return;
+  // Content
+  if (dashDetailContent) {
+    if (item.type === "quote") {
+      dashDetailContent.textContent = `“${item.content}”`;
+    } else {
+      dashDetailContent.textContent = item.content || "";
+    }
   }
 
-  containers.forEach((cont) => {
-    const opt = document.createElement("option");
-    opt.value = cont.id;
-    opt.textContent = `📦 ${cont.name}`;
-    if (cont.id === selectedContId) opt.selected = true;
-    selectEl.appendChild(opt);
-  });
+  // Personal Note
+  if (dashDetailNoteWrap && dashDetailNoteText) {
+    if (item.note && item.note.trim()) {
+      dashDetailNoteText.textContent = item.note;
+      dashDetailNoteWrap.classList.remove("hidden");
+    } else {
+      dashDetailNoteWrap.classList.add("hidden");
+    }
+  }
+
+  // Tags
+  if (dashDetailTagsWrap && dashDetailTagsList) {
+    if (item.tags && item.tags.length > 0) {
+      dashDetailTagsList.innerHTML = item.tags.map((t) => `<span class="uniform-type-chip">#${escapeHTML(t)}</span>`).join("");
+      dashDetailTagsWrap.classList.remove("hidden");
+    } else {
+      dashDetailTagsWrap.classList.add("hidden");
+    }
+  }
+
+  // Visit Link Button
+  const targetUrl = item.sourceUrl || (item.content && item.content.startsWith("http") ? item.content : "");
+  if (dashDetailLinkBtn) {
+    if (targetUrl) {
+      dashDetailLinkBtn.href = targetUrl;
+      dashDetailLinkBtn.classList.remove("hidden");
+    } else {
+      dashDetailLinkBtn.classList.add("hidden");
+    }
+  }
+
+  // Favorite button
+  if (dashDetailFavBtn) {
+    dashDetailFavBtn.textContent = item.favorite ? "★ Starred" : "☆ Star";
+    dashDetailFavBtn.style.color = item.favorite ? "#F59E0B" : "inherit";
+  }
+
+  itemDetailModal.classList.remove("hidden");
+}
+
+function closeItemDetailModal() {
+  if (itemDetailModal) itemDetailModal.classList.add("hidden");
+  activeDetailItem = null;
 }
 
 // ── Quick Item Actions ──
@@ -1055,7 +828,7 @@ async function toggleFavorite(id) {
   if (!item) return;
   item.favorite = !item.favorite;
   await chrome.storage.local.set({ items: allItems });
-  SyncService.pushToCloud(allItems, containers, []).catch(() => {});
+  SyncService.pushToCloud(allItems, [], []).catch(() => {});
   refreshActiveView();
   showToast(item.favorite ? "Added to Starred Saves ★" : "Removed from Starred");
 }
@@ -1070,10 +843,10 @@ async function copyToClipboard(text) {
 }
 
 async function deleteItem(id) {
-  if (!confirm("Delete this saved item?")) return;
+  if (!confirm("Delete this saved item from your library?")) return;
   allItems = allItems.filter((i) => i.id !== id);
   await chrome.storage.local.set({ items: allItems });
-  SyncService.pushToCloud(allItems, containers, []).catch(() => {});
+  SyncService.pushToCloud(allItems, [], []).catch(() => {});
   refreshActiveView();
   showToast("Item deleted");
 }
@@ -1082,7 +855,6 @@ async function deleteItem(id) {
 
 function handleExportBackup() {
   const data = {
-    containers,
     items: allItems,
     exportedAt: new Date().toISOString(),
   };
@@ -1106,22 +878,15 @@ async function handleImportBackup(e) {
     const data = JSON.parse(text);
 
     let importedItems = Array.isArray(data) ? data : data.items || [];
-    let importedContainers = data.containers || [];
-
-    const contMap = new Map();
-    containers.forEach((c) => contMap.set(c.id, c));
-    importedContainers.forEach((c) => { if (c && c.id && !contMap.has(c.id)) contMap.set(c.id, c); });
 
     const itemMap = new Map();
     allItems.forEach((i) => itemMap.set(i.id, i));
     importedItems.forEach((i) => { if (i && i.id && !itemMap.has(i.id)) itemMap.set(i.id, i); });
 
-    containers = Array.from(contMap.values());
     allItems = Array.from(itemMap.values());
 
-    await chrome.storage.local.set({ containers, items: allItems });
-    await SyncService.ensureInitializedAndMigrated();
-    SyncService.pushToCloud(allItems, containers, []).catch(() => {});
+    await chrome.storage.local.set({ items: allItems });
+    SyncService.pushToCloud(allItems, [], []).catch(() => {});
 
     refreshActiveView();
     showToast(`Imported ${importedItems.length} items!`);
@@ -1135,13 +900,17 @@ async function handleImportBackup(e) {
 async function checkAuthStatus() {
   const session = await SyncService.getUser();
   if (session) {
-    sidebarAuthEmail.textContent = session.user.email;
-    sidebarAuthStatus.textContent = "🟢 Synced with Cloud";
-    sidebarAuthStatus.style.color = "#059669";
+    if (sidebarAuthEmail) sidebarAuthEmail.textContent = session.user.email;
+    if (sidebarAuthStatus) {
+      sidebarAuthStatus.textContent = "🟢 Synced with Cloud";
+      sidebarAuthStatus.style.color = "#059669";
+    }
   } else {
-    sidebarAuthEmail.textContent = "Local Vault";
-    sidebarAuthStatus.textContent = "● Offline Ready";
-    sidebarAuthStatus.style.color = "var(--text-muted)";
+    if (sidebarAuthEmail) sidebarAuthEmail.textContent = "Local Vault";
+    if (sidebarAuthStatus) {
+      sidebarAuthStatus.textContent = "● Offline Ready";
+      sidebarAuthStatus.style.color = "var(--text-muted)";
+    }
   }
 }
 
@@ -1210,7 +979,6 @@ async function handleManualSync() {
     showToast("Syncing with cloud...");
     const res = await SyncService.syncNow();
     if (res) {
-      containers = res.containers || [];
       allItems = res.items || [];
       refreshActiveView();
       showToast("Vault synchronized!");
@@ -1230,13 +998,12 @@ async function handleLogout() {
 // ── Modals Helper ──
 
 function isModalOpen() {
-  return [itemModal, contModal, noteModal, authModal].some((m) => !m.classList.contains("hidden"));
+  return [itemModal, itemDetailModal, authModal].some((m) => m && !m.classList.contains("hidden"));
 }
 
 function closeAllModals() {
   closeItemModal();
-  closeContModal();
-  closeQuickNoteModal();
+  closeItemDetailModal();
   closeAuthModal();
 }
 
@@ -1282,4 +1049,59 @@ function formatRelativeTime(timestamp) {
   const days = Math.floor(hours / 24);
   if (days < 30) return `${days}d ago`;
   return new Date(timestamp).toLocaleDateString(undefined, { month: "short", day: "numeric" });
+}
+
+// ── Content Classifier Helper ──
+function classifyContent(text = "", url = "") {
+  const target = (url || text).trim();
+
+  // YouTube detection
+  const ytMatch = target.match(/(?:youtube\.com\/(?:watch\?v=|embed\/|shorts\/)|youtu\.be\/)([a-zA-Z0-9_-]{11})/i);
+  if (ytMatch) {
+    return {
+      type: "youtube",
+      videoId: ytMatch[1],
+      thumbnail: `https://img.youtube.com/vi/${ytMatch[1]}/hqdefault.jpg`,
+    };
+  }
+
+  // Image URL detection
+  if (/\.(jpg|jpeg|png|gif|webp|svg)(\?.*)?$/i.test(target)) {
+    return {
+      type: "image",
+      thumbnail: target,
+    };
+  }
+
+  // Quote detection
+  if (text.startsWith('"') && text.endsWith('"') && text.length > 10) {
+    return {
+      type: "quote",
+    };
+  }
+
+  // Product detection
+  if (/amazon\.|ebay\.|etsy\.|walmart\./i.test(target)) {
+    return {
+      type: "product",
+    };
+  }
+
+  // Social detection
+  if (/twitter\.com|x\.com|instagram\.com|linkedin\.com|reddit\.com/i.test(target)) {
+    return {
+      type: "social",
+    };
+  }
+
+  // General Link
+  if (/^https?:\/\//i.test(target)) {
+    return {
+      type: "link",
+    };
+  }
+
+  return {
+    type: "text",
+  };
 }

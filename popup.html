@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>SaveIt – Web Vault & Containers</title>
+  <title>SaveIt – Web Vault & Library</title>
   <link rel="stylesheet" href="popup.css" />
 </head>
 <body>
@@ -18,7 +18,7 @@
         </div>
         <div>
           <h1>SaveIt</h1>
-          <span class="header-subtitle">Vault & Containers</span>
+          <span class="header-subtitle">Vault & Library</span>
         </div>
       </div>
       <div class="header-actions">
@@ -37,11 +37,6 @@
 
     <!-- Dropdown Menu -->
     <div id="dropdown-menu" class="dropdown-menu hidden">
-      <button id="menu-add-container" class="dropdown-item">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="21 8 21 21 3 21 3 8"/><rect x="1" y="3" width="22" height="5"/><line x1="10" y1="12" x2="14" y2="12"/></svg>
-        New Container Box
-      </button>
-      <div class="dropdown-divider"></div>
       <button id="menu-auth" class="dropdown-item">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
         Cloud Sync & Account
@@ -96,15 +91,6 @@
         </div>
       </div>
 
-      <!-- Save Destination (Container Only) -->
-      <div class="destination-section">
-        <div class="destination-label-wrap">
-          <label for="save-cont-select">📦 SELECT CONTAINER</label>
-          <button type="button" id="btn-quick-new-cont" class="quick-add-link">+ New Container</button>
-        </div>
-        <select id="save-cont-select" class="clean-select"></select>
-      </div>
-
       <!-- Swayed Sticky Note Memo Input -->
       <div class="sticky-memo-section">
         <div class="sticky-memo-header">
@@ -127,7 +113,7 @@
       <!-- Primary Save Button -->
       <button type="button" id="btn-save-current-page" class="btn-save-page">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-        <span id="btn-save-text">Save Page to Container</span>
+        <span id="btn-save-text">Save Page to Library</span>
       </button>
 
       <!-- Square Area: Drag & Drop or Paste (Photos / Texts / Links) -->
@@ -136,7 +122,7 @@
           <span>OR DROP & PASTE</span>
         </div>
 
-        <div id="quick-drop-zone" class="square-drop-zone" tabindex="0" role="button" aria-label="Drop or paste photos, texts, or links into container">
+        <div id="quick-drop-zone" class="square-drop-zone" tabindex="0" role="button" aria-label="Drop or paste photos, texts, or links into library">
           <!-- State 1: Idle -->
           <div class="drop-zone-idle" id="drop-zone-idle">
             <div class="drop-icon-box">
@@ -157,7 +143,7 @@
           <div class="drop-zone-active hidden" id="drop-zone-active">
             <span class="drop-active-icon">📥</span>
             <span class="drop-active-title">Release to Save!</span>
-            <span class="drop-active-sub" id="drop-active-target">Into Container</span>
+            <span class="drop-active-sub" id="drop-active-target">Into Library</span>
           </div>
 
           <!-- State 3: Success Confirmation -->
@@ -167,7 +153,7 @@
             </div>
             <div class="drop-success-info">
               <span class="drop-success-title" id="drop-success-title">Item Saved!</span>
-              <span class="drop-success-meta" id="drop-success-meta">📦 Container</span>
+              <span class="drop-success-meta" id="drop-success-meta">Saved to Library</span>
             </div>
             <img id="drop-success-thumb" class="drop-thumb-preview hidden" alt="Saved thumbnail" />
           </div>
@@ -178,7 +164,7 @@
       </div>
     </div>
 
-    <!-- ── SCREEN B: LIBRARY (All Saved Things + Containers Explorer) ── -->
+    <!-- ── SCREEN B: LIBRARY (All Saved Things) ── -->
     <div id="view-library" class="view-panel custom-scroll hidden">
       <!-- Library Toolbar -->
       <div class="library-toolbar">
@@ -186,41 +172,6 @@
           <svg class="search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
           <input type="text" id="vault-search-input" placeholder="Search saved things, notes, tags..." />
           <button type="button" id="vault-search-clear" class="search-clear hidden">&times;</button>
-        </div>
-        <button type="button" id="btn-new-container-toolbar" class="btn-new-folder-toolbar" title="Create New Container (like New Folder on PC)">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="13" height="13"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-          <span>New Container</span>
-        </button>
-      </div>
-
-      <!-- Inline Desktop-Style New Container Creator (Like New Folder in PC/Mac) -->
-      <div id="inline-container-creator" class="inline-creator-card hidden">
-        <div class="inline-creator-row">
-          <span class="creator-box-icon">📦</span>
-          <input type="text" id="inline-container-name" class="inline-creator-input" placeholder="New container name..." maxlength="30" />
-          <div class="inline-creator-actions">
-            <button type="button" id="btn-inline-cont-confirm" class="inline-btn-check" title="Create Container (Enter)">✓</button>
-            <button type="button" id="btn-inline-cont-cancel" class="inline-btn-cancel" title="Cancel (Esc)">✕</button>
-          </div>
-        </div>
-        <div class="inline-color-row" id="inline-color-picker">
-          <button type="button" class="color-dot active" data-color="#2563EB" style="background:#2563EB"></button>
-          <button type="button" class="color-dot" data-color="#059669" style="background:#059669"></button>
-          <button type="button" class="color-dot" data-color="#D97706" style="background:#D97706"></button>
-          <button type="button" class="color-dot" data-color="#DC2626" style="background:#DC2626"></button>
-          <button type="button" class="color-dot" data-color="#7C3AED" style="background:#7C3AED"></button>
-          <button type="button" class="color-dot" data-color="#475569" style="background:#475569"></button>
-        </div>
-      </div>
-
-      <!-- Containers Explorer Strip (Like Desktop Folders) -->
-      <div class="containers-explorer-section">
-        <div class="containers-strip-header">
-          <span class="containers-strip-title">CONTAINERS</span>
-          <span class="containers-strip-count" id="containers-count-badge">0 containers</span>
-        </div>
-        <div class="containers-scroll-strip" id="containers-pills-list">
-          <!-- "All Items" pill + container pills rendered by JS -->
         </div>
       </div>
 
@@ -247,8 +198,8 @@
             <line x1="10" y1="12" x2="14" y2="12"/>
           </svg>
         </div>
-        <p class="empty-title">No items in this container</p>
-        <span class="empty-hint">Switch to the "Save Page" tab to capture this page,<br/>or save new items into this container.</span>
+        <p class="empty-title">Your library is empty</p>
+        <span class="empty-hint">Switch to the "Save Page" tab to capture this page,<br/>or drop/paste items directly into your library.</span>
       </div>
     </div>
 
@@ -259,7 +210,7 @@
         <span id="footer-status-text">Ready to Save</span>
       </div>
       <div class="footer-count">
-        <span id="footer-item-count">0 items in vault</span>
+        <span id="footer-item-count">0 items in library</span>
       </div>
     </footer>
 
@@ -319,36 +270,69 @@
       </div>
     </div>
 
-    <!-- Create Container Modal -->
-    <div id="container-modal" class="modal hidden">
+    <!-- Item Detailed View Modal -->
+    <div id="detail-modal" class="modal hidden">
       <div class="modal-backdrop"></div>
-      <div class="modal-content">
+      <div class="modal-content modal-detail-content">
         <div class="modal-header">
-          <h2>Create New Container</h2>
-          <button class="btn-close-modal" id="cont-modal-close-x">&times;</button>
+          <div class="detail-header-left">
+            <span id="detail-type-badge" class="card-type-chip">LINK</span>
+            <span id="detail-date" class="detail-meta-date">Date</span>
+          </div>
+          <button class="btn-close-modal" id="detail-close-x">&times;</button>
         </div>
-        <div class="form-group">
-          <label for="container-name-input">Container Name (📦)</label>
-          <input type="text" id="container-name-input" placeholder="e.g. Design Inspo, Research, Guides" maxlength="30" />
-        </div>
-        <div class="form-group">
-          <label>Container Color</label>
-          <div class="color-picker-row" id="cont-color-picker">
-            <button type="button" class="color-swatch active" data-color="#2563EB" style="background:#2563EB"></button>
-            <button type="button" class="color-swatch" data-color="#059669" style="background:#059669"></button>
-            <button type="button" class="color-swatch" data-color="#D97706" style="background:#D97706"></button>
-            <button type="button" class="color-swatch" data-color="#DC2626" style="background:#DC2626"></button>
-            <button type="button" class="color-swatch" data-color="#7C3AED" style="background:#7C3AED"></button>
-            <button type="button" class="color-swatch" data-color="#475569" style="background:#475569"></button>
+        <div class="detail-body custom-scroll">
+          <!-- Media Banner (for YouTube or Images) -->
+          <div id="detail-media-wrap" class="detail-media-wrap hidden">
+            <img id="detail-media-img" src="" alt="Media preview" />
+          </div>
+
+          <!-- Title -->
+          <h3 id="detail-title" class="detail-title"></h3>
+
+          <!-- Full Content / Quote / Text -->
+          <div id="detail-content-wrap" class="detail-content-wrap">
+            <div id="detail-content" class="detail-content-text"></div>
+          </div>
+
+          <!-- Note / Memo -->
+          <div id="detail-note-wrap" class="detail-note-wrap hidden">
+            <div class="detail-note-card">
+              <span class="detail-note-icon">📌</span>
+              <div class="detail-note-body">
+                <span class="detail-note-label">Personal Note</span>
+                <p id="detail-note-text" class="detail-note-text"></p>
+              </div>
+            </div>
+          </div>
+
+          <!-- Tags -->
+          <div id="detail-tags-wrap" class="detail-tags-wrap hidden">
+            <div id="detail-tags-list" class="detail-tags-list"></div>
           </div>
         </div>
-        <div class="form-group">
-          <label for="container-desc-input">Container Note / Guidelines <span class="hint">(optional)</span></label>
-          <input type="text" id="container-desc-input" placeholder="e.g. Palettes, hex codes & moodboards" maxlength="80" />
-        </div>
-        <div class="modal-actions">
-          <button id="container-modal-cancel" class="btn btn-secondary">Cancel</button>
-          <button id="container-modal-save" class="btn btn-primary">Create Container</button>
+
+        <div class="detail-modal-footer">
+          <div class="detail-footer-left">
+            <a id="detail-open-link-btn" href="#" target="_blank" class="btn btn-detail-link hidden">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="13" height="13"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+              <span>Visit Link</span>
+            </a>
+          </div>
+          <div class="detail-footer-actions">
+            <button id="detail-fav-btn" class="btn btn-secondary icon-btn-detail" title="Favorite">
+              ★
+            </button>
+            <button id="detail-copy-btn" class="btn btn-secondary icon-btn-detail" title="Copy Content">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="13" height="13"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+            </button>
+            <button id="detail-edit-btn" class="btn btn-secondary icon-btn-detail" title="Edit Item">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="13" height="13"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
+            </button>
+            <button id="detail-delete-btn" class="btn btn-secondary icon-btn-detail delete-danger-btn" title="Delete Item">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="13" height="13"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>
+            </button>
+          </div>
         </div>
       </div>
     </div>
@@ -375,7 +359,7 @@
           </div>
         </div>
         <div id="auth-logged-out-view">
-          <p class="auth-desc">Log in to sync your containers and saved items across devices.</p>
+          <p class="auth-desc">Log in to sync your saved items across devices.</p>
           <div class="form-group">
             <label for="auth-email-input">Email</label>
             <input type="email" id="auth-email-input" placeholder="you@example.com" />

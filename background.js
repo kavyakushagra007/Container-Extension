@@ -47,46 +47,6 @@ function setupContextMenus() {
   });
 }
 
-// ── Get Active Destination (Container Only) ──
-async function getTargetDestination() {
-  const data = await chrome.storage.local.get([
-    "containers",
-    "lastActiveContainer",
-  ]);
-  let containers = data.containers || [];
-  const lastActiveContainer = data.lastActiveContainer;
-
-  let targetCont = null;
-  if (lastActiveContainer && lastActiveContainer !== "all" && lastActiveContainer !== "default") {
-    targetCont = containers.find((c) => c.id === lastActiveContainer);
-  }
-
-  if (!targetCont) {
-    if (containers.length > 0) {
-      targetCont = containers[0];
-    } else {
-      // First save when vault is completely brand new
-      targetCont = {
-        id: "cont_" + Date.now(),
-        name: "General Saves",
-        color: "#2563EB",
-        note: "",
-        description: "",
-        createdAt: Date.now(),
-        order: 0,
-      };
-      containers.push(targetCont);
-      await chrome.storage.local.set({ containers, lastActiveContainer: targetCont.id });
-    }
-  }
-
-  if (targetCont) {
-    chrome.storage.local.set({ lastActiveContainer: targetCont.id }).catch(() => {});
-  }
-
-  return { container: targetCont };
-}
-
 // ── Handle Context Menu Clicks ──
 chrome.contextMenus.onClicked.addListener(async (info, tab) => {
   if (info.menuItemId === "saveit-open-dashboard") {
@@ -94,7 +54,6 @@ chrome.contextMenus.onClicked.addListener(async (info, tab) => {
     return;
   }
 
-  const { container } = await getTargetDestination();
   let item = null;
 
   if (info.menuItemId === "saveit-selection" && info.selectionText) {
@@ -105,7 +64,6 @@ chrome.contextMenus.onClicked.addListener(async (info, tab) => {
       type: classification.type === "quote" ? "quote" : "text",
       title: tab?.title ? `From: ${tab.title}` : "Saved Snippet",
       content: text,
-      containerId: container.id,
       sourceUrl: tab?.url || "",
       sourceTitle: tab?.title || "",
       createdAt: Date.now(),
@@ -119,7 +77,6 @@ chrome.contextMenus.onClicked.addListener(async (info, tab) => {
       title: tab?.title ? `Image from: ${tab.title}` : "Saved Image",
       content: info.srcUrl,
       previewImage: info.srcUrl,
-      containerId: container.id,
       sourceUrl: tab?.url || info.pageUrl || "",
       sourceTitle: tab?.title || "",
       createdAt: Date.now(),
@@ -133,7 +90,6 @@ chrome.contextMenus.onClicked.addListener(async (info, tab) => {
       type: classification.type,
       title: info.selectionText || tab?.title || info.linkUrl,
       content: info.linkUrl,
-      containerId: container.id,
       previewImage: classification.thumbnail || "",
       metadata: classification.videoId ? { videoId: classification.videoId } : {},
       sourceUrl: info.linkUrl,
@@ -150,7 +106,6 @@ chrome.contextMenus.onClicked.addListener(async (info, tab) => {
       type: classification.type === "youtube" ? "youtube" : "link",
       title: tab?.title || "Web Bookmark",
       content: pageUrl,
-      containerId: container.id,
       previewImage: classification.thumbnail || "",
       metadata: classification.videoId ? { videoId: classification.videoId } : {},
       sourceUrl: pageUrl,
@@ -162,15 +117,13 @@ chrome.contextMenus.onClicked.addListener(async (info, tab) => {
   }
 
   if (item) {
-    await saveItem(item, container);
+    await saveItem(item);
   }
 });
 
 // ── Keyboard shortcut handler ──
 chrome.commands.onCommand.addListener(async (command) => {
   if (command === "save-selection") {
-    const { container } = await getTargetDestination();
-
     chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
       if (tabs[0]) {
         chrome.scripting
@@ -187,14 +140,13 @@ chrome.commands.onCommand.addListener(async (command) => {
                 type: classification.type === "quote" ? "quote" : "text",
                 title: tabs[0].title ? `From: ${tabs[0].title}` : "Saved Snippet",
                 content: text.trim(),
-                containerId: container.id,
                 sourceUrl: tabs[0].url || "",
                 sourceTitle: tabs[0].title || "",
                 createdAt: Date.now(),
                 tags: [],
                 favorite: false,
               };
-              saveItem(item, container);
+              saveItem(item);
             }
           });
       }
@@ -214,35 +166,29 @@ function clearBadge() {
 
 chrome.runtime.onStartup.addListener(clearBadge);
 
-async function saveItem(item, container) {
-  const { items = [], containers = [], collections = [] } = await chrome.storage.local.get([
-    "items",
-    "containers",
-    "collections",
-  ]);
+async function saveItem(item) {
+  const { items = [] } = await chrome.storage.local.get(["items"]);
 
   items.unshift(item);
   await chrome.storage.local.set({ items });
 
   // Sync to cloud if user is logged in
   if (typeof SyncService !== "undefined" && SyncService.pushToCloud) {
-    SyncService.pushToCloud(items, containers, collections).catch(() => {});
+    SyncService.pushToCloud(items, [], []).catch(() => {});
   }
 
   clearBadge();
 
-  // Notify content script with container information
+  // Notify content script
   try {
     const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
     if (tab?.id) {
-      const contName = container?.name || "Container";
       const preview = item.content.length > 60 ? item.content.slice(0, 60) + "…" : item.content;
 
       chrome.tabs.sendMessage(tab.id, {
         action: "showSaveNotification",
         type: item.type,
         preview,
-        containerName: contName,
       }).catch(() => {});
     }
   } catch {}
@@ -263,8 +209,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 
   if (message.action === "saveItem") {
     (async () => {
-      const { container } = await getTargetDestination();
-      await saveItem(message.item, container);
+      await saveItem(message.item);
       sendResponse({ success: true });
     })();
     return true;

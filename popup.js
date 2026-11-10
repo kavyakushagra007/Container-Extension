@@ -1,14 +1,10 @@
-// ── SaveIt: Popup Controller (Containers-Only & Library Workspace) ──
+// ── SaveIt: Popup Controller (Web Vault & Library) ──
 
-let containers = [];
 let allItems = [];
-
-let activeContainerFilter = "all"; // "all" or specific container ID in Library
 let currentFilter = "all";          // type filter: "all", "link", "quote", "media", "favorite"
 let searchQuery = "";
 let editingItemId = null;
-let selectedContColor = "#2563EB";
-let inlineContColor = "#2563EB";
+let activeDetailItem = null;
 let authIsSignUp = false;
 let currentTabInfo = null;
 
@@ -24,8 +20,6 @@ const viewLibrary = document.getElementById("view-library");
 const savePageTypeChip = document.getElementById("save-page-type-chip");
 const savePageTitle = document.getElementById("save-page-title");
 const savePageUrl = document.getElementById("save-page-url");
-const saveContSelect = document.getElementById("save-cont-select");
-const btnQuickNewCont = document.getElementById("btn-quick-new-cont");
 const saveNoteInput = document.getElementById("save-note-input");
 const saveTagsInput = document.getElementById("save-tags-input");
 const btnSaveCurrentPage = document.getElementById("btn-save-current-page");
@@ -45,14 +39,6 @@ const dropFileInput = document.getElementById("drop-file-input");
 // Screen B (Library)
 const vaultSearchInput = document.getElementById("vault-search-input");
 const vaultSearchClear = document.getElementById("vault-search-clear");
-const btnNewContainerToolbar = document.getElementById("btn-new-container-toolbar");
-const inlineContainerCreator = document.getElementById("inline-container-creator");
-const inlineContainerName = document.getElementById("inline-container-name");
-const btnInlineContConfirm = document.getElementById("btn-inline-cont-confirm");
-const btnInlineContCancel = document.getElementById("btn-inline-cont-cancel");
-const inlineColorPicker = document.getElementById("inline-color-picker");
-const containersPillsList = document.getElementById("containers-pills-list");
-const containersCountBadge = document.getElementById("containers-count-badge");
 const typeFilterChips = document.querySelectorAll(".type-filter-chip");
 const itemsContainer = document.getElementById("items-container");
 const emptyState = document.getElementById("empty-state");
@@ -62,7 +48,6 @@ const btnDashboard = document.getElementById("btn-dashboard");
 const btnAdd = document.getElementById("btn-add");
 const btnMenu = document.getElementById("btn-menu");
 const dropdownMenu = document.getElementById("dropdown-menu");
-const menuAddContainer = document.getElementById("menu-add-container");
 const menuAuth = document.getElementById("menu-auth");
 const menuExport = document.getElementById("menu-export");
 const menuImport = document.getElementById("menu-import");
@@ -92,14 +77,24 @@ const editCancel = document.getElementById("edit-cancel");
 const editSave = document.getElementById("edit-save");
 const editCloseX = document.getElementById("edit-close-x");
 
-// Container Modal
-const containerModal = document.getElementById("container-modal");
-const containerNameInput = document.getElementById("container-name-input");
-const containerDescInput = document.getElementById("container-desc-input");
-const contColorPicker = document.getElementById("cont-color-picker");
-const containerModalCancel = document.getElementById("container-modal-cancel");
-const containerModalSave = document.getElementById("container-modal-save");
-const contModalCloseX = document.getElementById("cont-modal-close-x");
+// Detail Modal
+const detailModal = document.getElementById("detail-modal");
+const detailCloseX = document.getElementById("detail-close-x");
+const detailTypeBadge = document.getElementById("detail-type-badge");
+const detailDate = document.getElementById("detail-date");
+const detailMediaWrap = document.getElementById("detail-media-wrap");
+const detailMediaImg = document.getElementById("detail-media-img");
+const detailTitle = document.getElementById("detail-title");
+const detailContent = document.getElementById("detail-content");
+const detailNoteWrap = document.getElementById("detail-note-wrap");
+const detailNoteText = document.getElementById("detail-note-text");
+const detailTagsWrap = document.getElementById("detail-tags-wrap");
+const detailTagsList = document.getElementById("detail-tags-list");
+const detailOpenLinkBtn = document.getElementById("detail-open-link-btn");
+const detailFavBtn = document.getElementById("detail-fav-btn");
+const detailCopyBtn = document.getElementById("detail-copy-btn");
+const detailEditBtn = document.getElementById("detail-edit-btn");
+const detailDeleteBtn = document.getElementById("detail-delete-btn");
 
 // Auth Modal
 const authModal = document.getElementById("auth-modal");
@@ -130,34 +125,9 @@ document.addEventListener("DOMContentLoaded", async () => {
 
 async function loadState() {
   const state = await SyncService.ensureInitializedAndMigrated();
-  containers = state.containers || [];
   allItems = state.items || [];
 
-  // Ensure user has at least one default container
-  if (containers.length === 0) {
-    const defaultCont = {
-      id: "cont_" + generateId(),
-      name: "General",
-      color: "#2563EB",
-      note: "Default container for all saves",
-      createdAt: Date.now(),
-      order: 0,
-    };
-    containers.push(defaultCont);
-    await chrome.storage.local.set({ containers });
-  }
-
-  const stored = await chrome.storage.local.get(["activeContainerFilter", "lastActiveContainer"]);
-  if (stored.activeContainerFilter) activeContainerFilter = stored.activeContainerFilter;
-
-  // Validate active container still exists
-  if (activeContainerFilter !== "all" && !containers.some((c) => c.id === activeContainerFilter)) {
-    activeContainerFilter = "all";
-  }
-
   updateVaultCounters();
-  populateContainerSelect(saveContSelect, stored.lastActiveContainer || containers[0]?.id);
-  renderContainersPills();
   renderItems();
 }
 
@@ -167,11 +137,8 @@ async function autoSyncBackground() {
   try {
     const res = await SyncService.syncNow();
     if (res) {
-      containers = res.containers || [];
       allItems = res.items || [];
       updateVaultCounters();
-      populateContainerSelect(saveContSelect);
-      renderContainersPills();
       renderItems();
     }
   } catch (err) {
@@ -183,9 +150,6 @@ function updateVaultCounters() {
   const total = allItems.length;
   if (tabVaultCount) tabVaultCount.textContent = total;
   if (footerItemCount) footerItemCount.textContent = `${total} ${total === 1 ? "item" : "items"} in library`;
-  if (containersCountBadge) {
-    containersCountBadge.textContent = `${containers.length} ${containers.length === 1 ? "container" : "containers"}`;
-  }
 }
 
 // ── Event Listeners ──
@@ -203,43 +167,6 @@ function setupEventListeners() {
 
   // Square Drop & Paste Engine (Photos, Texts, Links)
   setupSquareDropZone();
-
-  // New Container shortcut in Save Page tab
-  if (btnQuickNewCont) {
-    btnQuickNewCont.addEventListener("click", openContainerModal);
-  }
-
-  // Library: Desktop New Folder / Container Creator
-  if (btnNewContainerToolbar) {
-    btnNewContainerToolbar.addEventListener("click", () => {
-      toggleInlineCreator();
-    });
-  }
-  if (btnInlineContConfirm) {
-    btnInlineContConfirm.addEventListener("click", handleInlineCreateContainer);
-  }
-  if (btnInlineContCancel) {
-    btnInlineContCancel.addEventListener("click", closeInlineCreator);
-  }
-  if (inlineContainerName) {
-    inlineContainerName.addEventListener("keydown", (e) => {
-      if (e.key === "Enter") {
-        e.preventDefault();
-        handleInlineCreateContainer();
-      } else if (e.key === "Escape") {
-        closeInlineCreator();
-      }
-    });
-  }
-  if (inlineColorPicker) {
-    inlineColorPicker.querySelectorAll(".color-dot").forEach((dot) => {
-      dot.addEventListener("click", () => {
-        inlineColorPicker.querySelectorAll(".color-dot").forEach((d) => d.classList.remove("active"));
-        dot.classList.add("active");
-        inlineContColor = dot.dataset.color;
-      });
-    });
-  }
 
   // Library: Search
   if (vaultSearchInput) {
@@ -290,12 +217,6 @@ function setupEventListeners() {
   });
 
   // Dropdown Menu Items
-  if (menuAddContainer) {
-    menuAddContainer.addEventListener("click", () => {
-      dropdownMenu.classList.add("hidden");
-      openContainerModal();
-    });
-  }
   if (menuAuth) {
     menuAuth.addEventListener("click", () => {
       dropdownMenu.classList.add("hidden");
@@ -322,17 +243,41 @@ function setupEventListeners() {
   if (editCancel) editCancel.addEventListener("click", closeEditModal);
   if (editSave) editSave.addEventListener("click", handleSaveEditItem);
 
-  // Container Modal
-  if (contModalCloseX) contModalCloseX.addEventListener("click", closeContainerModal);
-  if (containerModalCancel) containerModalCancel.addEventListener("click", closeContainerModal);
-  if (containerModalSave) containerModalSave.addEventListener("click", handleCreateContainer);
-  if (contColorPicker) {
-    contColorPicker.querySelectorAll(".color-swatch").forEach((swatch) => {
-      swatch.addEventListener("click", () => {
-        contColorPicker.querySelectorAll(".color-swatch").forEach((s) => s.classList.remove("active"));
-        swatch.classList.add("active");
-        selectedContColor = swatch.dataset.color;
-      });
+  // Detail Modal
+  if (detailCloseX) detailCloseX.addEventListener("click", closeDetailModal);
+  if (detailModal) {
+    const backdrop = detailModal.querySelector(".modal-backdrop");
+    if (backdrop) backdrop.addEventListener("click", closeDetailModal);
+  }
+  if (detailFavBtn) {
+    detailFavBtn.addEventListener("click", () => {
+      if (activeDetailItem) {
+        toggleFavorite(activeDetailItem.id);
+        openDetailModal(activeDetailItem);
+      }
+    });
+  }
+  if (detailCopyBtn) {
+    detailCopyBtn.addEventListener("click", () => {
+      if (activeDetailItem) copyToClipboard(activeDetailItem.content);
+    });
+  }
+  if (detailEditBtn) {
+    detailEditBtn.addEventListener("click", () => {
+      if (activeDetailItem) {
+        const itemToEdit = activeDetailItem;
+        closeDetailModal();
+        openEditModal(itemToEdit);
+      }
+    });
+  }
+  if (detailDeleteBtn) {
+    detailDeleteBtn.addEventListener("click", () => {
+      if (activeDetailItem) {
+        const idToDelete = activeDetailItem.id;
+        closeDetailModal();
+        deleteItem(idToDelete);
+      }
     });
   }
 
@@ -358,7 +303,6 @@ function switchToTab(tabName) {
     tabSavePage.classList.remove("active");
     viewLibrary.classList.remove("hidden");
     viewSavePage.classList.add("hidden");
-    renderContainersPills();
     renderItems();
   }
 }
@@ -397,11 +341,8 @@ async function populateActiveTabPreview() {
       if (btnSaveText) btnSaveText.textContent = "Update Saved Page";
       if (saveNoteInput) saveNoteInput.value = existing.note || "";
       if (saveTagsInput) saveTagsInput.value = (existing.tags || []).join(", ");
-      if (existing.containerId && saveContSelect) {
-        saveContSelect.value = existing.containerId;
-      }
     } else {
-      if (btnSaveText) btnSaveText.textContent = "Save Page to Container";
+      if (btnSaveText) btnSaveText.textContent = "Save Page to Library";
     }
 
     if (footerStatusText) {
@@ -421,24 +362,6 @@ async function handleSaveCurrentTab() {
     return;
   }
 
-  // Ensure user has at least one container
-  if (containers.length === 0) {
-    const defaultCont = {
-      id: "cont_" + generateId(),
-      name: "General",
-      color: "#2563EB",
-      note: "Default container",
-      createdAt: Date.now(),
-      order: 0,
-    };
-    containers.push(defaultCont);
-    await chrome.storage.local.set({ containers });
-    populateContainerSelect(saveContSelect, defaultCont.id);
-  }
-
-  let contId = saveContSelect ? saveContSelect.value : containers[0]?.id;
-  if (!contId && containers.length > 0) contId = containers[0].id;
-
   const title = savePageTitle ? savePageTitle.value.trim() : (currentTabInfo?.title || "");
   const note = saveNoteInput ? saveNoteInput.value.trim() : "";
   const rawTags = saveTagsInput ? saveTagsInput.value : "";
@@ -450,9 +373,6 @@ async function handleSaveCurrentTab() {
   const classification = classifyContent(url);
   const existingIndex = allItems.findIndex((i) => i.sourceUrl === url || i.content === url);
 
-  const targetBox = containers.find((c) => c.id === contId) || containers[0];
-  const boxName = targetBox ? targetBox.name : "Container";
-
   if (existingIndex !== -1) {
     // Update existing item
     allItems[existingIndex] = {
@@ -460,10 +380,9 @@ async function handleSaveCurrentTab() {
       title: title || allItems[existingIndex].title,
       note,
       tags,
-      containerId: contId,
       updatedAt: Date.now(),
     };
-    showToast(`Updated in 📦 ${boxName}!`);
+    showToast("Updated in Library!");
   } else {
     // Create new item
     const newItem = {
@@ -472,7 +391,6 @@ async function handleSaveCurrentTab() {
       title: title || classification.title || "Saved Web Page",
       content: url,
       note,
-      containerId: contId,
       previewImage: classification.thumbnail || "",
       metadata: classification.videoId ? { videoId: classification.videoId } : {},
       sourceUrl: url,
@@ -482,146 +400,23 @@ async function handleSaveCurrentTab() {
       createdAt: Date.now(),
     };
     allItems.unshift(newItem);
-    showToast(`Saved to 📦 ${boxName}!`);
+    showToast("Saved to Library!");
   }
 
-  await chrome.storage.local.set({ items: allItems, lastActiveContainer: contId });
-  SyncService.pushToCloud(allItems, containers, []).catch(() => {});
+  await chrome.storage.local.set({ items: allItems });
+  SyncService.pushToCloud(allItems, [], []).catch(() => {});
 
   updateVaultCounters();
-  renderContainersPills();
   renderItems();
 
   // Switch to Library tab to show the new card immediately
   switchToTab("library");
 }
 
-// ── Container Select Helper ──
-function populateContainerSelect(selectEl, selectedContId) {
-  if (!selectEl) return;
-  selectEl.innerHTML = "";
-  if (containers.length === 0) {
-    const opt = document.createElement("option");
-    opt.value = "";
-    opt.textContent = "(No containers created)";
-    selectEl.appendChild(opt);
-    return;
-  }
-
-  containers.forEach((cont) => {
-    const opt = document.createElement("option");
-    opt.value = cont.id;
-    opt.textContent = `📦 ${cont.name}`;
-    if (cont.id === selectedContId) opt.selected = true;
-    selectEl.appendChild(opt);
-  });
-}
-
-// ── Screen B: Containers Explorer Strip ──
-function renderContainersPills() {
-  if (!containersPillsList) return;
-  containersPillsList.innerHTML = "";
-
-  // 1. "All Items" pill
-  const allPill = document.createElement("button");
-  allPill.type = "button";
-  allPill.className = `cont-pill ${activeContainerFilter === "all" ? "active" : ""}`;
-  allPill.innerHTML = `
-    <span>📦 All</span>
-    <span class="cont-pill-count">${allItems.length}</span>
-  `;
-  allPill.addEventListener("click", () => {
-    activeContainerFilter = "all";
-    chrome.storage.local.set({ activeContainerFilter });
-    renderContainersPills();
-    renderItems();
-  });
-  containersPillsList.appendChild(allPill);
-
-  // 2. Individual Container Pills
-  containers.forEach((cont) => {
-    const count = allItems.filter((i) => i.containerId === cont.id).length;
-    const pill = document.createElement("button");
-    pill.type = "button";
-    pill.className = `cont-pill ${activeContainerFilter === cont.id ? "active" : ""}`;
-    pill.innerHTML = `
-      <span class="cont-pill-dot" style="background:${cont.color || "#2563EB"}"></span>
-      <span>${escapeHTML(cont.name)}</span>
-      <span class="cont-pill-count">${count}</span>
-    `;
-    pill.addEventListener("click", () => {
-      activeContainerFilter = cont.id;
-      chrome.storage.local.set({ activeContainerFilter });
-      renderContainersPills();
-      renderItems();
-    });
-    containersPillsList.appendChild(pill);
-  });
-}
-
-// ── Desktop Inline New Container Creator ──
-function toggleInlineCreator() {
-  if (!inlineContainerCreator) return;
-  const isHidden = inlineContainerCreator.classList.contains("hidden");
-  if (isHidden) {
-    inlineContainerCreator.classList.remove("hidden");
-    inlineContainerName.value = "";
-    inlineContainerName.focus();
-  } else {
-    closeInlineCreator();
-  }
-}
-
-function closeInlineCreator() {
-  if (!inlineContainerCreator) return;
-  inlineContainerCreator.classList.add("hidden");
-  inlineContainerName.value = "";
-}
-
-async function handleInlineCreateContainer() {
-  const name = inlineContainerName.value.trim();
-  if (!name) {
-    inlineContainerName.focus();
-    return;
-  }
-
-  const newCont = {
-    id: "cont_" + generateId(),
-    name,
-    color: inlineContColor || "#2563EB",
-    note: "",
-    createdAt: Date.now(),
-    order: containers.length,
-  };
-
-  containers.push(newCont);
-  activeContainerFilter = newCont.id;
-
-  await chrome.storage.local.set({
-    containers,
-    activeContainerFilter,
-    lastActiveContainer: newCont.id,
-  });
-
-  SyncService.pushToCloud(allItems, containers, []).catch(() => {});
-
-  closeInlineCreator();
-  updateVaultCounters();
-  populateContainerSelect(saveContSelect, newCont.id);
-  renderContainersPills();
-  renderItems();
-  showToast(`Created container: 📦 ${name}`);
-}
-
 // ── Screen B: Render Items (Cards Feed) ──
 function renderItems() {
   if (!itemsContainer) return;
   let filtered = [...allItems];
-
-  // Container filter
-  if (activeContainerFilter && activeContainerFilter !== "all") {
-    filtered = filtered.filter((i) => i.containerId === activeContainerFilter);
-  }
 
   // Type filter
   if (currentFilter === "quote") {
@@ -668,9 +463,6 @@ function createItemCard(item) {
   card.className = `item-card type-${item.type || "text"}`;
   card.dataset.id = item.id;
 
-  const parentCont = containers.find((c) => c.id === item.containerId);
-  const contName = parentCont ? parentCont.name : "Container";
-
   const typeIcons = {
     youtube: "🎬 YouTube",
     quote: "💬 Quote",
@@ -688,9 +480,6 @@ function createItemCard(item) {
     <div class="card-top-row">
       <div style="display:flex;align-items:center;gap:6px;">
         <span class="card-type-chip ${item.type || "text"}">${typeLabel}</span>
-        <span class="card-hierarchy-tag" title="📦 ${escapeHTML(contName)}">
-          📦 ${escapeHTML(contName)}
-        </span>
       </div>
       <div class="card-actions-quick">
         <button class="card-action-btn fav-btn ${item.favorite ? "active" : ""}" title="${item.favorite ? "Unfavorite" : "Favorite"}">
@@ -703,7 +492,7 @@ function createItemCard(item) {
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="13" height="13"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
         </button>
         <button class="card-action-btn delete-btn" title="Delete Item">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="13" height="13"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="13" height="13"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>
         </button>
       </div>
     </div>
@@ -778,22 +567,51 @@ function createItemCard(item) {
 
   // Event handlers
   const favBtn = card.querySelector(".fav-btn");
-  if (favBtn) favBtn.addEventListener("click", () => toggleFavorite(item.id));
+  if (favBtn) {
+    favBtn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      toggleFavorite(item.id);
+    });
+  }
 
   const copyBtn = card.querySelector(".copy-btn");
-  if (copyBtn) copyBtn.addEventListener("click", () => copyToClipboard(item.content));
+  if (copyBtn) {
+    copyBtn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      copyToClipboard(item.content);
+    });
+  }
 
   const editBtn = card.querySelector(".edit-btn");
-  if (editBtn) editBtn.addEventListener("click", () => openEditModal(item));
+  if (editBtn) {
+    editBtn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      openEditModal(item);
+    });
+  }
 
   const deleteBtn = card.querySelector(".delete-btn");
-  if (deleteBtn) deleteBtn.addEventListener("click", () => deleteItem(item.id));
-
-  const mediaBanner = card.querySelector(".card-media-banner, .card-image-box");
-  if (mediaBanner && targetUrl) {
-    mediaBanner.style.cursor = "pointer";
-    mediaBanner.addEventListener("click", () => chrome.tabs.create({ url: targetUrl }));
+  if (deleteBtn) {
+    deleteBtn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      deleteItem(item.id);
+    });
   }
+
+  const sourceLink = card.querySelector(".card-source-link");
+  if (sourceLink) {
+    sourceLink.addEventListener("click", (e) => {
+      e.stopPropagation();
+    });
+  }
+
+  // Clicking card opens detailed view (not direct link navigation!)
+  card.addEventListener("click", (e) => {
+    if (e.target.closest(".card-action-btn") || e.target.closest(".card-source-link")) {
+      return;
+    }
+    openDetailModal(item);
+  });
 
   return card;
 }
@@ -807,8 +625,7 @@ function setupSquareDropZone() {
   quickDropZone.addEventListener("dragenter", (e) => {
     e.preventDefault();
     e.stopPropagation();
-    const targetCont = getActiveTargetContainer();
-    if (dropActiveTarget) dropActiveTarget.textContent = `Into 📦 ${targetCont.name}`;
+    if (dropActiveTarget) dropActiveTarget.textContent = "Into Library";
     quickDropZone.classList.add("drag-over");
     if (dropZoneIdle) dropZoneIdle.classList.add("hidden");
     if (dropZoneActive) dropZoneActive.classList.remove("hidden");
@@ -955,35 +772,6 @@ function setupSquareDropZone() {
   });
 }
 
-function getActiveTargetContainer() {
-  if (containers.length === 0) {
-    const defaultCont = {
-      id: "cont_" + generateId(),
-      name: "General",
-      color: "#2563EB",
-      note: "Default container",
-      createdAt: Date.now(),
-      order: 0,
-    };
-    containers.push(defaultCont);
-    chrome.storage.local.set({ containers });
-    populateContainerSelect(saveContSelect, defaultCont.id);
-  }
-
-  const selectedId = saveContSelect ? saveContSelect.value : "";
-  if (selectedId) {
-    const found = containers.find((c) => c.id === selectedId);
-    if (found) return found;
-  }
-
-  if (activeContainerFilter && activeContainerFilter !== "all") {
-    const found = containers.find((c) => c.id === activeContainerFilter);
-    if (found) return found;
-  }
-
-  return containers[0];
-}
-
 async function handleDropOrPaste(dataTransfer) {
   // A. Check for files (Images or Text documents)
   if (dataTransfer.files && dataTransfer.files.length > 0) {
@@ -1098,8 +886,6 @@ async function handleDropOrPaste(dataTransfer) {
 }
 
 async function saveDirectItem(itemPartial) {
-  const targetCont = getActiveTargetContainer();
-
   // Attach optional memo & tags if user entered any in the inputs
   const note = saveNoteInput ? saveNoteInput.value.trim() : "";
   const rawTags = saveTagsInput ? saveTagsInput.value : "";
@@ -1113,7 +899,6 @@ async function saveDirectItem(itemPartial) {
     type: itemPartial.type || "text",
     title: itemPartial.title || "Saved Item",
     content: itemPartial.content || "",
-    containerId: targetCont.id,
     note: note || "",
     tags: tags,
     previewImage: itemPartial.previewImage || "",
@@ -1125,23 +910,22 @@ async function saveDirectItem(itemPartial) {
   };
 
   allItems.unshift(fullItem);
-  await chrome.storage.local.set({ items: allItems, lastActiveContainer: targetCont.id });
-  SyncService.pushToCloud(allItems, containers, []).catch(() => {});
+  await chrome.storage.local.set({ items: allItems });
+  SyncService.pushToCloud(allItems, [], []).catch(() => {});
 
   // Clear memo / tags after saving
   if (saveNoteInput) saveNoteInput.value = "";
   if (saveTagsInput) saveTagsInput.value = "";
 
   updateVaultCounters();
-  renderContainersPills();
   renderItems();
 
   // Visual success feedback on square drop zone
-  showDropSuccessState(fullItem, targetCont);
-  showToast(`Saved to 📦 ${targetCont.name}`);
+  showDropSuccessState(fullItem);
+  showToast("Saved to Library!");
 }
 
-function showDropSuccessState(item, targetCont) {
+function showDropSuccessState(item) {
   if (!quickDropZone) return;
   quickDropZone.classList.remove("drag-over");
   quickDropZone.classList.add("drop-success-active");
@@ -1162,7 +946,7 @@ function showDropSuccessState(item, targetCont) {
   }
 
   if (dropSuccessMeta) {
-    dropSuccessMeta.textContent = `📦 ${targetCont.name}`;
+    dropSuccessMeta.textContent = "Saved to Library";
   }
 
   if (dropSuccessThumb) {
@@ -1189,19 +973,9 @@ function resetDropZoneUI() {
 }
 
 // ── Add Item Modal Logic ──
-let popupModalContId = null;
-
 function openAddModal() {
-  if (containers.length === 0) {
-    showToast("Please create a container first");
-    openContainerModal();
-    return;
-  }
-
-  popupModalContId = activeContainerFilter !== "all" ? activeContainerFilter : (saveContSelect?.value || containers[0]?.id);
-  const target = containers.find((c) => c.id === popupModalContId);
   if (addModalTitle) {
-    addModalTitle.textContent = target ? `Save Item to 📦 ${target.name}` : "Save Item";
+    addModalTitle.textContent = "Save Item to Library";
   }
 
   addContent.value = "";
@@ -1222,8 +996,6 @@ async function handleSaveNewItem() {
     return;
   }
 
-  const contId = popupModalContId || containers[0]?.id;
-  const targetCont = containers.find((c) => c.id === contId);
   const note = addNote ? addNote.value.trim() : "";
   const tags = addTags.value
     .split(",")
@@ -1250,7 +1022,6 @@ async function handleSaveNewItem() {
     title,
     content,
     note,
-    containerId: contId,
     previewImage: classification.thumbnail || (classification.type === "image" ? content : ""),
     metadata: classification.videoId ? { videoId: classification.videoId } : {},
     sourceUrl: isUrl ? content : "",
@@ -1261,21 +1032,19 @@ async function handleSaveNewItem() {
   };
 
   allItems.unshift(newItem);
-  await chrome.storage.local.set({ items: allItems, lastActiveContainer: contId });
-  SyncService.pushToCloud(allItems, containers, []).catch(() => {});
+  await chrome.storage.local.set({ items: allItems });
+  SyncService.pushToCloud(allItems, [], []).catch(() => {});
 
   closeAddModal();
   updateVaultCounters();
-  renderContainersPills();
   renderItems();
   switchToTab("library");
-  showToast(`Saved to 📦 ${targetCont ? targetCont.name : "Container"}!`);
+  showToast("Saved to Library!");
 }
 
 // ── Edit Item Modal Logic ──
 function openEditModal(item) {
   editingItemId = item.id;
-  popupModalContId = item.containerId;
   editContent.value = item.content || "";
   if (editNote) editNote.value = item.note || "";
   editTags.value = (item.tags || []).join(", ");
@@ -1296,7 +1065,6 @@ async function handleSaveEditItem() {
   const itemIndex = allItems.findIndex((i) => i.id === editingItemId);
   if (itemIndex === -1) return;
 
-  const contId = allItems[itemIndex].containerId;
   const note = editNote ? editNote.value.trim() : "";
   const tags = editTags.value
     .split(",")
@@ -1310,7 +1078,6 @@ async function handleSaveEditItem() {
     ...allItems[itemIndex],
     content,
     note,
-    containerId: contId,
     tags,
     type: classification.type,
     previewImage: classification.thumbnail || (classification.type === "image" ? content : allItems[itemIndex].previewImage),
@@ -1319,60 +1086,112 @@ async function handleSaveEditItem() {
   };
 
   await chrome.storage.local.set({ items: allItems });
-  SyncService.pushToCloud(allItems, containers, []).catch(() => {});
+  SyncService.pushToCloud(allItems, [], []).catch(() => {});
 
   closeEditModal();
   updateVaultCounters();
-  renderContainersPills();
   renderItems();
   showToast("Item updated!");
 }
 
-// ── Container Modal Logic ──
-function openContainerModal() {
-  containerNameInput.value = "";
-  containerDescInput.value = "";
-  containerModal.classList.remove("hidden");
-  containerNameInput.focus();
-}
+// ── Item Detailed View Modal Logic ──
+function openDetailModal(item) {
+  activeDetailItem = item;
+  if (!detailModal) return;
 
-function closeContainerModal() {
-  containerModal.classList.add("hidden");
-}
-
-async function handleCreateContainer() {
-  const name = containerNameInput.value.trim();
-  if (!name) return;
-
-  const desc = containerDescInput.value.trim();
-  const newCont = {
-    id: "cont_" + generateId(),
-    name,
-    icon: "archive",
-    color: selectedContColor || "#2563EB",
-    note: desc,
-    description: desc,
-    createdAt: Date.now(),
-    order: containers.length,
+  const typeLabels = {
+    youtube: "🎬 YouTube",
+    quote: "💬 Quote",
+    image: "🖼️ Image",
+    product: "🛍️ Product",
+    social: "📱 Social",
+    link: "🔗 Link",
+    text: "📝 Note",
   };
+  const typeText = typeLabels[item.type] || "📄 Clip";
+  if (detailTypeBadge) {
+    detailTypeBadge.textContent = typeText;
+    detailTypeBadge.className = `card-type-chip ${item.type || "text"}`;
+  }
 
-  containers.push(newCont);
-  activeContainerFilter = newCont.id;
+  if (detailDate) {
+    detailDate.textContent = item.createdAt
+      ? new Date(item.createdAt).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" })
+      : "";
+  }
 
-  await chrome.storage.local.set({
-    containers,
-    activeContainerFilter,
-    lastActiveContainer: newCont.id,
-  });
+  // Media Preview
+  const mediaSrc = item.previewImage || (item.type === "image" ? item.content : "");
+  if (mediaSrc && (item.type === "image" || item.type === "youtube")) {
+    if (detailMediaImg) detailMediaImg.src = mediaSrc;
+    if (detailMediaWrap) detailMediaWrap.classList.remove("hidden");
+  } else {
+    if (detailMediaWrap) detailMediaWrap.classList.add("hidden");
+  }
 
-  SyncService.pushToCloud(allItems, containers, []).catch(() => {});
+  // Title
+  if (detailTitle) {
+    if (item.title && item.title.trim()) {
+      detailTitle.textContent = item.title;
+      detailTitle.classList.remove("hidden");
+    } else {
+      detailTitle.classList.add("hidden");
+    }
+  }
 
-  closeContainerModal();
-  updateVaultCounters();
-  populateContainerSelect(saveContSelect, newCont.id);
-  renderContainersPills();
-  renderItems();
-  showToast(`Created Container: 📦 ${name}`);
+  // Full Content
+  if (detailContent) {
+    if (item.type === "quote") {
+      detailContent.textContent = `“${item.content}”`;
+    } else {
+      detailContent.textContent = item.content || "";
+    }
+  }
+
+  // Personal Note
+  if (detailNoteWrap && detailNoteText) {
+    if (item.note && item.note.trim()) {
+      detailNoteText.textContent = item.note;
+      detailNoteWrap.classList.remove("hidden");
+    } else {
+      detailNoteWrap.classList.add("hidden");
+    }
+  }
+
+  // Tags
+  if (detailTagsWrap && detailTagsList) {
+    if (item.tags && item.tags.length > 0) {
+      detailTagsList.innerHTML = item.tags.map((t) => `<span class="tag-badge">#${escapeHTML(t)}</span>`).join("");
+      detailTagsWrap.classList.remove("hidden");
+    } else {
+      detailTagsWrap.classList.add("hidden");
+    }
+  }
+
+  // Visit Link Button
+  const targetUrl = item.sourceUrl || (item.content && item.content.startsWith("http") ? item.content : "");
+  if (detailOpenLinkBtn) {
+    if (targetUrl) {
+      detailOpenLinkBtn.href = targetUrl;
+      detailOpenLinkBtn.classList.remove("hidden");
+    } else {
+      detailOpenLinkBtn.classList.add("hidden");
+    }
+  }
+
+  // Favorite button state
+  if (detailFavBtn) {
+    detailFavBtn.textContent = item.favorite ? "★" : "☆";
+    detailFavBtn.title = item.favorite ? "Unfavorite" : "Favorite";
+    detailFavBtn.style.color = item.favorite ? "#F59E0B" : "inherit";
+  }
+
+  detailModal.classList.remove("hidden");
+}
+
+function closeDetailModal() {
+  if (detailModal) detailModal.classList.add("hidden");
+  activeDetailItem = null;
 }
 
 // ── Item Actions (Fav, Copy, Delete) ──
@@ -1381,7 +1200,7 @@ async function toggleFavorite(id) {
   if (!item) return;
   item.favorite = !item.favorite;
   await chrome.storage.local.set({ items: allItems });
-  SyncService.pushToCloud(allItems, containers, []).catch(() => {});
+  SyncService.pushToCloud(allItems, [], []).catch(() => {});
   renderItems();
   showToast(item.favorite ? "Added to Favorites ★" : "Removed from Favorites");
 }
@@ -1398,9 +1217,8 @@ async function copyToClipboard(text) {
 async function deleteItem(id) {
   allItems = allItems.filter((i) => i.id !== id);
   await chrome.storage.local.set({ items: allItems });
-  SyncService.pushToCloud(allItems, containers, []).catch(() => {});
+  SyncService.pushToCloud(allItems, [], []).catch(() => {});
   updateVaultCounters();
-  renderContainersPills();
   renderItems();
   showToast("Item deleted");
 }
@@ -1409,7 +1227,6 @@ async function deleteItem(id) {
 function handleExport() {
   dropdownMenu.classList.add("hidden");
   const data = {
-    containers,
     items: allItems,
     exportedAt: new Date().toISOString(),
   };
@@ -1433,26 +1250,17 @@ async function handleImport(e) {
     const data = JSON.parse(text);
 
     let importedItems = Array.isArray(data) ? data : data.items || [];
-    let importedContainers = data.containers || [];
-
-    const contMap = new Map();
-    containers.forEach((c) => contMap.set(c.id, c));
-    importedContainers.forEach((c) => { if (c && c.id && !contMap.has(c.id)) contMap.set(c.id, c); });
 
     const itemMap = new Map();
     allItems.forEach((i) => itemMap.set(i.id, i));
     importedItems.forEach((i) => { if (i && i.id && !itemMap.has(i.id)) itemMap.set(i.id, i); });
 
-    containers = Array.from(contMap.values());
     allItems = Array.from(itemMap.values());
 
-    await chrome.storage.local.set({ containers, items: allItems });
-    await SyncService.ensureInitializedAndMigrated();
-    SyncService.pushToCloud(allItems, containers, []).catch(() => {});
+    await chrome.storage.local.set({ items: allItems });
+    SyncService.pushToCloud(allItems, [], []).catch(() => {});
 
     updateVaultCounters();
-    populateContainerSelect(saveContSelect);
-    renderContainersPills();
     renderItems();
     showToast(`Imported ${importedItems.length} items!`);
   } catch (err) {
@@ -1462,13 +1270,12 @@ async function handleImport(e) {
 
 async function handleClearAll() {
   dropdownMenu.classList.add("hidden");
-  if (!confirm("Are you sure you want to clear all saved items? Storage containers will be kept.")) return;
+  if (!confirm("Are you sure you want to clear all saved items from your library?")) return;
 
   allItems = [];
   await chrome.storage.local.set({ items: [] });
-  SyncService.pushToCloud([], containers, []).catch(() => {});
+  SyncService.pushToCloud([], [], []).catch(() => {});
   updateVaultCounters();
-  renderContainersPills();
   renderItems();
   showToast("All items cleared");
 }
@@ -1548,11 +1355,8 @@ async function handleManualSync() {
     showToast("Syncing with cloud...");
     const res = await SyncService.syncNow();
     if (res) {
-      containers = res.containers || [];
       allItems = res.items || [];
       updateVaultCounters();
-      populateContainerSelect(saveContSelect);
-      renderContainersPills();
       renderItems();
       showToast("Vault synchronized!");
     }

@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
-  "name": "SaveIt – Web Vault & Collections",
+  "name": "SaveIt – Web Vault & Library",
   "version": "2.0.0",
-  "description": "Save and organize web discoveries into collections and containers: quotes, articles, YouTube videos, product links, and images.",
+  "description": "Save and organize web discoveries into your personal library: quotes, articles, YouTube videos, product links, and images.",
   "permissions": ["storage", "contextMenus", "activeTab", "scripting", "clipboardRead"],
   "host_permissions": [
     "https://identitytoolkit.googleapis.com/*",
