@@ -452,9 +452,14 @@ function updateSidebar() {
 
   collections.forEach((col) => {
     const colItems = allItems.filter((i) => i.collectionId === col.id);
+    const colContainers = containers.filter((c) => c.collectionId === col.id);
+    const isCurrentCol = (currentView === "collection" || currentView === "container") && currentColId === col.id;
+
+    const colGroup = document.createElement("div");
+    colGroup.className = "sidebar-collection-group";
+
     const btn = document.createElement("button");
-    const isCurrent = (currentView === "collection" || currentView === "container") && currentColId === col.id;
-    btn.className = `sidebar-link ${isCurrent ? "active" : ""}`;
+    btn.className = `sidebar-link ${isCurrentCol && currentView === "collection" ? "active" : ""}`;
     btn.dataset.colId = col.id;
 
     btn.innerHTML = `
@@ -464,12 +469,44 @@ function updateSidebar() {
     `;
 
     btn.addEventListener("click", () => navigateToCollection(col.id));
-    sidebarCollectionsList.appendChild(btn);
+    colGroup.appendChild(btn);
+
+    // If active collection or viewing one of its containers, render its containers
+    if (isCurrentCol && colContainers.length > 0) {
+      const subList = document.createElement("div");
+      subList.className = "sidebar-sub-containers";
+
+      colContainers.forEach((cont) => {
+        const contItems = allItems.filter((i) => i.containerId === cont.id);
+        const isCurrentCont = currentView === "container" && currentContId === cont.id;
+        const contBtn = document.createElement("button");
+        contBtn.className = `sidebar-sub-link ${isCurrentCont ? "active" : ""}`;
+        contBtn.dataset.contId = cont.id;
+
+        const crateColor = cont.color || "#2563EB";
+        contBtn.innerHTML = `
+          <span class="sidebar-cont-dot" style="background-color: ${crateColor}"></span>
+          <span class="sidebar-sub-label" title="${escapeHTML(cont.name)}">${escapeHTML(cont.name)}</span>
+          <span class="sidebar-sub-badge">${contItems.length}</span>
+        `;
+
+        contBtn.addEventListener("click", (e) => {
+          e.stopPropagation();
+          navigateToContainer(cont.id);
+        });
+
+        subList.appendChild(contBtn);
+      });
+
+      colGroup.appendChild(subList);
+    }
+
+    sidebarCollectionsList.appendChild(colGroup);
   });
 }
 
 function highlightSidebarLink(activeBtn) {
-  document.querySelectorAll(".workspace-sidebar .sidebar-link").forEach((btn) => btn.classList.remove("active"));
+  document.querySelectorAll(".workspace-sidebar .sidebar-link, .workspace-sidebar .sidebar-sub-link").forEach((btn) => btn.classList.remove("active"));
   if (activeBtn) activeBtn.classList.add("active");
 }
 
@@ -515,30 +552,26 @@ function renderDesktopFolders() {
 
     // Desktop SVG Folder Icon with realistic geometry and color
     tile.innerHTML = `
-      <svg class="desktop-folder-svg" viewBox="0 0 88 72" fill="none" xmlns="http://www.w3.org/2000/svg" style="color: ${folderColor};">
-        <!-- Back flap with folder tab -->
-        <path d="M6 14C6 9.58172 9.58172 6 14 6H34C37.5 6 39.5 9 42 12L45 16H74C78.4183 16 82 19.5817 82 24V56C82 60.4183 78.4183 64 74 64H14C9.58172 64 6 60.4183 6 56V14Z" fill="currentColor" fill-opacity="0.82"/>
-        <!-- Front folder flap -->
-        <path d="M6 26C6 22.6863 8.68629 20 12 20H76C79.3137 20 82 22.6863 82 26V56C82 60.4183 78.4183 64 74 64H14C9.58172 64 6 60.4183 6 56V26Z" fill="currentColor"/>
-        <!-- Specular highlight line -->
-        <path d="M12 21H76C78.7614 21 81 23.2386 81 26V27C81 24.2386 78.7614 22 76 22H12C9.23858 22 7 24.2386 7 27V26C7 23.2386 9.23858 21 12 21Z" fill="#FFFFFF" fill-opacity="0.32"/>
-      </svg>
+      <div class="enlarged-folder-graphic">
+        <svg class="desktop-folder-svg" viewBox="0 0 100 80" fill="none" xmlns="http://www.w3.org/2000/svg" style="color: ${folderColor};">
+          <!-- Ground soft shadow -->
+          <ellipse cx="50" cy="74" rx="40" ry="4" fill="#000000" fill-opacity="0.1" />
+          <!-- Back flap with folder tab -->
+          <path d="M8 18C8 13.5817 11.5817 10 16 10H38C41.5 10 44 13.5 46.5 16.5L49.5 20H86C90.4183 20 94 23.5817 94 28V64C94 68.4183 90.4183 72 86 72H16C11.5817 72 8 68.4183 8 64V18Z" fill="currentColor" fill-opacity="0.82"/>
+          <!-- Folder inner sheet -->
+          <rect x="18" y="16" width="64" height="24" rx="3" fill="#FFFFFF" fill-opacity="0.6" />
+          <!-- Front folder flap -->
+          <path d="M8 30C8 26.6863 10.6863 24 14 24H86C89.3137 24 92 26.6863 92 30V64C92 68.4183 88.4183 72 84 72H16C11.5817 72 8 68.4183 8 64V30Z" fill="currentColor"/>
+          <!-- Specular highlight line -->
+          <path d="M14 25H86C88.7614 25 91 27.2386 91 30V31C91 28.2386 88.7614 26 86 26H14C11.2386 26 9 28.2386 9 31V30C9 27.2386 11.2386 25 14 25Z" fill="#FFFFFF" fill-opacity="0.35"/>
+        </svg>
+      </div>
       <div class="folder-tile-name" title="${escapeHTML(col.name)}">${escapeHTML(col.name)}</div>
       <div class="folder-tile-count">${colContainers.length} containers • ${colItems.length} items</div>
-      <div class="folder-tile-actions">
-        <button class="btn-tile-menu" title="Folder Options">✏️</button>
-      </div>
     `;
 
     // Click on tile opens folder
     tile.addEventListener("click", () => navigateToCollection(col.id));
-
-    // Edit button inside tile
-    const editBtn = tile.querySelector(".btn-tile-menu");
-    editBtn.addEventListener("click", (e) => {
-      e.stopPropagation();
-      openColModal(col);
-    });
 
     desktopFoldersGrid.appendChild(tile);
   });
@@ -576,32 +609,154 @@ function renderDesktopContainers(colId) {
   childContainers.forEach((cont) => {
     const contItems = allItems.filter((i) => i.containerId === cont.id);
     const crateColor = cont.color || "#2563EB";
-    const noteText = cont.note || cont.description || "";
+    const noteText = (cont.note || cont.description || "").trim();
 
     const tile = document.createElement("div");
     tile.className = "desktop-crate-tile";
     tile.dataset.contId = cont.id;
 
-    // Desktop SVG Container Crate Icon with ribs and customizable color
+    // Literal Enlarged Shipping Container Graphic with Top-Right Swayed / Curled Sticky Note
     tile.innerHTML = `
-      <svg class="desktop-crate-svg" viewBox="0 0 88 72" fill="none" xmlns="http://www.w3.org/2000/svg" style="color: ${crateColor};">
-        <!-- Main crate body -->
-        <rect x="8" y="10" width="72" height="52" rx="8" fill="currentColor" fill-opacity="0.9"/>
-        <rect x="8" y="10" width="72" height="52" rx="8" stroke="#111827" stroke-opacity="0.15" stroke-width="2"/>
-        <!-- Corrugated vertical ribs / ridges -->
-        <rect x="20" y="14" width="6" height="44" rx="2" fill="#FFFFFF" fill-opacity="0.25"/>
-        <rect x="32" y="14" width="6" height="44" rx="2" fill="#FFFFFF" fill-opacity="0.25"/>
-        <rect x="50" y="14" width="6" height="44" rx="2" fill="#FFFFFF" fill-opacity="0.25"/>
-        <rect x="62" y="14" width="6" height="44" rx="2" fill="#FFFFFF" fill-opacity="0.25"/>
-        <!-- Cargo latch plate -->
-        <rect x="36" y="28" width="16" height="16" rx="3" fill="#FFFFFF" fill-opacity="0.95"/>
-        <rect x="40" y="34" width="8" height="4" rx="1" fill="#111827" fill-opacity="0.6"/>
-      </svg>
+      <div class="enlarged-container-graphic">
+        <svg class="literal-shipping-container-svg" viewBox="0 0 160 110" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <defs>
+            <linearGradient id="metalRod_${cont.id}" x1="0%" y1="0%" x2="100%" y2="0%">
+              <stop offset="0%" stop-color="#94A3B8" />
+              <stop offset="45%" stop-color="#F8FAFC" />
+              <stop offset="70%" stop-color="#CBD5E1" />
+              <stop offset="100%" stop-color="#64748B" />
+            </linearGradient>
+          </defs>
+
+          <!-- Ground drop shadow -->
+          <ellipse cx="80" cy="104" rx="66" ry="5.5" fill="#0F172A" fill-opacity="0.14" />
+
+          <!-- Main Container Outer Shell -->
+          <rect x="10" y="14" width="140" height="86" rx="4" fill="${crateColor}" />
+          <rect x="10" y="14" width="140" height="86" rx="4" stroke="#0F172A" stroke-opacity="0.22" stroke-width="2" />
+
+          <!-- Top Roof Edge / Rail with specular highlight -->
+          <rect x="10" y="14" width="140" height="6" rx="2" fill="#FFFFFF" fill-opacity="0.28" />
+          <line x1="10" y1="20" x2="150" y2="20" stroke="#000000" stroke-opacity="0.25" stroke-width="1.5" />
+
+          <!-- Bottom Sills / Rail -->
+          <rect x="10" y="93" width="140" height="7" fill="#000000" fill-opacity="0.22" />
+          <line x1="10" y1="93" x2="150" y2="93" stroke="#000000" stroke-opacity="0.35" stroke-width="1.5" />
+
+          <!-- Corrugated Steel Ribs (Vertical panels across container face) -->
+          <!-- Rib 1 -->
+          <rect x="22" y="21" width="10" height="72" fill="#000000" fill-opacity="0.18" />
+          <rect x="23" y="21" width="8" height="72" fill="#FFFFFF" fill-opacity="0.14" />
+          <line x1="22" y1="21" x2="22" y2="93" stroke="#FFFFFF" stroke-opacity="0.25" />
+          <line x1="32" y1="21" x2="32" y2="93" stroke="#000000" stroke-opacity="0.28" />
+
+          <!-- Rib 2 -->
+          <rect x="36" y="21" width="10" height="72" fill="#000000" fill-opacity="0.18" />
+          <rect x="37" y="21" width="8" height="72" fill="#FFFFFF" fill-opacity="0.14" />
+          <line x1="36" y1="21" x2="36" y2="93" stroke="#FFFFFF" stroke-opacity="0.25" />
+          <line x1="46" y1="21" x2="46" y2="93" stroke="#000000" stroke-opacity="0.28" />
+
+          <!-- Rib 3 -->
+          <rect x="50" y="21" width="10" height="72" fill="#000000" fill-opacity="0.18" />
+          <rect x="51" y="21" width="8" height="72" fill="#FFFFFF" fill-opacity="0.14" />
+          <line x1="50" y1="21" x2="50" y2="93" stroke="#FFFFFF" stroke-opacity="0.25" />
+          <line x1="60" y1="21" x2="60" y2="93" stroke="#000000" stroke-opacity="0.28" />
+
+          <!-- Rib 4 -->
+          <rect x="64" y="21" width="10" height="72" fill="#000000" fill-opacity="0.18" />
+          <rect x="65" y="21" width="8" height="72" fill="#FFFFFF" fill-opacity="0.14" />
+          <line x1="64" y1="21" x2="64" y2="93" stroke="#FFFFFF" stroke-opacity="0.25" />
+          <line x1="74" y1="21" x2="74" y2="93" stroke="#000000" stroke-opacity="0.28" />
+
+          <!-- Center Double-Door Vertical Seam -->
+          <rect x="78" y="20" width="4" height="73" fill="#000000" fill-opacity="0.4" />
+          <line x1="80" y1="20" x2="80" y2="93" stroke="#FFFFFF" stroke-opacity="0.18" />
+
+          <!-- Rib 5 -->
+          <rect x="86" y="21" width="10" height="72" fill="#000000" fill-opacity="0.18" />
+          <rect x="87" y="21" width="8" height="72" fill="#FFFFFF" fill-opacity="0.14" />
+          <line x1="86" y1="21" x2="86" y2="93" stroke="#FFFFFF" stroke-opacity="0.25" />
+          <line x1="96" y1="21" x2="96" y2="93" stroke="#000000" stroke-opacity="0.28" />
+
+          <!-- Rib 6 -->
+          <rect x="100" y="21" width="10" height="72" fill="#000000" fill-opacity="0.18" />
+          <rect x="101" y="21" width="8" height="72" fill="#FFFFFF" fill-opacity="0.14" />
+          <line x1="100" y1="21" x2="100" y2="93" stroke="#FFFFFF" stroke-opacity="0.25" />
+          <line x1="110" y1="21" x2="110" y2="93" stroke="#000000" stroke-opacity="0.28" />
+
+          <!-- Rib 7 -->
+          <rect x="114" y="21" width="10" height="72" fill="#000000" fill-opacity="0.18" />
+          <rect x="115" y="21" width="8" height="72" fill="#FFFFFF" fill-opacity="0.14" />
+          <line x1="114" y1="21" x2="114" y2="93" stroke="#FFFFFF" stroke-opacity="0.25" />
+          <line x1="124" y1="21" x2="124" y2="93" stroke="#000000" stroke-opacity="0.28" />
+
+          <!-- Rib 8 -->
+          <rect x="128" y="21" width="10" height="72" fill="#000000" fill-opacity="0.18" />
+          <rect x="129" y="21" width="8" height="72" fill="#FFFFFF" fill-opacity="0.14" />
+          <line x1="128" y1="21" x2="128" y2="93" stroke="#FFFFFF" stroke-opacity="0.25" />
+          <line x1="138" y1="21" x2="138" y2="93" stroke="#000000" stroke-opacity="0.28" />
+
+          <!-- Industrial Stencil Spec Box -->
+          <rect x="98" y="32" width="24" height="15" rx="1.5" fill="#FFFFFF" fill-opacity="0.22" />
+          <line x1="101" y1="36" x2="119" y2="36" stroke="#FFFFFF" stroke-opacity="0.8" stroke-width="1.2" />
+          <line x1="101" y1="39.5" x2="116" y2="39.5" stroke="#FFFFFF" stroke-opacity="0.65" stroke-width="1" />
+          <line x1="101" y1="43" x2="113" y2="43" stroke="#FFFFFF" stroke-opacity="0.65" stroke-width="1" />
+
+          <!-- Left Door Lock Rod -->
+          <rect x="58" y="16" width="3" height="82" rx="1.5" fill="url(#metalRod_${cont.id})" stroke="#334155" stroke-width="0.5" />
+          <rect x="56.5" y="16" width="6" height="5" rx="1" fill="#475569" />
+          <rect x="56.5" y="93" width="6" height="5" rx="1" fill="#475569" />
+          <rect x="55" y="52" width="9" height="12" rx="1.5" fill="#334155" />
+          <rect x="62" y="55" width="11" height="3" rx="1" fill="#E2E8F0" />
+          <rect x="71" y="54" width="3" height="5" rx="1" fill="#0F172A" />
+
+          <!-- Right Door Lock Rod -->
+          <rect x="99" y="16" width="3" height="82" rx="1.5" fill="url(#metalRod_${cont.id})" stroke="#334155" stroke-width="0.5" />
+          <rect x="97.5" y="16" width="6" height="5" rx="1" fill="#475569" />
+          <rect x="97.5" y="93" width="6" height="5" rx="1" fill="#475569" />
+          <rect x="96" y="52" width="9" height="12" rx="1.5" fill="#334155" />
+          <rect x="87" y="55" width="11" height="3" rx="1" fill="#E2E8F0" />
+          <rect x="86" y="54" width="3" height="5" rx="1" fill="#0F172A" />
+
+          <!-- Outer Hinges -->
+          <rect x="8.5" y="27" width="3.5" height="7" rx="1" fill="#334155" />
+          <rect x="8.5" y="53" width="3.5" height="7" rx="1" fill="#334155" />
+          <rect x="8.5" y="79" width="3.5" height="7" rx="1" fill="#334155" />
+          <rect x="148" y="27" width="3.5" height="7" rx="1" fill="#334155" />
+          <rect x="148" y="53" width="3.5" height="7" rx="1" fill="#334155" />
+          <rect x="148" y="79" width="3.5" height="7" rx="1" fill="#334155" />
+
+          <!-- Corner Castings -->
+          <rect x="10" y="14" width="11" height="11" rx="2" fill="#1E293B" fill-opacity="0.4" stroke="#0F172A" stroke-opacity="0.3" stroke-width="1" />
+          <ellipse cx="15.5" cy="19.5" rx="3.5" ry="2.5" fill="#0F172A" fill-opacity="0.6" />
+          <rect x="139" y="14" width="11" height="11" rx="2" fill="#1E293B" fill-opacity="0.4" stroke="#0F172A" stroke-opacity="0.3" stroke-width="1" />
+          <ellipse cx="144.5" cy="19.5" rx="3.5" ry="2.5" fill="#0F172A" fill-opacity="0.6" />
+          <rect x="10" y="89" width="11" height="11" rx="2" fill="#1E293B" fill-opacity="0.4" stroke="#0F172A" stroke-opacity="0.3" stroke-width="1" />
+          <ellipse cx="15.5" cy="94.5" rx="3.5" ry="2.5" fill="#0F172A" fill-opacity="0.6" />
+          <rect x="139" y="89" width="11" height="11" rx="2" fill="#1E293B" fill-opacity="0.4" stroke="#0F172A" stroke-opacity="0.3" stroke-width="1" />
+          <ellipse cx="144.5" cy="94.5" rx="3.5" ry="2.5" fill="#0F172A" fill-opacity="0.6" />
+        </svg>
+
+        <!-- Swayed / Curled Sticky Note on Top Right -->
+        <div class="swayed-sticky-note ${noteText ? "has-note" : "empty-note"}" data-cont-id="${cont.id}" title="${escapeHTML(noteText ? 'Container Note: ' + noteText + ' (Click to edit)' : 'Click to add sticky note')}">
+          <div class="sticky-pin"></div>
+          <div class="sticky-note-text">${escapeHTML(noteText || "+ Note")}</div>
+        </div>
+      </div>
+
+      <!-- Strictly Name and Items Count Underneath -->
       <div class="crate-tile-name" title="${escapeHTML(cont.name)}">${escapeHTML(cont.name)}</div>
-      ${noteText ? `<div class="crate-tile-note" title="${escapeHTML(noteText)}">“${escapeHTML(noteText)}”</div>` : ""}
       <div class="crate-tile-count">${contItems.length} items</div>
     `;
 
+    // Clicking the sticky note opens note editor directly
+    const stickyNote = tile.querySelector(".swayed-sticky-note");
+    stickyNote.addEventListener("click", (e) => {
+      e.stopPropagation();
+      openQuickNoteModal(cont.id);
+    });
+
+    // Clicking the container tile opens container
     tile.addEventListener("click", () => navigateToContainer(cont.id));
     desktopContainersGrid.appendChild(tile);
   });
@@ -1041,8 +1196,11 @@ async function handleSaveContModal() {
 }
 
 // 4. Quick Note Modal
-function openQuickNoteModal() {
-  const cont = containers.find((c) => c.id === currentContId);
+let activeNoteContId = null;
+
+function openQuickNoteModal(targetContId) {
+  activeNoteContId = targetContId || currentContId;
+  const cont = containers.find((c) => c.id === activeNoteContId);
   if (!cont) return;
   quickNoteTextarea.value = cont.note || cont.description || "";
   noteModal.classList.remove("hidden");
@@ -1051,11 +1209,13 @@ function openQuickNoteModal() {
 
 function closeQuickNoteModal() {
   noteModal.classList.add("hidden");
+  activeNoteContId = null;
 }
 
 async function handleSaveQuickNote() {
   const note = quickNoteTextarea.value.trim();
-  const cont = containers.find((c) => c.id === currentContId);
+  const contId = activeNoteContId || currentContId;
+  const cont = containers.find((c) => c.id === contId);
   if (!cont) return;
 
   cont.note = note;
@@ -1065,7 +1225,11 @@ async function handleSaveQuickNote() {
   SyncService.pushToCloud(allItems, containers, collections).catch(() => {});
 
   closeQuickNoteModal();
-  renderContainerHero(cont);
+  if (currentView === "container" && currentContId === cont.id) {
+    renderContainerHero(cont);
+  } else if (currentView === "collection" && currentColId) {
+    renderDesktopContainers(currentColId);
+  }
   showToast("Container note updated!");
 }
 

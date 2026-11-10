@@ -309,19 +309,27 @@ const SyncService = {
 
     // 0. Remove "Quick Saves" entirely from collections & containers
     collections = collections.map((col) => {
-      if ((col.name || "").includes("Quick Saves")) {
+      if (col.name && /quick\s*saves?/i.test(col.name)) {
         modified = true;
-        return { ...col, name: col.name.replace(/ & Quick Saves|Quick Saves/gi, "").trim() || "General" };
+        const cleaned = col.name
+          .replace(/\s*&\s*quick\s*saves?/gi, "")
+          .replace(/quick\s*saves?\s*&?\s*/gi, "")
+          .trim();
+        return { ...col, name: cleaned || "General" };
       }
       return col;
     });
 
-    const quickCont = containers.find((c) => c.id === "default" || (c.name || "").toLowerCase() === "quick saves");
-    if (quickCont) {
+    const quickConts = containers.filter(
+      (c) => c.id === "default" || /quick\s*saves?/i.test(c.name || "")
+    );
+    if (quickConts.length > 0) {
       modified = true;
-      const fallbackCont = containers.find((c) => c.id !== quickCont.id) || DEFAULT_CONTAINERS[0];
+      const quickContIds = new Set(quickConts.map((c) => c.id));
+      const fallbackCont =
+        containers.find((c) => !quickContIds.has(c.id)) || DEFAULT_CONTAINERS[0];
       items = items.map((item) => {
-        if (item.containerId === quickCont.id) {
+        if (quickContIds.has(item.containerId)) {
           return {
             ...item,
             containerId: fallbackCont.id,
@@ -330,7 +338,7 @@ const SyncService = {
         }
         return item;
       });
-      containers = containers.filter((c) => c.id !== quickCont.id);
+      containers = containers.filter((c) => !quickContIds.has(c.id));
     }
 
     // 1. Initialize Collections if missing
