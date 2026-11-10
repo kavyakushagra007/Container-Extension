@@ -1,11 +1,70 @@
-// ── SaveIt: Firebase Auth & Cloud Firestore Sync Module ──
+// ── SaveIt: Firebase Auth & Cloud Firestore Sync Module (Collections & Containers) ──
 // Uses standard Firebase REST APIs (0 dependencies, Manifest V3 CSP safe)
 
 const FIREBASE_CONFIG = {
-  // Configured with your Firebase project credentials
   apiKey: "AIzaSyDo5ZvoQaXyJJWrZzD2VAuye45nUNTfQ6E",
   projectId: "container-extension",
 };
+
+// ── Default Hierarchy Constants ──
+const DEFAULT_COLLECTIONS = [
+  { id: "col_brand", name: "Brand", color: "#4F46E5", createdAt: 1700000001000, order: 0 },
+  { id: "col_general", name: "General & Quick Saves", color: "#0D9488", createdAt: 1700000002000, order: 1 },
+];
+
+const DEFAULT_CONTAINERS = [
+  { id: "cont_theme_ideas", collectionId: "col_brand", name: "Theme Ideas", icon: "archive", description: "Design concepts, moodboards & brand aesthetics", createdAt: 1700000003000, order: 0 },
+  { id: "cont_marketing", collectionId: "col_brand", name: "Marketing Materials", icon: "archive", description: "Ad copy, campaigns, landing page inspo", createdAt: 1700000004000, order: 1 },
+  { id: "cont_colours", collectionId: "col_brand", name: "Colour Templates", icon: "archive", description: "Palettes, hex codes, visual identity guidelines", createdAt: 1700000005000, order: 2 },
+  { id: "default", collectionId: "col_general", name: "Quick Saves", icon: "archive", description: "Instant clipboard & web clippings", createdAt: 1700000006000, order: 3 },
+  { id: "cont_reading", collectionId: "col_general", name: "Articles & Reading", icon: "archive", description: "Long-form blogs, research, guides & essays", createdAt: 1700000007000, order: 4 },
+];
+
+// ── Helper: Smart URL / Content Classification ──
+function classifyContent(content, sourceUrl = "") {
+  const url = (sourceUrl || content || "").trim();
+  const text = (content || "").trim();
+
+  // YouTube detection
+  const ytMatch = url.match(/(?:youtube\.com\/(?:watch\?v=|embed\/|shorts\/)|youtu\.be\/)([a-zA-Z0-9_-]{11})/i);
+  if (ytMatch && ytMatch[1]) {
+    return {
+      type: "youtube",
+      videoId: ytMatch[1],
+      thumbnail: `https://img.youtube.com/vi/${ytMatch[1]}/hqdefault.jpg`,
+    };
+  }
+
+  // Image URL detection
+  if (url.match(/\.(jpeg|jpg|gif|png|webp|avif|svg)(\?.*)?$/i) || text.startsWith("data:image/")) {
+    return {
+      type: "image",
+      imageUrl: url,
+    };
+  }
+
+  // Social detection
+  if (url.match(/twitter\.com|x\.com/i)) return { type: "social", platform: "x" };
+  if (url.match(/linkedin\.com/i)) return { type: "social", platform: "linkedin" };
+  if (url.match(/reddit\.com/i)) return { type: "social", platform: "reddit" };
+
+  // Quote detection: starts & ends with quotation marks or short highlighted phrase
+  if ((text.startsWith('"') && text.endsWith('"')) || (text.startsWith('“') && text.endsWith('”')) || (text.length < 280 && text.includes(" — "))) {
+    return { type: "quote" };
+  }
+
+  // Product / E-commerce detection
+  if (url.match(/amazon\.|shopify\.com|etsy\.com|ebay\.com|aliexpress\.com/i)) {
+    return { type: "product" };
+  }
+
+  // Generic URL
+  if (url.match(/^https?:\/\//i)) {
+    return { type: "link" };
+  }
+
+  return { type: "text" };
+}
 
 const SyncService = {
   // ── Auth State ──
@@ -109,7 +168,7 @@ const SyncService = {
   },
 
   // ── Push Local Data to Firebase Cloud Firestore ──
-  async pushToCloud(items, containers) {
+  async pushToCloud(items, containers, collections) {
     const session = await this.getUser();
     if (!session) return false;
 
@@ -122,6 +181,7 @@ const SyncService = {
       fields: {
         itemsJson: { stringValue: JSON.stringify(items || []) },
         containersJson: { stringValue: JSON.stringify(containers || []) },
+        collectionsJson: { stringValue: JSON.stringify(collections || []) },
         lastSyncedAt: { integerValue: Date.now().toString() },
       },
     };
@@ -141,7 +201,7 @@ const SyncService = {
     return true;
   },
 
-  // ── Pull Data from Firebase Cloud Firestore & Merge ──
+  // ── Pull Data from Firebase Cloud Firestore ──
   async pullFromCloud() {
     const session = await this.getUser();
     if (!session) return null;
@@ -164,11 +224,17 @@ const SyncService = {
       const data = await res.json();
       const itemsJson = data.fields?.itemsJson?.stringValue;
       const containersJson = data.fields?.containersJson?.stringValue;
+      const collectionsJson = data.fields?.collectionsJson?.stringValue;
 
       const cloudItems = itemsJson ? JSON.parse(itemsJson) : [];
       const cloudContainers = containersJson ? JSON.parse(containersJson) : [];
+      const cloudCollections = collectionsJson ? JSON.parse(collectionsJson) : [];
 
-      return { items: cloudItems, containers: cloudContainers };
+      return {
+        items: cloudItems,
+        containers: cloudContainers,
+        collections: cloudCollections,
+      };
     } catch (err) {
       console.warn("Cloud pull failed:", err);
       throw err;
@@ -177,21 +243,34 @@ const SyncService = {
 
   // ── Full Bidirectional Sync ──
   async syncNow() {
-    const DEFAULT_CONTAINER = { id: "default", name: "Quick Saves", icon: "⚡", createdAt: 0 };
-    const { items = [], containers = [] } = await chrome.storage.local.get(["items", "containers"]);
-
-    // Ensure local has at least default container
-    const safeLocalContainers = containers && containers.length > 0 ? containers : [DEFAULT_CONTAINER];
+    const state = await this.ensureInitializedAndMigrated();
+    const { items, containers, collections } = state;
 
     const cloud = await this.pullFromCloud();
     if (!cloud) {
-      // If no cloud data yet, push local data up
-      await this.pushToCloud(items, safeLocalContainers);
-      await chrome.storage.local.set({ containers: safeLocalContainers });
-      return { items, containers: safeLocalContainers };
+      await this.pushToCloud(items, containers, collections);
+      return state;
     }
 
-    // Merge items by ID (newer updatedAt/createdAt wins)
+    // Merge collections
+    const colMap = new Map();
+    DEFAULT_COLLECTIONS.forEach((c) => colMap.set(c.id, c));
+    collections.forEach((c) => { if (c && c.id) colMap.set(c.id, c); });
+    (cloud.collections || []).forEach((cc) => {
+      if (cc && cc.id && !colMap.has(cc.id)) colMap.set(cc.id, cc);
+    });
+    const mergedCollections = Array.from(colMap.values());
+
+    // Merge containers
+    const contMap = new Map();
+    DEFAULT_CONTAINERS.forEach((c) => contMap.set(c.id, c));
+    containers.forEach((c) => { if (c && c.id) contMap.set(c.id, c); });
+    (cloud.containers || []).forEach((cc) => {
+      if (cc && cc.id && !contMap.has(cc.id)) contMap.set(cc.id, cc);
+    });
+    const mergedContainers = Array.from(contMap.values());
+
+    // Merge items
     const itemMap = new Map();
     items.forEach((i) => { if (i && i.id) itemMap.set(i.id, i); });
     (cloud.items || []).forEach((ci) => {
@@ -203,24 +282,116 @@ const SyncService = {
     });
     const mergedItems = Array.from(itemMap.values());
 
-    // Merge containers
-    const containerMap = new Map();
-    containerMap.set("default", DEFAULT_CONTAINER);
-    safeLocalContainers.forEach((c) => { if (c && c.id) containerMap.set(c.id, c); });
-    (cloud.containers || []).forEach((cc) => {
-      if (cc && cc.id && !containerMap.has(cc.id)) {
-        containerMap.set(cc.id, cc);
-      }
-    });
-    const mergedContainers = Array.from(containerMap.values());
-
     // Save locally
-    await chrome.storage.local.set({ items: mergedItems, containers: mergedContainers });
+    await chrome.storage.local.set({
+      collections: mergedCollections,
+      containers: mergedContainers,
+      items: mergedItems,
+    });
 
-    // Push unified data back to cloud
-    await this.pushToCloud(mergedItems, mergedContainers);
+    // Push back unified
+    await this.pushToCloud(mergedItems, mergedContainers, mergedCollections);
 
-    return { items: mergedItems, containers: mergedContainers };
+    return {
+      collections: mergedCollections,
+      containers: mergedContainers,
+      items: mergedItems,
+    };
+  },
+
+  // ── State Initialization & Schema Migration ──
+  async ensureInitializedAndMigrated() {
+    const data = await chrome.storage.local.get(["collections", "containers", "items", "activeContainerId", "activeCollectionId", "lastActiveContainer"]);
+    let collections = data.collections || [];
+    let containers = data.containers || [];
+    let items = data.items || [];
+    let modified = false;
+
+    // 1. Initialize Collections if missing
+    if (!collections || collections.length === 0) {
+      collections = [...DEFAULT_COLLECTIONS];
+      modified = true;
+    }
+
+    // 2. Initialize Containers if missing
+    if (!containers || containers.length === 0) {
+      containers = [...DEFAULT_CONTAINERS];
+      modified = true;
+    } else {
+      // Ensure all containers are mapped to a collectionId
+      const primaryColId = collections[0]?.id || "col_brand";
+      const secondaryColId = collections[1]?.id || primaryColId;
+
+      containers = containers.map((c, index) => {
+        if (!c.collectionId) {
+          modified = true;
+          // if it's default or quick saves, put in general, else brand
+          const isQuick = c.id === "default" || (c.name || "").toLowerCase().includes("quick");
+          return {
+            ...c,
+            collectionId: isQuick ? secondaryColId : primaryColId,
+            icon: c.icon || "archive",
+            order: c.order ?? index,
+          };
+        }
+        return {
+          ...c,
+          icon: c.icon || "archive",
+          order: c.order ?? index,
+        };
+      });
+    }
+
+    // 3. Migrate items to include containerId, collectionId, and enriched types
+    const containerCollectionMap = new Map();
+    containers.forEach((c) => containerCollectionMap.set(c.id, c.collectionId));
+
+    const defaultContId = containers[0]?.id || "default";
+    const defaultColId = containers[0]?.collectionId || collections[0]?.id || "col_brand";
+
+    items = items.map((item) => {
+      let itemChanged = false;
+      const cId = item.containerId || defaultContId;
+      const parentColId = containerCollectionMap.get(cId) || item.collectionId || defaultColId;
+
+      const newItem = { ...item };
+      if (!newItem.containerId) {
+        newItem.containerId = cId;
+        itemChanged = true;
+      }
+      if (!newItem.collectionId || newItem.collectionId !== parentColId) {
+        newItem.collectionId = parentColId;
+        itemChanged = true;
+      }
+
+      // Check for type enrichment (e.g. YouTube, Quote)
+      if (newItem.type === "link" || newItem.type === "text" || !newItem.type) {
+        const classified = classifyContent(newItem.content, newItem.sourceUrl);
+        if (classified.type !== newItem.type) {
+          newItem.type = classified.type;
+          if (classified.thumbnail && !newItem.previewImage) {
+            newItem.previewImage = classified.thumbnail;
+          }
+          if (classified.videoId) {
+            newItem.metadata = { ...(newItem.metadata || {}), videoId: classified.videoId };
+          }
+          itemChanged = true;
+        }
+      }
+
+      if (itemChanged) modified = true;
+      return newItem;
+    });
+
+    if (modified) {
+      await chrome.storage.local.set({
+        collections,
+        containers,
+        items,
+        schemaVersion: 2,
+      });
+    }
+
+    return { collections, containers, items };
   },
 };
-

@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
-  "name": "SaveIt – Your Permanent Clipboard",
-  "version": "1.0.0",
-  "description": "Save text snippets, article quotes, and links from any webpage. Your personal forever clipboard.",
+  "name": "SaveIt – Web Vault & Collections",
+  "version": "2.0.0",
+  "description": "Save and organize web discoveries into collections and containers: quotes, articles, YouTube videos, product links, and images.",
   "permissions": ["storage", "contextMenus", "activeTab", "scripting", "clipboardRead"],
   "host_permissions": [
     "https://identitytoolkit.googleapis.com/*",

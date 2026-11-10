@@ -1,76 +1,152 @@
 importScripts("sync.js");
 
 // ── Context Menu Setup ──
-chrome.runtime.onInstalled.addListener(() => {
+chrome.runtime.onInstalled.addListener(async () => {
   clearBadge();
-  chrome.contextMenus.create({
-    id: "saveit-selection",
-    title: 'Save "%s" to SaveIt',
-    contexts: ["selection"],
-  });
-
-  chrome.contextMenus.create({
-    id: "saveit-link",
-    title: "Save this link to SaveIt",
-    contexts: ["link"],
-  });
-
-  chrome.contextMenus.create({
-    id: "saveit-page",
-    title: "Save this page to SaveIt",
-    contexts: ["page"],
-  });
-
-  chrome.contextMenus.create({
-    id: "saveit-open-dashboard",
-    title: "Open SaveIt Dashboard",
-    contexts: ["all"],
-  });
+  await SyncService.ensureInitializedAndMigrated();
+  setupContextMenus();
 });
 
-// ── Handle context menu clicks ──
+function setupContextMenus() {
+  chrome.contextMenus.removeAll(() => {
+    chrome.contextMenus.create({
+      id: "saveit-selection",
+      title: 'Save snippet / quote to SaveIt',
+      contexts: ["selection"],
+    });
+
+    chrome.contextMenus.create({
+      id: "saveit-image",
+      title: "Save image to SaveIt",
+      contexts: ["image"],
+    });
+
+    chrome.contextMenus.create({
+      id: "saveit-link",
+      title: "Save link to SaveIt",
+      contexts: ["link"],
+    });
+
+    chrome.contextMenus.create({
+      id: "saveit-page",
+      title: "Bookmark this page to SaveIt",
+      contexts: ["page"],
+    });
+
+    chrome.contextMenus.create({
+      id: "saveit-separator",
+      type: "separator",
+      contexts: ["all"],
+    });
+
+    chrome.contextMenus.create({
+      id: "saveit-open-dashboard",
+      title: "Open SaveIt Workspace (Dashboard)",
+      contexts: ["all"],
+    });
+  });
+}
+
+// ── Get Active Destination (Collection & Container) ──
+async function getTargetDestination() {
+  const { collections = [], containers = [], lastActiveContainer } = await chrome.storage.local.get([
+    "collections",
+    "containers",
+    "lastActiveContainer",
+  ]);
+
+  let targetCont = null;
+  if (lastActiveContainer && lastActiveContainer !== "all") {
+    targetCont = containers.find((c) => c.id === lastActiveContainer);
+  }
+
+  if (!targetCont) {
+    targetCont = containers[0] || DEFAULT_CONTAINERS[0];
+  }
+
+  const parentCol =
+    collections.find((col) => col.id === targetCont.collectionId) ||
+    collections[0] ||
+    DEFAULT_COLLECTIONS[0];
+
+  return {
+    collection: parentCol,
+    container: targetCont,
+  };
+}
+
+// ── Handle Context Menu Clicks ──
 chrome.contextMenus.onClicked.addListener(async (info, tab) => {
   if (info.menuItemId === "saveit-open-dashboard") {
     chrome.tabs.create({ url: chrome.runtime.getURL("dashboard.html") });
     return;
   }
 
-  const { lastActiveContainer = "default" } = await chrome.storage.local.get("lastActiveContainer");
-  const containerId = lastActiveContainer !== "all" ? lastActiveContainer : "default";
+  const { collection, container } = await getTargetDestination();
   let item = null;
 
   if (info.menuItemId === "saveit-selection" && info.selectionText) {
+    const text = info.selectionText.trim();
+    const classification = classifyContent(text, tab?.url || "");
     item = {
       id: generateId(),
-      type: "text",
-      content: info.selectionText,
-      containerId,
+      type: classification.type === "quote" ? "quote" : "text",
+      title: tab?.title ? `From: ${tab.title}` : "Saved Snippet",
+      content: text,
+      containerId: container.id,
+      collectionId: collection.id,
       sourceUrl: tab?.url || "",
+      sourceTitle: tab?.title || "",
+      createdAt: Date.now(),
+      tags: [],
+      favorite: false,
+    };
+  } else if (info.menuItemId === "saveit-image" && info.srcUrl) {
+    item = {
+      id: generateId(),
+      type: "image",
+      title: tab?.title ? `Image from: ${tab.title}` : "Saved Image",
+      content: info.srcUrl,
+      previewImage: info.srcUrl,
+      containerId: container.id,
+      collectionId: collection.id,
+      sourceUrl: tab?.url || info.pageUrl || "",
       sourceTitle: tab?.title || "",
       createdAt: Date.now(),
       tags: [],
       favorite: false,
     };
   } else if (info.menuItemId === "saveit-link" && info.linkUrl) {
+    const classification = classifyContent("", info.linkUrl);
     item = {
       id: generateId(),
-      type: "link",
+      type: classification.type,
+      title: info.selectionText || tab?.title || info.linkUrl,
       content: info.linkUrl,
-      containerId,
-      sourceUrl: tab?.url || "",
+      containerId: container.id,
+      collectionId: collection.id,
+      previewImage: classification.thumbnail || "",
+      metadata: classification.videoId ? { videoId: classification.videoId } : {},
+      sourceUrl: info.linkUrl,
       sourceTitle: tab?.title || "",
       createdAt: Date.now(),
       tags: [],
       favorite: false,
     };
   } else if (info.menuItemId === "saveit-page") {
+    const pageUrl = tab?.url || info.pageUrl || "";
+    const classification = classifyContent("", pageUrl);
     item = {
       id: generateId(),
-      type: "link",
-      content: tab?.url || info.pageUrl,
-      containerId,
-      sourceUrl: tab?.url || info.pageUrl,
-      sourceTitle: tab?.title || "Untitled Page",
+      type: classification.type === "youtube" ? "youtube" : "link",
+      title: tab?.title || "Web Bookmark",
+      content: pageUrl,
+      containerId: container.id,
+      collectionId: collection.id,
+      previewImage: classification.thumbnail || "",
+      metadata: classification.videoId ? { videoId: classification.videoId } : {},
+      sourceUrl: pageUrl,
+      sourceTitle: tab?.title || "",
       createdAt: Date.now(),
       tags: [],
       favorite: false,
@@ -78,38 +154,42 @@ chrome.contextMenus.onClicked.addListener(async (info, tab) => {
   }
 
   if (item) {
-    saveItem(item);
+    await saveItem(item, collection, container);
   }
 });
 
 // ── Keyboard shortcut handler ──
 chrome.commands.onCommand.addListener(async (command) => {
   if (command === "save-selection") {
-    const { lastActiveContainer = "default" } = await chrome.storage.local.get("lastActiveContainer");
-    const containerId = lastActiveContainer !== "all" ? lastActiveContainer : "default";
+    const { collection, container } = await getTargetDestination();
 
     chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
       if (tabs[0]) {
-        chrome.scripting.executeScript({
-          target: { tabId: tabs[0].id },
-          func: getSelectedText,
-        }).then((results) => {
-          const text = results?.[0]?.result;
-          if (text) {
-            const item = {
-              id: generateId(),
-              type: "text",
-              content: text,
-              containerId,
-              sourceUrl: tabs[0].url || "",
-              sourceTitle: tabs[0].title || "",
-              createdAt: Date.now(),
-              tags: [],
-              favorite: false,
-            };
-            saveItem(item);
-          }
-        });
+        chrome.scripting
+          .executeScript({
+            target: { tabId: tabs[0].id },
+            func: getSelectedText,
+          })
+          .then((results) => {
+            const text = results?.[0]?.result;
+            if (text && text.trim()) {
+              const classification = classifyContent(text, tabs[0].url || "");
+              const item = {
+                id: generateId(),
+                type: classification.type === "quote" ? "quote" : "text",
+                title: tabs[0].title ? `From: ${tabs[0].title}` : "Saved Snippet",
+                content: text.trim(),
+                containerId: container.id,
+                collectionId: collection.id,
+                sourceUrl: tabs[0].url || "",
+                sourceTitle: tabs[0].title || "",
+                createdAt: Date.now(),
+                tags: [],
+                favorite: false,
+              };
+              saveItem(item, collection, container);
+            }
+          });
       }
     });
   }
@@ -119,7 +199,6 @@ function getSelectedText() {
   return window.getSelection()?.toString() || "";
 }
 
-// ── Clear Badge ──
 function clearBadge() {
   try {
     chrome.action.setBadgeText({ text: "" });
@@ -128,32 +207,37 @@ function clearBadge() {
 
 chrome.runtime.onStartup.addListener(clearBadge);
 
-async function saveItem(item) {
-  const { items = [], containers = [] } = await chrome.storage.local.get(["items", "containers"]);
+async function saveItem(item, collection, container) {
+  const { items = [], containers = [], collections = [] } = await chrome.storage.local.get([
+    "items",
+    "containers",
+    "collections",
+  ]);
+
   items.unshift(item);
   await chrome.storage.local.set({ items });
 
-  // Sync to cloud in background if user is logged in
+  // Sync to cloud if user is logged in
   if (typeof SyncService !== "undefined" && SyncService.pushToCloud) {
-    const safeContainers =
-      containers && containers.length > 0
-        ? containers
-        : [{ id: "default", name: "Quick Saves", icon: "⚡", createdAt: 0 }];
-    SyncService.pushToCloud(items, safeContainers).catch(() => {});
+    SyncService.pushToCloud(items, containers, collections).catch(() => {});
   }
 
-  // Ensure no badge is shown
   clearBadge();
 
-  // Show floating notification on the active tab
+  // Notify content script with rich destination information
   try {
     const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
     if (tab?.id) {
-      const preview = item.content.length > 50 ? item.content.slice(0, 50) + "…" : item.content;
+      const colName = collection?.name || "Collection";
+      const contName = container?.name || "Container";
+      const preview = item.content.length > 60 ? item.content.slice(0, 60) + "…" : item.content;
+
       chrome.tabs.sendMessage(tab.id, {
         action: "showSaveNotification",
         type: item.type,
         preview,
+        collectionName: colName,
+        containerName: contName,
       }).catch(() => {});
     }
   } catch {}
@@ -163,7 +247,7 @@ function generateId() {
   return Date.now().toString(36) + Math.random().toString(36).substr(2, 9);
 }
 
-// ── Listen for messages from popup ──
+// ── Message Listener ──
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (message.action === "getItems") {
     chrome.storage.local.get("items", (data) => {
@@ -173,7 +257,11 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   }
 
   if (message.action === "saveItem") {
-    saveItem(message.item).then(() => sendResponse({ success: true }));
+    (async () => {
+      const { collection, container } = await getTargetDestination();
+      await saveItem(message.item, collection, container);
+      sendResponse({ success: true });
+    })();
     return true;
   }
 
@@ -195,29 +283,37 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     return true;
   }
 
-  if (message.action === "exportItems") {
-    chrome.storage.local.get("items", (data) => {
-      sendResponse(data.items || []);
+  if (message.action === "exportData") {
+    chrome.storage.local.get(["collections", "containers", "items"], (data) => {
+      sendResponse(data);
     });
     return true;
   }
 
-  if (message.action === "importItems") {
-    chrome.storage.local.get("items", (data) => {
-      const existing = data.items || [];
-      const merged = [...message.items, ...existing];
-      chrome.storage.local.set({ items: merged }, () =>
-        sendResponse({ success: true })
-      );
-    });
+  if (message.action === "importData") {
+    (async () => {
+      const data = message.data || {};
+      const { collections = [], containers = [], items = [] } = data;
+      const current = await chrome.storage.local.get(["collections", "containers", "items"]);
+      
+      const newCollections = [...(current.collections || []), ...collections];
+      const newContainers = [...(current.containers || []), ...containers];
+      const newItems = [...(current.items || []), ...items];
+
+      await chrome.storage.local.set({
+        collections: Array.from(new Map(newCollections.map(c => [c.id, c])).values()),
+        containers: Array.from(new Map(newContainers.map(c => [c.id, c])).values()),
+        items: Array.from(new Map(newItems.map(i => [i.id, i])).values()),
+      });
+      sendResponse({ success: true });
+    })();
     return true;
   }
 
   if (message.action === "clearAll") {
-    chrome.storage.local.set({ items: [] }, () =>
-      sendResponse({ success: true })
-    );
+    chrome.storage.local.set({ items: [] }, () => {
+      sendResponse({ success: true });
+    });
     return true;
   }
 });
-

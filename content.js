@@ -1,30 +1,41 @@
 // SaveIt - Content Script
-// Shows a floating notification on the webpage when an item is saved
+// Shows a floating light-mode notification on the webpage when an item is saved
 
 (() => {
-  // Listen for messages from background
   chrome.runtime.onMessage.addListener((message) => {
     if (message.action === "showSaveNotification") {
-      showNotification(message.type, message.preview);
+      showNotification(message);
     }
   });
 
-  function showNotification(type, preview) {
-    // Remove any existing notification
+  function showNotification({ type, preview, collectionName, containerName }) {
     const existing = document.getElementById("saveit-notification");
     if (existing) existing.remove();
 
-    const typeLabel = type === "text" ? "Text" : type === "link" ? "Link" : "Page";
-    const typeEmoji = type === "text" ? "📝" : type === "link" ? "🔗" : "📄";
+    const typeIcons = {
+      quote: "💬",
+      youtube: "🎬",
+      image: "🖼️",
+      product: "🛍️",
+      social: "📱",
+      link: "🔗",
+      text: "📝",
+    };
+    const icon = typeIcons[type] || "💾";
 
     const notification = document.createElement("div");
     notification.id = "saveit-notification";
     notification.innerHTML = `
       <div class="saveit-notif-inner">
-        <div class="saveit-notif-icon">${typeEmoji}</div>
-        <div class="saveit-notif-text">
-          <div class="saveit-notif-title">Saved to SaveIt!</div>
-          <div class="saveit-notif-preview">${escapeHTML(preview)}</div>
+        <div class="saveit-notif-icon">${icon}</div>
+        <div class="saveit-notif-body">
+          <div class="saveit-notif-header">
+            <span class="saveit-notif-title">Saved to SaveIt</span>
+            <span class="saveit-notif-path">
+              📁 <strong>${escapeHTML(collectionName || "Collection")}</strong> › 🗄️ <strong>${escapeHTML(containerName || "Container")}</strong>
+            </span>
+          </div>
+          <div class="saveit-notif-preview">${escapeHTML(preview || "")}</div>
         </div>
         <div class="saveit-notif-check">✓</div>
       </div>
@@ -40,8 +51,14 @@
           top: 20px;
           right: 20px;
           z-index: 2147483647;
-          font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+          font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Inter", sans-serif;
           animation: saveit-slide-in 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+          box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.05);
+          border-radius: 12px;
+          background: #FFFFFF;
+          border: 1px solid #E5E7EB;
+          color: #1F2937;
+          max-width: 380px;
         }
 
         #saveit-notification.saveit-fade-out {
@@ -52,60 +69,82 @@
           display: flex;
           align-items: center;
           gap: 12px;
-          background: #000000;
-          border: 1px solid rgba(190, 250, 79, 0.45);
-          border-radius: 12px;
-          padding: 12px 18px;
-          box-shadow: 0 12px 40px rgba(0, 0, 0, 0.95), 0 0 20px rgba(190, 250, 79, 0.3);
-          max-width: 340px;
-          color: #f5fbee;
+          padding: 12px 14px;
         }
 
         .saveit-notif-icon {
           font-size: 20px;
           flex-shrink: 0;
-          filter: drop-shadow(0 0 6px rgba(190, 250, 79, 0.5));
+          width: 36px;
+          height: 36px;
+          border-radius: 8px;
+          background: #F3F4F6;
+          display: flex;
+          align-items: center;
+          justify-content: center;
         }
 
-        .saveit-notif-text {
+        .saveit-notif-body {
           flex: 1;
           min-width: 0;
         }
 
+        .saveit-notif-header {
+          display: flex;
+          flex-direction: column;
+          gap: 2px;
+        }
+
         .saveit-notif-title {
           font-size: 13px;
-          font-weight: 800;
-          color: #BEFA4F;
-          text-shadow: 0 0 8px rgba(190, 250, 79, 0.5);
-          margin-bottom: 2px;
-          letter-spacing: 0.3px;
+          font-weight: 700;
+          color: #111827;
+        }
+
+        .saveit-notif-path {
+          font-size: 11px;
+          color: #4B5563;
+          white-space: nowrap;
+          overflow: hidden;
+          text-overflow: ellipsis;
         }
 
         .saveit-notif-preview {
           font-size: 12px;
-          color: #9ea98f;
+          color: #6B7280;
+          white-space: nowrap;
           overflow: hidden;
           text-overflow: ellipsis;
-          white-space: nowrap;
-          max-width: 220px;
+          margin-top: 2px;
         }
 
         .saveit-notif-check {
+          color: #10B981;
           font-size: 16px;
-          color: #BEFA4F;
-          font-weight: 900;
-          flex-shrink: 0;
-          text-shadow: 0 0 10px rgba(190, 250, 79, 0.6);
+          font-weight: bold;
+          padding-left: 4px;
         }
 
         @keyframes saveit-slide-in {
-          from { opacity: 0; transform: translateX(40px) scale(0.95); }
-          to { opacity: 1; transform: translateX(0) scale(1); }
+          from {
+            transform: translateY(-20px);
+            opacity: 0;
+          }
+          to {
+            transform: translateY(0);
+            opacity: 1;
+          }
         }
 
         @keyframes saveit-slide-out {
-          from { opacity: 1; transform: translateX(0) scale(1); }
-          to { opacity: 0; transform: translateX(40px) scale(0.95); }
+          from {
+            transform: translateY(0);
+            opacity: 1;
+          }
+          to {
+            transform: translateY(-20px);
+            opacity: 0;
+          }
         }
       `;
       document.head.appendChild(style);
@@ -113,11 +152,10 @@
 
     document.body.appendChild(notification);
 
-    // Auto-dismiss after 2.5 seconds
     setTimeout(() => {
       notification.classList.add("saveit-fade-out");
       setTimeout(() => notification.remove(), 250);
-    }, 2500);
+    }, 2800);
   }
 
   function escapeHTML(str) {
@@ -126,4 +164,3 @@
     return div.innerHTML;
   }
 })();
-

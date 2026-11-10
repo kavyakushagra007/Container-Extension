@@ -1,55 +1,108 @@
-// ── SaveIt: Dashboard Controller (Containers & Cloud Sync) ──
+// ── SaveIt: Full Workspace Dashboard Controller ──
+
+let collections = [];
+let containers = [];
 let allItems = [];
-let containers = [{ id: "default", name: "Quick Saves", icon: "⚡" }];
-let currentView = "all"; // "all", "text", "link", "favorite", or container ID
+
+// Navigation & View state
+let currentView = "all"; // "all" | "favorite" | "quote" | "media" | "link" | "collection" | "container"
+let activeCollectionId = null;
+let activeContainerId = null;
+let expandedCollections = new Set();
+let viewMode = "grid"; // "grid" | "list"
+let sortMode = "newest";
 let searchQuery = "";
-let currentSort = "newest";
-let selectedIds = new Set();
+
 let editingItemId = null;
-let selectedContainerEmoji = "⚡";
+let movingItemId = null;
+let editingColId = null;
+let editingContId = null;
+let selectedColColor = "#4F46E5";
 let authIsSignUp = false;
 
-// ── DOM Elements ──
+// ── DOM References ──
+const sidebarCollectionsTree = document.getElementById("sidebar-collections-tree");
+const navItems = document.querySelectorAll(".sidebar-nav .nav-item");
 const itemsGrid = document.getElementById("items-grid");
 const emptyState = document.getElementById("empty-state");
-const settingsPanel = document.getElementById("settings-panel");
-const statsRow = document.getElementById("stats-row");
-const searchInput = document.getElementById("search-input");
-const sortSelect = document.getElementById("sort-select");
 const pageTitle = document.getElementById("page-title");
-const bulkBar = document.getElementById("bulk-bar");
-const selectedCount = document.getElementById("selected-count");
-const btnSelectAll = document.getElementById("btn-select-all");
-const btnDeleteSelected = document.getElementById("btn-delete-selected");
-const btnCancelSelect = document.getElementById("btn-cancel-select");
-const btnAddNew = document.getElementById("btn-add-new");
-const btnSettings = document.getElementById("btn-settings");
-const toast = document.getElementById("toast");
+const pageDesc = document.getElementById("page-desc");
+const dashBreadcrumbs = document.getElementById("dash-breadcrumbs");
+const resultsCount = document.getElementById("results-count");
+const searchInput = document.getElementById("search-input");
+const btnClearSearch = document.getElementById("btn-clear-search");
+const sortSelect = document.getElementById("sort-select");
+const btnViewGrid = document.getElementById("btn-view-grid");
+const btnViewList = document.getElementById("btn-view-list");
+
+// Counts in sidebar
+const countAll = document.getElementById("count-all");
+const countFav = document.getElementById("count-fav");
+const countQuote = document.getElementById("count-quote");
+const countMedia = document.getElementById("count-media");
+const countLink = document.getElementById("count-link");
+
+// Header actions
+const btnQuickAdd = document.getElementById("btn-quick-add");
+const btnSidebarAddCol = document.getElementById("btn-sidebar-add-col");
+const btnSidebarAddCont = document.getElementById("btn-sidebar-add-cont");
+const btnAddItemDash = document.getElementById("btn-add-item-dash");
+const btnEmptyAdd = document.getElementById("btn-empty-add");
+const btnExportDash = document.getElementById("btn-export-dash");
+const btnImportDash = document.getElementById("btn-import-dash");
 const importFile = document.getElementById("import-file");
-const dashContainersList = document.getElementById("dash-containers-list");
-const btnAddContainerDash = document.getElementById("btn-add-container-dash");
 
-// Add / Edit Modal elements
-const modal = document.getElementById("modal");
-const modalTitle = document.getElementById("modal-title");
-const modalContainerSelect = document.getElementById("modal-container-select");
-const modalContentInput = document.getElementById("modal-content-input");
-const modalTagsInput = document.getElementById("modal-tags-input");
-const modalCancel = document.getElementById("modal-cancel");
-const modalSave = document.getElementById("modal-save");
+// User card & auth
+const userStatusCard = document.getElementById("user-status-card");
+const userDisplayEmail = document.getElementById("user-display-email");
+const userSyncStatus = document.getElementById("user-sync-status");
+const btnOpenAuthModal = document.getElementById("btn-open-auth-modal");
 
-// Container creation modal
-const containerModal = document.getElementById("container-modal");
-const containerNameInput = document.getElementById("container-name-input");
-const containerModalCancel = document.getElementById("container-modal-cancel");
-const containerModalSave = document.getElementById("container-modal-save");
-const emojiOpts = document.querySelectorAll(".emoji-opt");
+// Item Modal
+const itemModal = document.getElementById("item-modal");
+const itemModalTitle = document.getElementById("item-modal-title");
+const itemModalClose = document.getElementById("item-modal-close");
+const itemModalCancel = document.getElementById("item-modal-cancel");
+const itemModalSave = document.getElementById("item-modal-save");
+const modalColSelect = document.getElementById("modal-col-select");
+const modalContSelect = document.getElementById("modal-cont-select");
+const modalItemTitle = document.getElementById("modal-item-title");
+const modalItemContent = document.getElementById("modal-item-content");
+const modalItemSource = document.getElementById("modal-item-source");
+const modalItemTags = document.getElementById("modal-item-tags");
 
-// Auth / Cloud Sync modal
-const btnDashAuth = document.getElementById("btn-dash-auth");
-const dashAuthLabel = document.getElementById("dash-auth-label");
+// Collection Modal
+const colModal = document.getElementById("col-modal");
+const colModalTitle = document.getElementById("col-modal-title");
+const colModalClose = document.getElementById("col-modal-close");
+const colModalCancel = document.getElementById("col-modal-cancel");
+const colModalSave = document.getElementById("col-modal-save");
+const dashColName = document.getElementById("dash-col-name");
+const dashColColors = document.getElementById("dash-col-colors");
+
+// Container Modal
+const contModal = document.getElementById("cont-modal");
+const contModalTitle = document.getElementById("cont-modal-title");
+const contModalClose = document.getElementById("cont-modal-close");
+const contModalCancel = document.getElementById("cont-modal-cancel");
+const contModalSave = document.getElementById("cont-modal-save");
+const dashContParentCol = document.getElementById("dash-cont-parent-col");
+const dashContName = document.getElementById("dash-cont-name");
+const dashContDesc = document.getElementById("dash-cont-desc");
+
+// Move Modal
+const moveModal = document.getElementById("move-modal");
+const moveModalClose = document.getElementById("move-modal-close");
+const moveModalCancel = document.getElementById("move-modal-cancel");
+const moveModalConfirm = document.getElementById("move-modal-confirm");
+const moveColSelect = document.getElementById("move-col-select");
+const moveContSelect = document.getElementById("move-cont-select");
+
+// Auth Modal
 const authModal = document.getElementById("auth-modal");
 const authModalTitle = document.getElementById("auth-modal-title");
+const authModalClose = document.getElementById("auth-modal-close");
+const authModalCancel = document.getElementById("auth-modal-cancel");
 const authLoggedInView = document.getElementById("auth-logged-in-view");
 const authLoggedOutView = document.getElementById("auth-logged-out-view");
 const authUserEmail = document.getElementById("auth-user-email");
@@ -58,19 +111,10 @@ const authPasswordInput = document.getElementById("auth-password-input");
 const authSubmitBtn = document.getElementById("auth-submit-btn");
 const authToggleMode = document.getElementById("auth-toggle-mode");
 const authModeText = document.getElementById("auth-mode-text");
-const authModalCancel = document.getElementById("auth-modal-cancel");
 const btnSyncNow = document.getElementById("btn-sync-now");
 const btnLogout = document.getElementById("btn-logout");
 
-// Counts & Stats
-const countAll = document.getElementById("count-all");
-const countText = document.getElementById("count-text");
-const countLink = document.getElementById("count-link");
-const countFav = document.getElementById("count-fav");
-const statTotal = document.getElementById("stat-total");
-const statText = document.getElementById("stat-text");
-const statLinks = document.getElementById("stat-links");
-const statFavs = document.getElementById("stat-favs");
+const toast = document.getElementById("toast");
 
 // ── Init ──
 document.addEventListener("DOMContentLoaded", async () => {
@@ -80,731 +124,1134 @@ document.addEventListener("DOMContentLoaded", async () => {
   autoSyncBackground();
 });
 
+async function loadState() {
+  const state = await SyncService.ensureInitializedAndMigrated();
+  collections = state.collections || [];
+  containers = state.containers || [];
+  allItems = state.items || [];
+
+  // Expand all collections by default in tree
+  collections.forEach((c) => expandedCollections.add(c.id));
+
+  renderSidebarTree();
+  updateSidebarCounts();
+  renderHeaderMeta();
+  renderItems();
+}
+
 async function autoSyncBackground() {
   const session = await SyncService.getUser();
   if (!session) return;
   try {
     const res = await SyncService.syncNow();
     if (res) {
+      collections = res.collections || [];
+      containers = res.containers || [];
       allItems = res.items || [];
-      containers = res.containers && res.containers.length > 0 ? res.containers : [...DEFAULT_CONTAINERS];
-      updateStats();
-      renderSidebarContainers();
-      render();
+      renderSidebarTree();
+      updateSidebarCounts();
+      renderHeaderMeta();
+      renderItems();
     }
   } catch (err) {
-    console.warn("Background auto-sync:", err);
+    console.warn("Dashboard sync check:", err);
   }
 }
 
-async function loadState() {
-  const data = await chrome.storage.local.get(["items", "containers"]);
-  allItems = data.items || [];
-  if (data.containers && data.containers.length > 0) {
-    containers = data.containers;
-  }
-  updateStats();
-  renderSidebarContainers();
-  render();
-}
-
-// ── Sidebar Containers ──
-function renderSidebarContainers() {
-  dashContainersList.innerHTML = containers
-    .map((c) => {
-      const isAct = currentView === c.id;
-      const count = allItems.filter((i) => (i.containerId || "default") === c.id).length;
-      const isCustom = c.id !== "default";
-      const delHTML = isCustom
-        ? `<span class="nav-del-btn" data-del-container="${c.id}" title="Delete container">×</span>`
-        : "";
-      return `
-        <button class="nav-item ${isAct ? "active" : ""}" data-container-id="${c.id}">
-          <span style="font-size:16px;">${c.icon}</span>
-          <span style="flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${escapeHTML(c.name)}</span>
-          <span class="nav-count">${count}</span>
-          ${delHTML}
-        </button>
-      `;
-    })
-    .join("");
-
-  dashContainersList.querySelectorAll(".nav-item").forEach((btn) => {
-    btn.addEventListener("click", (e) => {
-      if (e.target.closest(".nav-del-btn")) return;
-      document.querySelectorAll(".sidebar-nav .nav-item").forEach((b) => b.classList.remove("active"));
-      btn.classList.add("active");
-      currentView = btn.dataset.containerId;
-      const cont = containers.find((c) => c.id === currentView);
-      pageTitle.textContent = cont ? `${cont.icon} ${cont.name}` : "All Items";
-      settingsPanel.classList.add("hidden");
-      statsRow.classList.remove("hidden");
-      itemsGrid.classList.remove("hidden");
-      render();
-    });
-  });
-
-  // Handle delete container buttons
-  dashContainersList.querySelectorAll(".nav-del-btn").forEach((btn) => {
-    btn.addEventListener("click", (e) => {
-      e.stopPropagation();
-      const contId = btn.dataset.delContainer;
-      const cont = containers.find((c) => c.id === contId);
-      if (!cont) return;
-
-      const itemCount = allItems.filter((i) => i.containerId === contId).length;
-      const confirmMsg = itemCount > 0
-        ? `Delete container "${cont.name}"?\n${itemCount} item(s) inside will be safely moved to Quick Saves.`
-        : `Delete container "${cont.name}"?`;
-
-      if (confirm(confirmMsg)) {
-        allItems.forEach((i) => {
-          if (i.containerId === contId) i.containerId = "default";
-        });
-        containers = containers.filter((c) => c.id !== contId);
-        if (currentView === contId) {
-          currentView = "all";
-          const allNav = document.querySelector('.sidebar-nav .nav-item[data-view="all"]');
-          if (allNav) allNav.classList.add("active");
-          pageTitle.textContent = "All Items";
-        }
-        chrome.storage.local.set({ containers, items: allItems }, () => {
-          updateStats();
-          renderSidebarContainers();
-          render();
-          showToast(`Container "${cont.name}" deleted`);
-          SyncService.pushToCloud(allItems, containers);
-        });
-      }
-    });
-  });
-
-  // Populate Add Item Modal Container Select
-  if (modalContainerSelect) {
-    modalContainerSelect.innerHTML = containers
-      .map(
-        (c) =>
-          `<option value="${c.id}">${c.icon} ${escapeHTML(c.name)}</option>`
-      )
-      .join("");
-  }
-}
-
-// ── Stats ──
-function updateStats() {
-  const total = allItems.length;
-  const texts = allItems.filter((i) => i.type === "text").length;
-  const links = allItems.filter((i) => i.type === "link").length;
-  const favs = allItems.filter((i) => i.favorite).length;
-
-  statTotal.textContent = total;
-  statText.textContent = texts;
-  statLinks.textContent = links;
-  statFavs.textContent = favs;
-
-  countAll.textContent = total;
-  countText.textContent = texts;
-  countLink.textContent = links;
-  countFav.textContent = favs;
-}
-
-// ── Filter & Sort ──
-function getFilteredItems() {
-  let items = allItems.filter((item) => {
-    // If currentView matches a container ID
-    if (containers.some((c) => c.id === currentView)) {
-      if ((item.containerId || "default") !== currentView) return false;
-    } else {
-      // Standard views
-      if (currentView === "favorite" && !item.favorite) return false;
-      if (currentView !== "all" && currentView !== "favorite" && item.type !== currentView)
-        return false;
-    }
-
-    if (searchQuery) {
-      const q = searchQuery.toLowerCase();
-      const matchContent = item.content.toLowerCase().includes(q);
-      const matchTags = item.tags?.some((t) => t.toLowerCase().includes(q));
-      const matchSource = item.sourceTitle?.toLowerCase().includes(q);
-      if (!matchContent && !matchTags && !matchSource) return false;
-    }
-
-    return true;
-  });
-
-  // Sort
-  if (currentSort === "newest") {
-    items.sort((a, b) => b.createdAt - a.createdAt);
-  } else if (currentSort === "oldest") {
-    items.sort((a, b) => a.createdAt - b.createdAt);
-  } else if (currentSort === "alpha") {
-    items.sort((a, b) => a.content.localeCompare(b.content));
-  }
-
-  return items;
-}
-
-// ── Render Items Grid ──
-function render() {
-  if (!settingsPanel.classList.contains("hidden")) return;
-
-  const items = getFilteredItems();
-
-  if (items.length === 0) {
-    itemsGrid.classList.add("hidden");
-    emptyState.classList.remove("hidden");
-    return;
-  }
-
-  itemsGrid.classList.remove("hidden");
-  emptyState.classList.add("hidden");
-
-  itemsGrid.innerHTML = items.map((item) => createCardHTML(item)).join("");
-
-  // Attach card event listeners
-  itemsGrid.querySelectorAll("[data-action]").forEach((btn) => {
-    btn.addEventListener("click", handleCardAction);
-  });
-
-  itemsGrid.querySelectorAll(".item-checkbox").forEach((cb) => {
-    cb.addEventListener("click", handleCheckbox);
-  });
-
-  itemsGrid.querySelectorAll(".card-content").forEach((el) => {
-    el.addEventListener("click", () => el.classList.toggle("expanded"));
-  });
-
-  itemsGrid.querySelectorAll(".tag").forEach((tagEl) => {
-    tagEl.addEventListener("click", (e) => {
-      e.stopPropagation();
-      const tag = e.currentTarget.dataset.tag;
-      if (tag) {
-        searchInput.value = tag;
-        searchQuery = tag;
-        render();
-      }
-    });
-  });
-}
-
-function createCardHTML(item) {
-  const isSelected = selectedIds.has(item.id);
-  const timeAgo = getTimeAgo(new Date(item.createdAt));
-  const badgeClass = item.type === "link" ? "badge-link" : "badge-text";
-  const typeLabel = item.type === "link" ? "Link" : "Text";
-
-  // Find container safely
-  const container =
-    containers.find((c) => c && c.id === (item.containerId || "default")) ||
-    containers[0] ||
-    { icon: "⚡", name: "Quick Saves" };
-
-  let contentHTML;
-  if (item.type === "link") {
-    const url = /^https?:\/\//i.test(item.content) ? item.content : `https://${item.content}`;
-    contentHTML = `<a href="${escapeHTML(url)}" target="_blank" rel="noopener">${escapeHTML(item.content)}</a>`;
-  } else {
-    contentHTML = escapeHTML(item.content);
-  }
-
-  const tagsHTML =
-    item.tags?.length > 0
-      ? `<div class="card-tags">${item.tags.map((t) => `<span class="tag" data-tag="${escapeHTML(t)}">#${escapeHTML(t)}</span>`).join("")}</div>`
-      : "";
-
-  const sourceHTML = item.sourceTitle
-    ? `<span class="card-source" title="${escapeHTML(item.sourceUrl)}">from ${escapeHTML(item.sourceTitle)}</span>`
-    : "";
-
-  return `
-    <div class="item-card ${isSelected ? "selected" : ""}" data-id="${item.id}">
-      <div class="item-checkbox" data-id="${item.id}"></div>
-      <div class="card-top">
-        <span class="item-badge ${badgeClass}">${typeLabel}</span>
-        <span class="tag" style="background:#0e1208; border-color:rgba(190,250,79,0.3); color:var(--neon); font-size:10.5px;">${container.icon} ${escapeHTML(container.name)}</span>
-      </div>
-      <div class="card-content">${contentHTML}</div>
-      ${tagsHTML}
-      <div class="card-footer">
-        <div class="card-meta">
-          <span>${timeAgo}</span>
-          ${sourceHTML ? "·" : ""}
-          ${sourceHTML}
-        </div>
-        <div class="card-actions">
-          <button class="card-action-btn ${item.favorite ? "fav-active" : ""}" data-action="favorite" data-id="${item.id}" title="Favorite">
-            <svg viewBox="0 0 24 24" fill="${item.favorite ? "currentColor" : "none"}" stroke="currentColor" stroke-width="2"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
-          </button>
-          <button class="card-action-btn" data-action="copy" data-id="${item.id}" title="Copy">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
-          </button>
-          <button class="card-action-btn" data-action="edit" data-id="${item.id}" title="Edit">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
-          </button>
-          <button class="card-action-btn delete-hover" data-action="delete" data-id="${item.id}" title="Delete">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
-          </button>
-        </div>
-      </div>
-    </div>
-  `;
-}
-
-// ── Card Actions ──
-function handleCardAction(e) {
-  e.stopPropagation();
-  const btn = e.currentTarget;
-  const action = btn.dataset.action;
-  const id = btn.dataset.id;
-  const item = allItems.find((i) => i.id === id);
-  if (!item) return;
-
-  if (action === "copy") {
-    navigator.clipboard.writeText(item.content);
-    showToast("Copied to clipboard!");
-    const originalHTML = btn.innerHTML;
-    btn.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="color:var(--neon);"><polyline points="20 6 9 17 4 12"/></svg>`;
-    setTimeout(() => (btn.innerHTML = originalHTML), 1200);
-  }
-
-  if (action === "favorite") {
-    item.favorite = !item.favorite;
-    chrome.storage.local.set({ items: allItems }, () => {
-      updateStats();
-      render();
-      SyncService.pushToCloud(allItems, containers);
-    });
-  }
-
-  if (action === "edit") {
-    editingItemId = id;
-    modalTitle.textContent = "Edit Item";
-    modalContentInput.value = item.content;
-    modalTagsInput.value = (item.tags || []).join(", ");
-    if (modalContainerSelect) {
-      modalContainerSelect.value = item.containerId || "default";
-    }
-    modal.classList.remove("hidden");
-    modalContentInput.focus();
-  }
-
-  if (action === "delete") {
-    allItems = allItems.filter((i) => i.id !== id);
-    selectedIds.delete(id);
-    chrome.storage.local.set({ items: allItems }, () => {
-      updateBulkBar();
-      updateStats();
-      renderSidebarContainers();
-      render();
-      showToast("Item deleted");
-      SyncService.pushToCloud(allItems, containers);
-    });
-  }
-}
-
-function handleCheckbox(e) {
-  e.stopPropagation();
-  const id = e.currentTarget.dataset.id;
-  if (selectedIds.has(id)) {
-    selectedIds.delete(id);
-  } else {
-    selectedIds.add(id);
-  }
-  updateBulkBar();
-  render();
-}
-
-function updateBulkBar() {
-  if (selectedIds.size > 0) {
-    bulkBar.classList.remove("hidden");
-    selectedCount.textContent = `${selectedIds.size} selected`;
-  } else {
-    bulkBar.classList.add("hidden");
-  }
-}
-
-// ── Setup Event Listeners ──
+// ── Setup Listeners ──
 function setupEventListeners() {
-  // Navigation
-  document.querySelectorAll(".sidebar-nav > .nav-item").forEach((btn) => {
+  // System views
+  navItems.forEach((btn) => {
     btn.addEventListener("click", () => {
-      document.querySelectorAll(".sidebar-nav .nav-item").forEach((b) => b.classList.remove("active"));
+      navItems.forEach((b) => b.classList.remove("active"));
       btn.classList.add("active");
       currentView = btn.dataset.view;
-      pageTitle.textContent = btn.childNodes[2].textContent.trim();
-      settingsPanel.classList.add("hidden");
-      statsRow.classList.remove("hidden");
-      itemsGrid.classList.remove("hidden");
-      render();
-    });
-  });
+      activeCollectionId = null;
+      activeContainerId = null;
 
-  // Settings nav
-  btnSettings.addEventListener("click", () => {
-    document.querySelectorAll(".sidebar-nav .nav-item").forEach((b) => b.classList.remove("active"));
-    btnSettings.classList.add("active");
-    pageTitle.textContent = "Settings";
-    statsRow.classList.add("hidden");
-    itemsGrid.classList.add("hidden");
-    emptyState.classList.add("hidden");
-    bulkBar.classList.add("hidden");
-    settingsPanel.classList.remove("hidden");
+      // Deselect collection/container in tree
+      document.querySelectorAll(".col-header-row, .cont-item-row").forEach((el) => el.classList.remove("active"));
+
+      renderHeaderMeta();
+      renderItems();
+    });
   });
 
   // Search
   searchInput.addEventListener("input", (e) => {
-    searchQuery = e.target.value;
-    render();
+    searchQuery = e.target.value.trim().toLowerCase();
+    btnClearSearch.classList.toggle("hidden", searchQuery.length === 0);
+    renderItems();
+  });
+
+  btnClearSearch.addEventListener("click", () => {
+    searchInput.value = "";
+    searchQuery = "";
+    btnClearSearch.classList.add("hidden");
+    renderItems();
+  });
+
+  // Hotkey: '/' to search, 'Escape' to close modals
+  window.addEventListener("keydown", (e) => {
+    if (e.key === "/" && document.activeElement !== searchInput && !isModalOpen()) {
+      e.preventDefault();
+      searchInput.focus();
+    } else if (e.key === "Escape") {
+      closeAllModals();
+    }
   });
 
   // Sort
   sortSelect.addEventListener("change", (e) => {
-    currentSort = e.target.value;
-    render();
+    sortMode = e.target.value;
+    renderItems();
   });
 
-  // Add New Item Button
-  btnAddNew.addEventListener("click", () => {
-    editingItemId = null;
-    modalTitle.textContent = "Add New Item";
-    modalContentInput.value = "";
-    modalTagsInput.value = "";
-    if (modalContainerSelect) {
-      modalContainerSelect.value = containers.some((c) => c.id === currentView) ? currentView : "default";
-    }
-    modal.classList.remove("hidden");
-    modalContentInput.focus();
+  // View toggle
+  btnViewGrid.addEventListener("click", () => {
+    viewMode = "grid";
+    btnViewGrid.classList.add("active");
+    btnViewList.classList.remove("active");
+    itemsGrid.className = "items-grid view-mode-grid";
+    renderItems();
   });
 
-  modalCancel.addEventListener("click", () => modal.classList.add("hidden"));
-  modal.querySelector(".modal-backdrop").addEventListener("click", () => modal.classList.add("hidden"));
-  modalSave.addEventListener("click", handleModalSave);
-
-  // Bulk Actions
-  btnSelectAll.addEventListener("click", () => {
-    const visible = getFilteredItems();
-    visible.forEach((i) => selectedIds.add(i.id));
-    updateBulkBar();
-    render();
+  btnViewList.addEventListener("click", () => {
+    viewMode = "list";
+    btnViewList.classList.add("active");
+    btnViewGrid.classList.remove("active");
+    itemsGrid.className = "items-grid view-mode-list";
+    renderItems();
   });
 
-  btnDeleteSelected.addEventListener("click", () => {
-    if (confirm(`Delete ${selectedIds.size} selected items?`)) {
-      allItems = allItems.filter((i) => !selectedIds.has(i.id));
-      chrome.storage.local.set({ items: allItems }, () => {
-        selectedIds.clear();
-        updateBulkBar();
-        updateStats();
-        renderSidebarContainers();
-        render();
-        showToast("Selected items deleted");
-        SyncService.pushToCloud(allItems, containers);
-      });
-    }
-  });
+  // Quick Action Buttons
+  btnQuickAdd.addEventListener("click", () => openItemModal());
+  btnAddItemDash.addEventListener("click", () => openItemModal());
+  btnEmptyAdd.addEventListener("click", () => openItemModal());
+  btnSidebarAddCol.addEventListener("click", () => openColModal());
+  btnSidebarAddCont.addEventListener("click", () => openContModal());
 
-  btnCancelSelect.addEventListener("click", () => {
-    selectedIds.clear();
-    updateBulkBar();
-    render();
-  });
-
-  // Add Container Button
-  btnAddContainerDash.addEventListener("click", () => {
-    containerModal.classList.remove("hidden");
-    containerNameInput.value = "";
-    selectedContainerEmoji = "⚡";
-    emojiOpts.forEach((b) => b.classList.toggle("active", b.dataset.emoji === "⚡"));
-    containerNameInput.focus();
-  });
-
-  containerModalCancel.addEventListener("click", () => containerModal.classList.add("hidden"));
-  containerModal.querySelector(".modal-backdrop").addEventListener("click", () => containerModal.classList.add("hidden"));
-
-  emojiOpts.forEach((btn) => {
-    btn.addEventListener("click", () => {
-      emojiOpts.forEach((b) => b.classList.remove("active"));
-      btn.classList.add("active");
-      selectedContainerEmoji = btn.dataset.emoji;
-    });
-  });
-
-  containerModalSave.addEventListener("click", () => {
-    const name = containerNameInput.value.trim();
-    if (!name) return;
-
-    const newContainer = {
-      id: "cont_" + Date.now().toString(36),
-      name,
-      icon: selectedContainerEmoji,
-      createdAt: Date.now(),
-    };
-
-    containers.push(newContainer);
-    chrome.storage.local.set({ containers }, () => {
-      containerModal.classList.add("hidden");
-      renderSidebarContainers();
-      showToast(`Container "${name}" created!`);
-      SyncService.pushToCloud(allItems, containers);
-    });
-  });
-
-  // Cloud Sync Button & Modal
-  btnDashAuth.addEventListener("click", () => {
-    checkAuthStatus();
-    authModal.classList.remove("hidden");
-  });
-
-  authModalCancel.addEventListener("click", () => authModal.classList.add("hidden"));
-  authModal.querySelector(".modal-backdrop").addEventListener("click", () => authModal.classList.add("hidden"));
-
-  authToggleMode.addEventListener("click", (e) => {
-    e.preventDefault();
-    authIsSignUp = !authIsSignUp;
-    authSubmitBtn.textContent = authIsSignUp ? "Create Account" : "Log In";
-    authModeText.innerHTML = authIsSignUp
-      ? `Already have an account? <a href="#" id="auth-toggle-mode" style="color:var(--neon);">Log In</a>`
-      : `Don't have an account? <a href="#" id="auth-toggle-mode" style="color:var(--neon);">Sign Up</a>`;
-    document.getElementById("auth-toggle-mode").addEventListener("click", arguments.callee);
-  });
-
-  authSubmitBtn.addEventListener("click", async () => {
-    const email = authEmailInput.value.trim();
-    const password = authPasswordInput.value.trim();
-    if (!email || !password) {
-      showToast("Please enter email and password");
-      return;
-    }
-
-    authSubmitBtn.disabled = true;
-    authSubmitBtn.textContent = "Connecting...";
-
-    try {
-      if (authIsSignUp) {
-        await SyncService.signUp(email, password);
-        showToast("Account created!");
-      } else {
-        await SyncService.logIn(email, password);
-        showToast("Logged in!");
-      }
-
-      showToast("Syncing with cloud...");
-      const synced = await SyncService.syncNow();
-      if (synced) {
-        allItems = synced.items || [];
-        containers = synced.containers && synced.containers.length > 0 ? synced.containers : [...DEFAULT_CONTAINERS];
-        updateStats();
-        renderSidebarContainers();
-        render();
-      }
-      checkAuthStatus();
-    } catch (err) {
-      showToast(err.message || "Authentication failed");
-    } finally {
-      authSubmitBtn.disabled = false;
-      authSubmitBtn.textContent = authIsSignUp ? "Create Account" : "Log In";
-    }
-  });
-
-  btnSyncNow.addEventListener("click", async () => {
-    btnSyncNow.disabled = true;
-    btnSyncNow.textContent = "Syncing...";
-    try {
-      const res = await SyncService.syncNow();
-      if (res) {
-        allItems = res.items || [];
-        containers = res.containers && res.containers.length > 0 ? res.containers : [...DEFAULT_CONTAINERS];
-        updateStats();
-        renderSidebarContainers();
-        render();
-        showToast("Cloud sync complete!");
-      }
-    } catch (err) {
-      showToast("Sync failed: " + err.message);
-    } finally {
-      btnSyncNow.disabled = false;
-      btnSyncNow.textContent = "Sync Now";
-    }
-  });
-
-  btnLogout.addEventListener("click", async () => {
-    await SyncService.logOut();
-    checkAuthStatus();
-    showToast("Logged out of cloud account");
-  });
-
-  // Settings Actions
-  const btnShortcuts = document.getElementById("btn-shortcuts");
-  if (btnShortcuts) {
-    btnShortcuts.addEventListener("click", () => {
-      chrome.tabs.create({ url: "chrome://extensions/shortcuts" });
-    });
-  }
-  document.getElementById("settings-export").addEventListener("click", exportData);
-  document.getElementById("settings-import").addEventListener("click", () => importFile.click());
+  // Export / Import
+  btnExportDash.addEventListener("click", handleExport);
+  btnImportDash.addEventListener("click", () => importFile.click());
   importFile.addEventListener("change", handleImport);
-  document.getElementById("settings-clear").addEventListener("click", clearAllData);
+
+  // Item Modal Events
+  itemModalClose.addEventListener("click", closeItemModal);
+  itemModalCancel.addEventListener("click", closeItemModal);
+  itemModalSave.addEventListener("click", handleSaveItemModal);
+  modalColSelect.addEventListener("change", () => {
+    populateContainerSelect(modalContSelect, modalColSelect.value);
+  });
+
+  // Collection Modal Events
+  colModalClose.addEventListener("click", closeColModal);
+  colModalCancel.addEventListener("click", closeColModal);
+  colModalSave.addEventListener("click", handleSaveColModal);
+  dashColColors.querySelectorAll(".color-swatch").forEach((swatch) => {
+    swatch.addEventListener("click", () => {
+      dashColColors.querySelectorAll(".color-swatch").forEach((s) => s.classList.remove("active"));
+      swatch.classList.add("active");
+      selectedColColor = swatch.dataset.color;
+    });
+  });
+
+  // Container Modal Events
+  contModalClose.addEventListener("click", closeContModal);
+  contModalCancel.addEventListener("click", closeContModal);
+  contModalSave.addEventListener("click", handleSaveContModal);
+
+  // Move Modal Events
+  moveModalClose.addEventListener("click", closeMoveModal);
+  moveModalCancel.addEventListener("click", closeMoveModal);
+  moveModalConfirm.addEventListener("click", handleConfirmMove);
+  moveColSelect.addEventListener("change", () => {
+    populateContainerSelect(moveContSelect, moveColSelect.value);
+  });
+
+  // Auth Modal Events
+  btnOpenAuthModal.addEventListener("click", openAuthModal);
+  userStatusCard.addEventListener("click", openAuthModal);
+  authModalClose.addEventListener("click", closeAuthModal);
+  authModalCancel.addEventListener("click", closeAuthModal);
+  authToggleMode.addEventListener("click", toggleAuthMode);
+  authSubmitBtn.addEventListener("click", handleAuthSubmit);
+  btnSyncNow.addEventListener("click", handleManualSync);
+  btnLogout.addEventListener("click", handleLogout);
 }
 
-// ── Modal Save ──
-function handleModalSave() {
-  const content = modalContentInput.value.trim();
+// ── Render Sidebar Collections & Containers Tree ──
+function renderSidebarTree() {
+  sidebarCollectionsTree.innerHTML = "";
+
+  collections.forEach((col) => {
+    const colNode = document.createElement("div");
+    colNode.className = `col-tree-node ${expandedCollections.has(col.id) ? "expanded" : ""}`;
+
+    const childContainers = containers.filter((c) => c.collectionId === col.id);
+    const colItemCount = allItems.filter((i) => i.collectionId === col.id).length;
+    const isColActive = currentView === "collection" && activeCollectionId === col.id;
+
+    // Collection Header Row
+    const headerRow = document.createElement("div");
+    headerRow.className = `col-header-row ${isColActive ? "active" : ""}`;
+    headerRow.innerHTML = `
+      <div class="col-header-left">
+        <svg class="col-toggle-caret" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <polyline points="9 18 15 12 9 6"/>
+        </svg>
+        <span class="col-symbol" style="color: ${col.color || "#4F46E5"}">📁</span>
+        <span class="col-name" title="${escapeHTML(col.name)}">${escapeHTML(col.name)}</span>
+      </div>
+      <div class="col-header-right">
+        <span class="col-count">${colItemCount}</span>
+        <button class="col-action-trigger" title="Collection Actions">⋯</button>
+      </div>
+    `;
+
+    // Click caret toggles expansion
+    const caret = headerRow.querySelector(".col-toggle-caret");
+    caret.addEventListener("click", (e) => {
+      e.stopPropagation();
+      if (expandedCollections.has(col.id)) {
+        expandedCollections.delete(col.id);
+      } else {
+        expandedCollections.add(col.id);
+      }
+      renderSidebarTree();
+    });
+
+    // Click header selects collection view
+    headerRow.addEventListener("click", () => {
+      navItems.forEach((b) => b.classList.remove("active"));
+      document.querySelectorAll(".col-header-row, .cont-item-row").forEach((el) => el.classList.remove("active"));
+      headerRow.classList.add("active");
+
+      currentView = "collection";
+      activeCollectionId = col.id;
+      activeContainerId = null;
+
+      renderHeaderMeta();
+      renderItems();
+    });
+
+    // Collection Options (Edit/Delete)
+    const actionTrigger = headerRow.querySelector(".col-action-trigger");
+    actionTrigger.addEventListener("click", (e) => {
+      e.stopPropagation();
+      openColContextMenu(e, col);
+    });
+
+    colNode.appendChild(headerRow);
+
+    // Sublist of Containers
+    const sublist = document.createElement("div");
+    sublist.className = "col-containers-sublist";
+
+    childContainers.forEach((cont) => {
+      const contCount = allItems.filter((i) => i.containerId === cont.id).length;
+      const isContActive = currentView === "container" && activeContainerId === cont.id;
+
+      const contRow = document.createElement("div");
+      contRow.className = `cont-item-row ${isContActive ? "active" : ""}`;
+      contRow.innerHTML = `
+        <div class="cont-item-left">
+          <span class="cont-symbol">🗄️</span>
+          <span class="cont-name" title="${escapeHTML(cont.name)}">${escapeHTML(cont.name)}</span>
+        </div>
+        <div class="cont-actions">
+          <span class="cont-count">${contCount}</span>
+          <button class="btn-cont-action edit-cont" title="Edit Container">✏️</button>
+          <button class="btn-cont-action del-cont" title="Delete Container">🗑️</button>
+        </div>
+      `;
+
+      contRow.addEventListener("click", () => {
+        navItems.forEach((b) => b.classList.remove("active"));
+        document.querySelectorAll(".col-header-row, .cont-item-row").forEach((el) => el.classList.remove("active"));
+        contRow.classList.add("active");
+
+        currentView = "container";
+        activeCollectionId = col.id;
+        activeContainerId = cont.id;
+
+        // Remember as last active container
+        chrome.storage.local.set({ lastActiveContainer: cont.id });
+
+        renderHeaderMeta();
+        renderItems();
+      });
+
+      contRow.querySelector(".edit-cont").addEventListener("click", (e) => {
+        e.stopPropagation();
+        openEditContModal(cont);
+      });
+
+      contRow.querySelector(".del-cont").addEventListener("click", (e) => {
+        e.stopPropagation();
+        handleDeleteContainer(cont);
+      });
+
+      sublist.appendChild(contRow);
+    });
+
+    colNode.appendChild(sublist);
+    sidebarCollectionsTree.appendChild(colNode);
+  });
+}
+
+function updateSidebarCounts() {
+  countAll.textContent = allItems.length;
+  countFav.textContent = allItems.filter((i) => i.favorite).length;
+  countQuote.textContent = allItems.filter((i) => i.type === "quote").length;
+  countMedia.textContent = allItems.filter((i) => i.type === "youtube" || i.type === "image").length;
+  countLink.textContent = allItems.filter((i) => i.type === "link" || i.type === "product" || i.type === "social").length;
+}
+
+// ── Header Meta (Breadcrumbs, Title, Desc) ──
+function renderHeaderMeta() {
+  if (currentView === "all") {
+    dashBreadcrumbs.innerHTML = `<span class="b-crumb b-col">📁 All Collections</span> <span class="b-sep">›</span> <span class="b-crumb b-cont">🗄️ All Items</span>`;
+    pageTitle.textContent = "All Saved Items";
+    pageDesc.textContent = "Browse everything captured across your web browsing sessions";
+  } else if (currentView === "favorite") {
+    dashBreadcrumbs.innerHTML = `<span class="b-crumb">★ Favorites</span>`;
+    pageTitle.textContent = "Favorite Saves";
+    pageDesc.textContent = "Your starred web clippings, quotes, and media treasures";
+  } else if (currentView === "quote") {
+    dashBreadcrumbs.innerHTML = `<span class="b-crumb">💬 Quotes & Snippets</span>`;
+    pageTitle.textContent = "Saved Quotes & Text";
+    pageDesc.textContent = "Highlighted thoughts, book excerpts, and memorable lines";
+  } else if (currentView === "media") {
+    dashBreadcrumbs.innerHTML = `<span class="b-crumb">🎬 YouTube & Media</span>`;
+    pageTitle.textContent = "Videos & Visual Assets";
+    pageDesc.textContent = "YouTube tutorials, design inspirations, and saved images";
+  } else if (currentView === "link") {
+    dashBreadcrumbs.innerHTML = `<span class="b-crumb">🔗 Links & Articles</span>`;
+    pageTitle.textContent = "Articles & Bookmarks";
+    pageDesc.textContent = "Reading list, blog posts, and curated internet links";
+  } else if (currentView === "collection") {
+    const col = collections.find((c) => c.id === activeCollectionId);
+    dashBreadcrumbs.innerHTML = `<span class="b-crumb b-col">📁 ${escapeHTML(col?.name || "Collection")}</span>`;
+    pageTitle.textContent = `📁 ${col?.name || "Collection"}`;
+    pageDesc.textContent = `All containers and items within the ${col?.name || ""} collection`;
+  } else if (currentView === "container") {
+    const col = collections.find((c) => c.id === activeCollectionId);
+    const cont = containers.find((c) => c.id === activeContainerId);
+    dashBreadcrumbs.innerHTML = `
+      <span class="b-crumb b-col">📁 ${escapeHTML(col?.name || "Collection")}</span>
+      <span class="b-sep">›</span>
+      <span class="b-crumb b-cont">🗄️ ${escapeHTML(cont?.name || "Container")}</span>
+    `;
+    pageTitle.textContent = `🗄️ ${cont?.name || "Container"}`;
+    pageDesc.textContent = cont?.description || `Saved items inside ${cont?.name || "this container"}`;
+  }
+}
+
+// ── Render Items Viewport ──
+function renderItems() {
+  let filtered = [...allItems];
+
+  // View filtering
+  if (currentView === "favorite") {
+    filtered = filtered.filter((i) => i.favorite);
+  } else if (currentView === "quote") {
+    filtered = filtered.filter((i) => i.type === "quote");
+  } else if (currentView === "media") {
+    filtered = filtered.filter((i) => i.type === "youtube" || i.type === "image");
+  } else if (currentView === "link") {
+    filtered = filtered.filter((i) => i.type === "link" || i.type === "product" || i.type === "social");
+  } else if (currentView === "collection" && activeCollectionId) {
+    filtered = filtered.filter((i) => i.collectionId === activeCollectionId);
+  } else if (currentView === "container" && activeContainerId) {
+    filtered = filtered.filter((i) => i.containerId === activeContainerId);
+  }
+
+  // Search query filter
+  if (searchQuery) {
+    filtered = filtered.filter((i) => {
+      const titleMatch = (i.title || "").toLowerCase().includes(searchQuery);
+      const contentMatch = (i.content || "").toLowerCase().includes(searchQuery);
+      const tagMatch = (i.tags || []).some((t) => t.toLowerCase().includes(searchQuery));
+      const sourceMatch = (i.sourceTitle || i.sourceUrl || "").toLowerCase().includes(searchQuery);
+      return titleMatch || contentMatch || tagMatch || sourceMatch;
+    });
+  }
+
+  // Sorting
+  if (sortMode === "newest") {
+    filtered.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+  } else if (sortMode === "oldest") {
+    filtered.sort((a, b) => (a.createdAt || 0) - (b.createdAt || 0));
+  } else if (sortMode === "alpha") {
+    filtered.sort((a, b) => (a.title || a.content || "").localeCompare(b.title || b.content || ""));
+  } else if (sortMode === "type") {
+    filtered.sort((a, b) => (a.type || "").localeCompare(b.type || ""));
+  }
+
+  resultsCount.textContent = `${filtered.length} ${filtered.length === 1 ? "item" : "items"}`;
+
+  // Empty state check
+  if (filtered.length === 0) {
+    itemsGrid.innerHTML = "";
+    emptyState.classList.remove("hidden");
+    return;
+  }
+  emptyState.classList.add("hidden");
+
+  // Render cards
+  itemsGrid.innerHTML = "";
+  filtered.forEach((item) => {
+    const card = buildDashboardCard(item);
+    itemsGrid.appendChild(card);
+  });
+}
+
+// ── Card Builder for Dashboard ──
+function buildDashboardCard(item) {
+  const card = document.createElement("div");
+  card.className = `dash-card type-${item.type || "text"}`;
+  card.dataset.id = item.id;
+
+  const parentCol = collections.find((c) => c.id === item.collectionId);
+  const parentCont = containers.find((c) => c.id === item.containerId);
+  const colName = parentCol ? parentCol.name : "Collection";
+  const contName = parentCont ? parentCont.name : "Container";
+
+  const typeLabels = {
+    youtube: "🎬 YouTube",
+    quote: "💬 Quote",
+    image: "🖼️ Image",
+    product: "🛍️ Product",
+    social: "📱 Social",
+    link: "🔗 Link",
+    text: "📝 Note",
+  };
+  const typeText = typeLabels[item.type] || "📄 Clip";
+  const targetUrl = item.sourceUrl || (item.content.startsWith("http") ? item.content : "");
+
+  let cardHtml = `
+    <div class="dash-card-header">
+      <div style="display: flex; align-items: center; gap: 8px;">
+        <span class="dash-type-badge ${item.type || "text"}">${typeText}</span>
+        <span class="dash-path-badge" title="📁 ${escapeHTML(colName)} › 🗄️ ${escapeHTML(contName)}">
+          📁 ${escapeHTML(colName)} › 🗄️ ${escapeHTML(contName)}
+        </span>
+      </div>
+      <div class="dash-card-actions">
+        <button class="dash-tool-btn fav-btn ${item.favorite ? "active" : ""}" title="Favorite">
+          <svg viewBox="0 0 24 24" fill="${item.favorite ? "currentColor" : "none"}" stroke="currentColor" stroke-width="2" width="14" height="14"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+        </button>
+        <button class="dash-tool-btn copy-btn" title="Copy Content">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+        </button>
+        <button class="dash-tool-btn move-btn" title="Move to Container">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/></svg>
+        </button>
+        <button class="dash-tool-btn edit-btn" title="Edit Item">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
+        </button>
+        <button class="dash-tool-btn delete-btn" title="Delete Item">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </button>
+      </div>
+    </div>
+  `;
+
+  if (item.title && item.title.trim()) {
+    cardHtml += `<div class="dash-card-title">${escapeHTML(item.title)}</div>`;
+  }
+
+  // Polymorphic display
+  if (item.type === "youtube") {
+    const thumb = item.previewImage || (item.metadata?.videoId ? `https://img.youtube.com/vi/${item.metadata.videoId}/hqdefault.jpg` : "");
+    if (thumb) {
+      cardHtml += `
+        <div class="dash-media-banner">
+          <img src="${thumb}" alt="YouTube Thumbnail" loading="lazy" />
+          <div class="dash-play-btn">
+            <svg viewBox="0 0 24 24" fill="currentColor" width="18" height="18"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+          </div>
+        </div>
+      `;
+    }
+  } else if (item.type === "image") {
+    const imgSrc = item.previewImage || item.content;
+    cardHtml += `
+      <div class="dash-image-box">
+        <img src="${escapeHTML(imgSrc)}" alt="Image Preview" loading="lazy" />
+      </div>
+    `;
+  } else if (item.type === "quote") {
+    cardHtml += `<div class="dash-quote-body">“${escapeHTML(item.content)}”</div>`;
+  } else {
+    cardHtml += `<div class="dash-card-text">${escapeHTML(item.content)}</div>`;
+  }
+
+  // Tags
+  if (item.tags && item.tags.length > 0) {
+    cardHtml += `
+      <div class="dash-card-tags">
+        ${item.tags.map((t) => `<span class="dash-tag">#${escapeHTML(t)}</span>`).join("")}
+      </div>
+    `;
+  }
+
+  // Footer Row
+  const timeStr = formatRelativeTime(item.createdAt);
+  cardHtml += `
+    <div class="dash-card-footer">
+      ${
+        targetUrl
+          ? `<a href="${escapeHTML(targetUrl)}" target="_blank" class="dash-source-link" title="${escapeHTML(targetUrl)}">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="12" height="12"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+              <span>${escapeHTML(extractHostname(targetUrl))}</span>
+            </a>`
+          : `<span></span>`
+      }
+      <span class="dash-card-time">${timeStr}</span>
+    </div>
+  `;
+
+  card.innerHTML = cardHtml;
+
+  // Event wiring
+  card.querySelector(".fav-btn").addEventListener("click", () => toggleFavorite(item.id));
+  card.querySelector(".copy-btn").addEventListener("click", () => copyToClipboard(item.content));
+  card.querySelector(".move-btn").addEventListener("click", () => openMoveModal(item));
+  card.querySelector(".edit-btn").addEventListener("click", () => openEditItemModal(item));
+  card.querySelector(".delete-btn").addEventListener("click", () => deleteItem(item.id));
+
+  const mediaBanner = card.querySelector(".dash-media-banner, .dash-image-box");
+  if (mediaBanner && targetUrl) {
+    mediaBanner.addEventListener("click", () => chrome.tabs.create({ url: targetUrl }));
+  }
+
+  return card;
+}
+
+// ── Modals & Actions ──
+
+// 1. Item Modal (Add / Edit)
+function openItemModal(defaultColId, defaultContId) {
+  editingItemId = null;
+  itemModalTitle.textContent = "Save to Container";
+  populateCollectionSelect(modalColSelect, defaultColId || activeCollectionId || collections[0]?.id);
+  populateContainerSelect(modalContSelect, modalColSelect.value, defaultContId || activeContainerId || undefined);
+  modalItemTitle.value = "";
+  modalItemContent.value = "";
+  modalItemSource.value = "";
+  modalItemTags.value = "";
+  itemModal.classList.remove("hidden");
+  modalItemContent.focus();
+}
+
+function openEditItemModal(item) {
+  editingItemId = item.id;
+  itemModalTitle.textContent = "Edit Item";
+  populateCollectionSelect(modalColSelect, item.collectionId);
+  populateContainerSelect(modalContSelect, item.collectionId, item.containerId);
+  modalItemTitle.value = item.title || "";
+  modalItemContent.value = item.content || "";
+  modalItemSource.value = item.sourceUrl || "";
+  modalItemTags.value = (item.tags || []).join(", ");
+  itemModal.classList.remove("hidden");
+}
+
+function closeItemModal() {
+  itemModal.classList.add("hidden");
+  editingItemId = null;
+}
+
+async function handleSaveItemModal() {
+  const content = modalItemContent.value.trim();
   if (!content) {
-    modalContentInput.style.borderColor = "var(--red)";
-    setTimeout(() => (modalContentInput.style.borderColor = ""), 1000);
+    modalItemContent.focus();
     return;
   }
 
-  const tags = modalTagsInput.value
-    .split(",")
-    .map((t) => t.trim())
-    .filter((t) => t);
+  const colId = modalColSelect.value;
+  const contId = modalContSelect.value;
+  const title = modalItemTitle.value.trim();
+  const sourceUrl = modalItemSource.value.trim();
+  const tags = modalItemTags.value.split(",").map((t) => t.trim()).filter(Boolean);
 
-  const isUrl = /^https?:\/\//i.test(content) || /^(www\.)/i.test(content);
-  const detectedType = isUrl ? "link" : "text";
-  const chosenContainer = modalContainerSelect ? modalContainerSelect.value : "default";
+  const classification = classifyContent(content, sourceUrl);
 
   if (editingItemId) {
-    const item = allItems.find((i) => i.id === editingItemId);
-    if (item) {
-      item.content = content;
-      item.tags = tags;
-      item.type = detectedType;
-      item.containerId = chosenContainer;
+    // Edit existing
+    const idx = allItems.findIndex((i) => i.id === editingItemId);
+    if (idx !== -1) {
+      allItems[idx] = {
+        ...allItems[idx],
+        title,
+        content,
+        sourceUrl,
+        collectionId: colId,
+        containerId: contId,
+        tags,
+        type: classification.type,
+        previewImage: classification.thumbnail || (classification.type === "image" ? content : allItems[idx].previewImage),
+        metadata: classification.videoId ? { videoId: classification.videoId } : allItems[idx].metadata,
+        updatedAt: Date.now(),
+      };
+      showToast("Item updated!");
     }
-    showToast("Item updated!");
   } else {
-    const item = {
-      id: Date.now().toString(36) + Math.random().toString(36).substr(2, 9),
-      type: detectedType,
+    // Create new
+    const newItem = {
+      id: generateId(),
+      type: classification.type,
+      title: title || (classification.type === "youtube" ? "Saved YouTube" : ""),
       content,
-      containerId: chosenContainer,
-      sourceUrl: "",
+      containerId: contId,
+      collectionId: colId,
+      sourceUrl,
       sourceTitle: "",
-      createdAt: Date.now(),
+      previewImage: classification.thumbnail || (classification.type === "image" ? content : ""),
+      metadata: classification.videoId ? { videoId: classification.videoId } : {},
       tags,
       favorite: false,
+      createdAt: Date.now(),
     };
-    allItems.unshift(item);
-    showToast("Item saved!");
+    allItems.unshift(newItem);
+    showToast("Saved to container!");
   }
 
-  chrome.storage.local.set({ items: allItems }, () => {
-    modal.classList.add("hidden");
-    editingItemId = null;
-    updateStats();
-    renderSidebarContainers();
-    render();
-    SyncService.pushToCloud(allItems, containers);
-  });
+  await chrome.storage.local.set({ items: allItems });
+  SyncService.pushToCloud(allItems, containers, collections).catch(() => {});
+
+  closeItemModal();
+  renderSidebarTree();
+  updateSidebarCounts();
+  renderItems();
 }
 
-// ── Auth Status Check ──
-async function checkAuthStatus() {
-  const session = await SyncService.getUser();
-  if (session && session.user) {
-    authLoggedOutView.classList.add("hidden");
-    authLoggedInView.classList.remove("hidden");
-    authUserEmail.textContent = session.user.email;
-    dashAuthLabel.textContent = "Synced";
-    btnDashAuth.classList.add("btn-primary");
-    btnDashAuth.classList.remove("btn-secondary");
+// 2. Collection Modal
+function openColModal(editCol = null) {
+  editingColId = editCol ? editCol.id : null;
+  colModalTitle.textContent = editCol ? "Edit Collection (📁)" : "Create Collection (📁)";
+  dashColName.value = editCol ? editCol.name : "";
+  selectedColColor = editCol ? editCol.color || "#4F46E5" : "#4F46E5";
+
+  dashColColors.querySelectorAll(".color-swatch").forEach((s) => {
+    s.classList.toggle("active", s.dataset.color === selectedColColor);
+  });
+
+  colModal.classList.remove("hidden");
+  dashColName.focus();
+}
+
+function closeColModal() {
+  colModal.classList.add("hidden");
+  editingColId = null;
+}
+
+async function handleSaveColModal() {
+  const name = dashColName.value.trim();
+  if (!name) return;
+
+  if (editingColId) {
+    const idx = collections.findIndex((c) => c.id === editingColId);
+    if (idx !== -1) {
+      collections[idx] = { ...collections[idx], name, color: selectedColColor };
+      showToast("Collection updated!");
+    }
   } else {
-    authLoggedInView.classList.add("hidden");
-    authLoggedOutView.classList.remove("hidden");
-    dashAuthLabel.textContent = "Cloud Sync";
-    btnDashAuth.classList.remove("btn-primary");
-    btnDashAuth.classList.add("btn-secondary");
+    const newCol = {
+      id: "col_" + generateId(),
+      name,
+      color: selectedColColor,
+      createdAt: Date.now(),
+      order: collections.length,
+    };
+    collections.push(newCol);
+    expandedCollections.add(newCol.id);
+
+    // Add initial container inside new collection
+    const defaultCont = {
+      id: "cont_" + generateId(),
+      collectionId: newCol.id,
+      name: "General",
+      icon: "archive",
+      description: "Default container for " + name,
+      createdAt: Date.now(),
+      order: 0,
+    };
+    containers.push(defaultCont);
+
+    currentView = "collection";
+    activeCollectionId = newCol.id;
+    activeContainerId = null;
+    showToast(`Created collection: 📁 ${name}`);
+  }
+
+  await chrome.storage.local.set({ collections, containers });
+  SyncService.pushToCloud(allItems, containers, collections).catch(() => {});
+
+  closeColModal();
+  renderSidebarTree();
+  renderHeaderMeta();
+  renderItems();
+}
+
+// 3. Container Modal
+function openContModal(parentColId = null) {
+  editingContId = null;
+  contModalTitle.textContent = "Create Container (🗄️)";
+  populateCollectionSelect(dashContParentCol, parentColId || activeCollectionId || collections[0]?.id);
+  dashContName.value = "";
+  dashContDesc.value = "";
+  contModal.classList.remove("hidden");
+  dashContName.focus();
+}
+
+function openEditContModal(cont) {
+  editingContId = cont.id;
+  contModalTitle.textContent = "Edit Container (🗄️)";
+  populateCollectionSelect(dashContParentCol, cont.collectionId);
+  dashContName.value = cont.name || "";
+  dashContDesc.value = cont.description || "";
+  contModal.classList.remove("hidden");
+  dashContName.focus();
+}
+
+function closeContModal() {
+  contModal.classList.add("hidden");
+  editingContId = null;
+}
+
+async function handleSaveContModal() {
+  const name = dashContName.value.trim();
+  const parentColId = dashContParentCol.value;
+  const desc = dashContDesc.value.trim();
+  if (!name || !parentColId) return;
+
+  if (editingContId) {
+    const idx = containers.findIndex((c) => c.id === editingContId);
+    if (idx !== -1) {
+      containers[idx] = {
+        ...containers[idx],
+        name,
+        collectionId: parentColId,
+        description: desc,
+      };
+      // Update any items inside if collectionId changed
+      allItems.forEach((item) => {
+        if (item.containerId === editingContId) item.collectionId = parentColId;
+      });
+      showToast("Container updated!");
+    }
+  } else {
+    const newCont = {
+      id: "cont_" + generateId(),
+      collectionId: parentColId,
+      name,
+      icon: "archive",
+      description: desc,
+      createdAt: Date.now(),
+      order: containers.length,
+    };
+    containers.push(newCont);
+    expandedCollections.add(parentColId);
+
+    currentView = "container";
+    activeCollectionId = parentColId;
+    activeContainerId = newCont.id;
+    chrome.storage.local.set({ lastActiveContainer: newCont.id });
+    showToast(`Created container: 🗄️ ${name}`);
+  }
+
+  await chrome.storage.local.set({ containers, items: allItems });
+  SyncService.pushToCloud(allItems, containers, collections).catch(() => {});
+
+  closeContModal();
+  renderSidebarTree();
+  renderHeaderMeta();
+  renderItems();
+}
+
+async function handleDeleteContainer(cont) {
+  if (!confirm(`Delete container "${cont.name}"? Items inside will be moved to Quick Saves.`)) return;
+
+  const fallbackCont = containers.find((c) => c.id !== cont.id) || DEFAULT_CONTAINERS[0];
+  containers = containers.filter((c) => c.id !== cont.id);
+
+  allItems.forEach((i) => {
+    if (i.containerId === cont.id) {
+      i.containerId = fallbackCont.id;
+      i.collectionId = fallbackCont.collectionId;
+    }
+  });
+
+  if (activeContainerId === cont.id) {
+    activeContainerId = fallbackCont.id;
+    activeCollectionId = fallbackCont.collectionId;
+  }
+
+  await chrome.storage.local.set({ containers, items: allItems });
+  SyncService.pushToCloud(allItems, containers, collections).catch(() => {});
+
+  renderSidebarTree();
+  updateSidebarCounts();
+  renderHeaderMeta();
+  renderItems();
+  showToast("Container removed");
+}
+
+function openColContextMenu(e, col) {
+  const action = prompt(`Collection "${col.name}":\nType "rename" to rename\nType "delete" to delete\nType "add" to add container`, "add");
+  if (!action) return;
+
+  if (action.toLowerCase() === "rename") {
+    openColModal(col);
+  } else if (action.toLowerCase() === "add") {
+    openContModal(col.id);
+  } else if (action.toLowerCase() === "delete") {
+    if (collections.length <= 1) {
+      alert("You must have at least one collection.");
+      return;
+    }
+    if (confirm(`Delete collection "${col.name}" and its containers?`)) {
+      collections = collections.filter((c) => c.id !== col.id);
+      containers = containers.filter((c) => c.collectionId !== col.id);
+      allItems = allItems.filter((i) => i.collectionId !== col.id);
+
+      currentView = "all";
+      activeCollectionId = null;
+      activeContainerId = null;
+
+      chrome.storage.local.set({ collections, containers, items: allItems });
+      SyncService.pushToCloud(allItems, containers, collections).catch(() => {});
+
+      renderSidebarTree();
+      updateSidebarCounts();
+      renderHeaderMeta();
+      renderItems();
+      showToast("Collection deleted");
+    }
   }
 }
 
-// ── Import / Export / Clear ──
-function exportData() {
-  const exportBundle = { items: allItems, containers };
-  const blob = new Blob([JSON.stringify(exportBundle, null, 2)], {
-    type: "application/json",
+// 4. Move Modal
+function openMoveModal(item) {
+  movingItemId = item.id;
+  populateCollectionSelect(moveColSelect, item.collectionId);
+  populateContainerSelect(moveContSelect, item.collectionId, item.containerId);
+  moveModal.classList.remove("hidden");
+}
+
+function closeMoveModal() {
+  moveModal.classList.add("hidden");
+  movingItemId = null;
+}
+
+async function handleConfirmMove() {
+  if (!movingItemId) return;
+  const colId = moveColSelect.value;
+  const contId = moveContSelect.value;
+  if (!colId || !contId) return;
+
+  const item = allItems.find((i) => i.id === movingItemId);
+  if (!item) return;
+
+  item.collectionId = colId;
+  item.containerId = contId;
+
+  await chrome.storage.local.set({ items: allItems });
+  SyncService.pushToCloud(allItems, containers, collections).catch(() => {});
+
+  closeMoveModal();
+  renderSidebarTree();
+  updateSidebarCounts();
+  renderItems();
+  showToast("Item moved successfully!");
+}
+
+// ── Select Helpers ──
+function populateCollectionSelect(selectEl, selectedColId) {
+  selectEl.innerHTML = "";
+  collections.forEach((col) => {
+    const opt = document.createElement("option");
+    opt.value = col.id;
+    opt.textContent = `📁 ${col.name}`;
+    if (col.id === selectedColId) opt.selected = true;
+    selectEl.appendChild(opt);
   });
+}
+
+function populateContainerSelect(selectEl, colId, selectedContId) {
+  selectEl.innerHTML = "";
+  const matching = containers.filter((c) => c.collectionId === colId);
+  if (matching.length === 0) {
+    const opt = document.createElement("option");
+    opt.value = "";
+    opt.textContent = "(No containers in this collection)";
+    selectEl.appendChild(opt);
+    return;
+  }
+
+  matching.forEach((cont) => {
+    const opt = document.createElement("option");
+    opt.value = cont.id;
+    opt.textContent = `🗄️ ${cont.name}`;
+    if (cont.id === selectedContId) opt.selected = true;
+    selectEl.appendChild(opt);
+  });
+}
+
+// ── Item Actions ──
+async function toggleFavorite(id) {
+  const item = allItems.find((i) => i.id === id);
+  if (!item) return;
+  item.favorite = !item.favorite;
+  await chrome.storage.local.set({ items: allItems });
+  SyncService.pushToCloud(allItems, containers, collections).catch(() => {});
+  updateSidebarCounts();
+  renderItems();
+  showToast(item.favorite ? "Added to Favorites ★" : "Removed from Favorites");
+}
+
+async function copyToClipboard(text) {
+  try {
+    await navigator.clipboard.writeText(text);
+    showToast("Copied to clipboard!");
+  } catch (err) {
+    showToast("Copy failed");
+  }
+}
+
+async function deleteItem(id) {
+  if (!confirm("Are you sure you want to delete this saved item?")) return;
+  allItems = allItems.filter((i) => i.id !== id);
+  await chrome.storage.local.set({ items: allItems });
+  SyncService.pushToCloud(allItems, containers, collections).catch(() => {});
+  renderSidebarTree();
+  updateSidebarCounts();
+  renderItems();
+  showToast("Item deleted");
+}
+
+// ── Export / Import ──
+function handleExport() {
+  const data = {
+    collections,
+    containers,
+    items: allItems,
+    exportedAt: new Date().toISOString(),
+  };
+
+  const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
   a.href = url;
-  a.download = `saveit-backup-${new Date().toISOString().slice(0, 10)}.json`;
+  a.download = `saveit-workspace-${new Date().toISOString().slice(0, 10)}.json`;
   a.click();
   URL.revokeObjectURL(url);
-  showToast("Exported successfully!");
+  showToast("Exported workspace JSON!");
 }
 
-function handleImport(e) {
-  const file = e.target.files[0];
+async function handleImport(e) {
+  const file = e.target.files?.[0];
   if (!file) return;
 
-  const reader = new FileReader();
-  reader.onload = (event) => {
-    try {
-      const parsed = JSON.parse(event.target.result);
-      const importedItems = Array.isArray(parsed) ? parsed : parsed.items || [];
-      const importedContainers = parsed.containers || [];
+  try {
+    const text = await file.text();
+    const data = JSON.parse(text);
 
-      allItems = [...importedItems, ...allItems];
-      if (importedContainers.length > 0) {
-        const map = new Map();
-        containers.forEach((c) => map.set(c.id, c));
-        importedContainers.forEach((c) => map.set(c.id, c));
-        containers = Array.from(map.values());
-      }
+    let importedItems = Array.isArray(data) ? data : data.items || [];
+    let importedContainers = data.containers || [];
+    let importedCollections = data.collections || [];
 
-      chrome.storage.local.set({ items: allItems, containers }, () => {
-        updateStats();
-        renderSidebarContainers();
-        render();
-        showToast(`Imported ${importedItems.length} items!`);
-        SyncService.pushToCloud(allItems, containers);
-      });
-    } catch {
-      showToast("Invalid file format");
-    }
-  };
-  reader.readAsText(file);
-  importFile.value = "";
-}
+    const colMap = new Map();
+    collections.forEach((c) => colMap.set(c.id, c));
+    importedCollections.forEach((c) => { if (c && c.id && !colMap.has(c.id)) colMap.set(c.id, c); });
 
-function clearAllData() {
-  if (confirm("Are you sure? This will delete ALL saved items permanently!")) {
-    chrome.storage.local.set({ items: [] }, () => {
-      allItems = [];
-      selectedIds.clear();
-      updateBulkBar();
-      updateStats();
-      renderSidebarContainers();
-      render();
-      showToast("All data cleared");
-      SyncService.pushToCloud([], containers);
-    });
+    const contMap = new Map();
+    containers.forEach((c) => contMap.set(c.id, c));
+    importedContainers.forEach((c) => { if (c && c.id && !contMap.has(c.id)) contMap.set(c.id, c); });
+
+    const itemMap = new Map();
+    allItems.forEach((i) => itemMap.set(i.id, i));
+    importedItems.forEach((i) => { if (i && i.id && !itemMap.has(i.id)) itemMap.set(i.id, i); });
+
+    collections = Array.from(colMap.values());
+    containers = Array.from(contMap.values());
+    allItems = Array.from(itemMap.values());
+
+    await chrome.storage.local.set({ collections, containers, items: allItems });
+    await SyncService.ensureInitializedAndMigrated();
+    SyncService.pushToCloud(allItems, containers, collections).catch(() => {});
+
+    renderSidebarTree();
+    updateSidebarCounts();
+    renderHeaderMeta();
+    renderItems();
+    showToast(`Imported ${importedItems.length} items!`);
+  } catch (err) {
+    showToast("Error importing backup");
   }
 }
 
-// ── Helpers ──
+// ── Auth Modal Logic ──
+async function checkAuthStatus() {
+  const session = await SyncService.getUser();
+  if (session) {
+    userDisplayEmail.textContent = session.user.email;
+    userSyncStatus.textContent = "Synced with Cloud";
+    userSyncStatus.style.color = "#059669";
+  } else {
+    userDisplayEmail.textContent = "Local Vault";
+    userSyncStatus.textContent = "Not Synced";
+    userSyncStatus.style.color = "#6B7280";
+  }
+}
+
+async function openAuthModal() {
+  const session = await SyncService.getUser();
+  if (session) {
+    authLoggedInView.classList.remove("hidden");
+    authLoggedOutView.classList.add("hidden");
+    authUserEmail.textContent = session.user.email;
+    authModalTitle.textContent = "Cloud Account";
+  } else {
+    authLoggedInView.classList.add("hidden");
+    authLoggedOutView.classList.remove("hidden");
+    authModalTitle.textContent = authIsSignUp ? "Create Cloud Account" : "Log In to Sync";
+  }
+  authModal.classList.remove("hidden");
+}
+
+function closeAuthModal() {
+  authModal.classList.add("hidden");
+}
+
+function toggleAuthMode(e) {
+  e.preventDefault();
+  authIsSignUp = !authIsSignUp;
+  authModalTitle.textContent = authIsSignUp ? "Create Cloud Account" : "Log In to Sync";
+  authSubmitBtn.textContent = authIsSignUp ? "Sign Up" : "Log In";
+  authModeText.innerHTML = authIsSignUp
+    ? 'Already have an account? <a href="#" id="auth-toggle-mode">Log In</a>'
+    : 'Don\'t have an account? <a href="#" id="auth-toggle-mode">Sign Up</a>';
+  document.getElementById("auth-toggle-mode").addEventListener("click", toggleAuthMode);
+}
+
+async function handleAuthSubmit() {
+  const email = authEmailInput.value.trim();
+  const password = authPasswordInput.value.trim();
+  if (!email || !password) {
+    showToast("Enter email and password");
+    return;
+  }
+
+  authSubmitBtn.disabled = true;
+  authSubmitBtn.textContent = "Connecting...";
+
+  try {
+    if (authIsSignUp) {
+      await SyncService.signUp(email, password);
+      showToast("Account created & synced!");
+    } else {
+      await SyncService.logIn(email, password);
+      showToast("Logged in & syncing!");
+    }
+    await handleManualSync();
+    closeAuthModal();
+    checkAuthStatus();
+  } catch (err) {
+    showToast(err.message || "Auth error");
+  } finally {
+    authSubmitBtn.disabled = false;
+    authSubmitBtn.textContent = authIsSignUp ? "Sign Up" : "Log In";
+  }
+}
+
+async function handleManualSync() {
+  try {
+    showToast("Syncing with cloud...");
+    const res = await SyncService.syncNow();
+    if (res) {
+      collections = res.collections || [];
+      containers = res.containers || [];
+      allItems = res.items || [];
+      renderSidebarTree();
+      updateSidebarCounts();
+      renderHeaderMeta();
+      renderItems();
+      showToast("Workspace synced!");
+    }
+  } catch (err) {
+    showToast("Sync error: " + err.message);
+  }
+}
+
+async function handleLogout() {
+  await SyncService.logOut();
+  closeAuthModal();
+  checkAuthStatus();
+  showToast("Logged out of cloud sync");
+}
+
+// ── General Modal Helpers ──
+function isModalOpen() {
+  return (
+    !itemModal.classList.contains("hidden") ||
+    !colModal.classList.contains("hidden") ||
+    !contModal.classList.contains("hidden") ||
+    !moveModal.classList.contains("hidden") ||
+    !authModal.classList.contains("hidden")
+  );
+}
+
+function closeAllModals() {
+  closeItemModal();
+  closeColModal();
+  closeContModal();
+  closeMoveModal();
+  closeAuthModal();
+}
+
+// ── Toast ──
+let toastTimer = null;
+function showToast(msg) {
+  if (toastTimer) clearTimeout(toastTimer);
+  toast.textContent = msg;
+  toast.classList.remove("hidden");
+  toastTimer = setTimeout(() => {
+    toast.classList.add("hidden");
+  }, 2200);
+}
+
+// ── Utilities ──
+function generateId() {
+  return Date.now().toString(36) + Math.random().toString(36).substr(2, 9);
+}
+
 function escapeHTML(str) {
+  if (!str) return "";
   const div = document.createElement("div");
   div.textContent = str;
   return div.innerHTML;
 }
 
-function getTimeAgo(date) {
-  const seconds = Math.floor((Date.now() - date.getTime()) / 1000);
-  if (seconds < 60) return "just now";
-  const minutes = Math.floor(seconds / 60);
-  if (minutes < 60) return `${minutes}m ago`;
-  const hours = Math.floor(minutes / 60);
+function extractHostname(url) {
+  try {
+    return new URL(url).hostname.replace(/^www\./, "");
+  } catch {
+    return url;
+  }
+}
+
+function formatRelativeTime(timestamp) {
+  if (!timestamp) return "";
+  const diff = Date.now() - timestamp;
+  const mins = Math.floor(diff / 60000);
+  if (mins < 1) return "Just now";
+  if (mins < 60) return `${mins}m ago`;
+  const hours = Math.floor(mins / 60);
   if (hours < 24) return `${hours}h ago`;
   const days = Math.floor(hours / 24);
   if (days < 30) return `${days}d ago`;
-  const months = Math.floor(days / 30);
-  if (months < 12) return `${months}mo ago`;
-  return `${Math.floor(months / 12)}y ago`;
-}
-
-function showToast(message) {
-  toast.textContent = message;
-  toast.classList.remove("hidden");
-  setTimeout(() => toast.classList.add("hidden"), 2500);
+  return new Date(timestamp).toLocaleDateString(undefined, { month: "short", day: "numeric" });
 }
