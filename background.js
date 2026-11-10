@@ -49,11 +49,14 @@ function setupContextMenus() {
 
 // ── Get Active Destination (Collection & Container) ──
 async function getTargetDestination() {
-  const { collections = [], containers = [], lastActiveContainer } = await chrome.storage.local.get([
+  const data = await chrome.storage.local.get([
     "collections",
     "containers",
     "lastActiveContainer",
   ]);
+  let collections = data.collections || [];
+  let containers = data.containers || [];
+  const lastActiveContainer = data.lastActiveContainer;
 
   let targetCont = null;
   if (lastActiveContainer && lastActiveContainer !== "all" && lastActiveContainer !== "default") {
@@ -61,7 +64,35 @@ async function getTargetDestination() {
   }
 
   if (!targetCont) {
-    targetCont = containers[0] || DEFAULT_CONTAINERS[0];
+    if (containers.length > 0) {
+      targetCont = containers[0];
+    } else {
+      // First save when vault is completely brand new
+      let parentCol = collections[0];
+      if (!parentCol) {
+        parentCol = {
+          id: "col_" + Date.now(),
+          name: "My Vault",
+          color: "#4F46E5",
+          createdAt: Date.now(),
+          order: 0,
+        };
+        collections.push(parentCol);
+        await chrome.storage.local.set({ collections });
+      }
+      targetCont = {
+        id: "cont_" + Date.now(),
+        collectionId: parentCol.id,
+        name: "Saved Items",
+        color: "#2563EB",
+        note: "",
+        description: "",
+        createdAt: Date.now(),
+        order: 0,
+      };
+      containers.push(targetCont);
+      await chrome.storage.local.set({ containers, lastActiveContainer: targetCont.id });
+    }
     if (targetCont) {
       chrome.storage.local.set({ lastActiveContainer: targetCont.id }).catch(() => {});
     }
@@ -69,8 +100,7 @@ async function getTargetDestination() {
 
   const parentCol =
     collections.find((col) => col.id === targetCont.collectionId) ||
-    collections[0] ||
-    DEFAULT_COLLECTIONS[0];
+    collections[0];
 
   return {
     collection: parentCol,

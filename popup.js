@@ -277,6 +277,15 @@ function setupEventListeners() {
 function renderCollectionsBar() {
   collectionsList.innerHTML = "";
 
+  if (collections.length === 0) {
+    const emptyPill = document.createElement("button");
+    emptyPill.className = "nav-pill-action";
+    emptyPill.innerHTML = `<span>📁 + New Collection</span>`;
+    emptyPill.addEventListener("click", () => openCollectionModal());
+    collectionsList.appendChild(emptyPill);
+    return;
+  }
+
   // "All Collections" Pill
   const allPill = document.createElement("button");
   allPill.className = `nav-pill ${activeCollectionId === "all" ? "active" : ""}`;
@@ -329,6 +338,15 @@ function renderContainersBar() {
       ? containers
       : containers.filter((c) => c.collectionId === activeCollectionId);
 
+  if (visibleContainers.length === 0) {
+    const emptyPill = document.createElement("button");
+    emptyPill.className = "nav-pill-action";
+    emptyPill.innerHTML = `<span>📦 + New Box</span>`;
+    emptyPill.addEventListener("click", () => openContainerModal());
+    containersList.appendChild(emptyPill);
+    return;
+  }
+
   // "All Containers" Pill
   const allPill = document.createElement("button");
   allPill.className = `nav-pill ${activeContainerId === "all" ? "active" : ""}`;
@@ -339,7 +357,7 @@ function renderContainersBar() {
       : allItems.filter((i) => i.collectionId === activeCollectionId);
 
   allPill.innerHTML = `
-    <span class="pill-symbol">🗄️</span>
+    <span class="pill-symbol">📦</span>
     <span>All</span>
     <span class="pill-count">${currentPoolItems.length}</span>
   `;
@@ -357,7 +375,7 @@ function renderContainersBar() {
     const pill = document.createElement("button");
     pill.className = `nav-pill ${activeContainerId === cont.id ? "active" : ""}`;
     pill.innerHTML = `
-      <span class="pill-symbol">🗄️</span>
+      <span class="pill-symbol">📦</span>
       <span>${escapeHTML(cont.name)}</span>
       <span class="pill-count">${count}</span>
     `;
@@ -379,7 +397,7 @@ function renderBreadcrumbs() {
   const cont = containers.find((c) => c.id === activeContainerId);
 
   const colText = col ? `📁 ${escapeHTML(col.name)}` : "📁 All Collections";
-  const contText = cont ? `🗄️ ${escapeHTML(cont.name)}` : "🗄️ All Containers";
+  const contText = cont ? `📦 ${escapeHTML(cont.name)}` : "📦 All Boxes";
 
   pathBreadcrumbs.innerHTML = `
     <span class="crumb col-crumb">${colText}</span>
@@ -468,8 +486,8 @@ function createItemCard(item) {
   let cardHtml = `
     <div class="card-top-row">
       <span class="card-type-chip ${item.type || "text"}">${typeLabel}</span>
-      <span class="card-hierarchy-tag" title="📁 ${escapeHTML(colName)} › 🗄️ ${escapeHTML(contName)}">
-        📁 ${escapeHTML(colName)} › 🗄️ ${escapeHTML(contName)}
+      <span class="card-hierarchy-tag" title="📁 ${escapeHTML(colName)} › 📦 ${escapeHTML(contName)}">
+        📁 ${escapeHTML(colName)} › 📦 ${escapeHTML(contName)}
       </span>
       <div class="card-actions-quick">
         <button class="card-action-btn fav-btn ${item.favorite ? "active" : ""}" title="${item.favorite ? "Unfavorite" : "Favorite"}">
@@ -623,15 +641,16 @@ async function handleQuickPaste() {
 }
 
 function getActiveTarget() {
-  let targetCol = collections.find((c) => c.id === activeCollectionId);
-  if (!targetCol) targetCol = collections[0] || DEFAULT_COLLECTIONS[0];
+  let targetCol = collections.find((c) => c.id === activeCollectionId) || collections[0];
 
   let targetCont = null;
-  if (activeContainerId !== "all") {
-    targetCont = containers.find((c) => c.id === activeContainerId);
-  }
-  if (!targetCont) {
-    targetCont = containers.find((c) => c.collectionId === targetCol.id) || containers[0] || DEFAULT_CONTAINERS[0];
+  if (targetCol) {
+    if (activeContainerId !== "all") {
+      targetCont = containers.find((c) => c.id === activeContainerId);
+    }
+    if (!targetCont) {
+      targetCont = containers.find((c) => c.collectionId === targetCol.id) || containers[0];
+    }
   }
 
   return { collection: targetCol, container: targetCont };
@@ -639,6 +658,17 @@ function getActiveTarget() {
 
 // ── Add Item Modal Logic ──
 function openAddModal() {
+  if (collections.length === 0) {
+    showToast("Please create a collection folder first");
+    openCollectionModal();
+    return;
+  }
+  if (containers.length === 0) {
+    showToast("Please create a container crate first");
+    openContainerModal();
+    return;
+  }
+
   populateCollectionSelect(addColSelect, activeCollectionId !== "all" ? activeCollectionId : collections[0]?.id);
   populateContainerSelect(addContSelect, addColSelect.value, activeContainerId !== "all" ? activeContainerId : undefined);
   addTitle.value = "";

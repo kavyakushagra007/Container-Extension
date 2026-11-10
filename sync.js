@@ -6,19 +6,9 @@ const FIREBASE_CONFIG = {
   projectId: "container-extension",
 };
 
-// ── Default Hierarchy Constants ──
-const DEFAULT_COLLECTIONS = [
-  { id: "col_brand", name: "Brand", color: "#4F46E5", createdAt: 1700000001000, order: 0 },
-  { id: "col_general", name: "General", color: "#0D9488", createdAt: 1700000002000, order: 1 },
-];
-
-const DEFAULT_CONTAINERS = [
-  { id: "cont_theme_ideas", collectionId: "col_brand", name: "Theme Ideas", icon: "archive", color: "#2563EB", note: "Design concepts, moodboards & brand aesthetics", description: "Design concepts, moodboards & brand aesthetics", createdAt: 1700000003000, order: 0 },
-  { id: "cont_marketing", collectionId: "col_brand", name: "Marketing Materials", icon: "archive", color: "#E11D48", note: "Ad copy, campaigns, landing page inspo", description: "Ad copy, campaigns, landing page inspo", createdAt: 1700000004000, order: 1 },
-  { id: "cont_colours", collectionId: "col_brand", name: "Colour Templates", icon: "archive", color: "#F59E0B", note: "Palettes, hex codes, visual identity guidelines", description: "Palettes, hex codes, visual identity guidelines", createdAt: 1700000005000, order: 2 },
-  { id: "cont_reading", collectionId: "col_general", name: "Articles & Reading", icon: "archive", color: "#7C3AED", note: "Long-form blogs, research, guides & essays", description: "Long-form blogs, research, guides & essays", createdAt: 1700000006000, order: 3 },
-  { id: "cont_notes", collectionId: "col_general", name: "Notes & Snippets", icon: "archive", color: "#0D9488", note: "Ideas, quotes & snippets", description: "Ideas, quotes & snippets", createdAt: 1700000007000, order: 4 },
-];
+// ── Default Hierarchy Constants (No static fillers) ──
+const DEFAULT_COLLECTIONS = [];
+const DEFAULT_CONTAINERS = [];
 
 // ── Helper: Smart URL / Content Classification ──
 function classifyContent(content, sourceUrl = "") {
@@ -254,7 +244,6 @@ const SyncService = {
 
     // Merge collections
     const colMap = new Map();
-    DEFAULT_COLLECTIONS.forEach((c) => colMap.set(c.id, c));
     collections.forEach((c) => { if (c && c.id) colMap.set(c.id, c); });
     (cloud.collections || []).forEach((cc) => {
       if (cc && cc.id && !colMap.has(cc.id)) colMap.set(cc.id, cc);
@@ -263,7 +252,6 @@ const SyncService = {
 
     // Merge containers
     const contMap = new Map();
-    DEFAULT_CONTAINERS.forEach((c) => contMap.set(c.id, c));
     containers.forEach((c) => { if (c && c.id) contMap.set(c.id, c); });
     (cloud.containers || []).forEach((cc) => {
       if (cc && cc.id && !contMap.has(cc.id)) contMap.set(cc.id, cc);
@@ -327,35 +315,55 @@ const SyncService = {
       modified = true;
       const quickContIds = new Set(quickConts.map((c) => c.id));
       const fallbackCont =
-        containers.find((c) => !quickContIds.has(c.id)) || DEFAULT_CONTAINERS[0];
-      items = items.map((item) => {
-        if (quickContIds.has(item.containerId)) {
-          return {
-            ...item,
-            containerId: fallbackCont.id,
-            collectionId: fallbackCont.collectionId,
-          };
-        }
-        return item;
-      });
+        containers.find((c) => !quickContIds.has(c.id)) || containers[0];
+      if (fallbackCont) {
+        items = items.map((item) => {
+          if (quickContIds.has(item.containerId)) {
+            return {
+              ...item,
+              containerId: fallbackCont.id,
+              collectionId: fallbackCont.collectionId,
+            };
+          }
+          return item;
+        });
+      }
       containers = containers.filter((c) => !quickContIds.has(c.id));
     }
 
-    // 1. Initialize Collections if missing
-    if (!collections || collections.length === 0) {
-      collections = [...DEFAULT_COLLECTIONS];
-      modified = true;
-    }
+    // 1. Purge static placeholder fillers that have no items
+    const placeholderContIds = new Set([
+      "cont_marketing",
+      "cont_colours",
+      "cont_reading",
+      "cont_notes",
+    ]);
+    const placeholderColIds = new Set(["col_general"]);
 
-    // 2. Initialize Containers if missing
-    if (!containers || containers.length === 0) {
-      containers = [...DEFAULT_CONTAINERS];
-      modified = true;
-    } else {
-      // Ensure all containers are mapped to a collectionId
-      const primaryColId = collections[0]?.id || "col_brand";
-      const secondaryColId = collections[1]?.id || primaryColId;
+    const contCountBefore = containers.length;
+    containers = containers.filter((cont) => {
+      if (placeholderContIds.has(cont.id)) {
+        const hasItems = items.some((i) => i.containerId === cont.id);
+        if (!hasItems) return false;
+      }
+      return true;
+    });
+    if (containers.length !== contCountBefore) modified = true;
 
+    const colCountBefore = collections.length;
+    collections = collections.filter((col) => {
+      if (placeholderColIds.has(col.id)) {
+        const hasItems = items.some((i) => i.collectionId === col.id);
+        const hasConts = containers.some((c) => c.collectionId === col.id);
+        if (!hasItems && !hasConts) return false;
+      }
+      return true;
+    });
+    if (collections.length !== colCountBefore) modified = true;
+
+    // 2. Ensure all existing containers are mapped to a collectionId
+    if (containers.length > 0 && collections.length > 0) {
+      const primaryColId = collections[0].id;
       const palette = ["#2563EB", "#059669", "#D97706", "#7C3AED", "#E11D48", "#0891B2"];
       containers = containers.map((c, index) => {
         const color = c.color || palette[index % palette.length];
@@ -395,8 +403,8 @@ const SyncService = {
     const containerCollectionMap = new Map();
     containers.forEach((c) => containerCollectionMap.set(c.id, c.collectionId));
 
-    const defaultContId = containers[0]?.id || "cont_theme_ideas";
-    const defaultColId = containers[0]?.collectionId || collections[0]?.id || "col_brand";
+    const defaultContId = containers[0]?.id;
+    const defaultColId = containers[0]?.collectionId || collections[0]?.id;
 
     items = items.map((item) => {
       let itemChanged = false;

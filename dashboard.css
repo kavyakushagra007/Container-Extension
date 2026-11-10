@@ -909,22 +909,24 @@ body {
 .enlarged-container-graphic {
   position: relative;
   display: inline-block;
-  width: 172px;
-  height: 118px;
+  width: 160px;
+  height: 115px;
 }
 
-/* Literal Corrugated Shipping Container SVG */
+/* Modern Archive Storage Box Tub SVG */
+.archive-storage-box-svg,
 .literal-shipping-container-svg {
-  width: 172px;
-  height: 118px;
+  width: 160px;
+  height: 115px;
   display: block;
-  filter: drop-shadow(0 6px 12px rgba(0, 0, 0, 0.1));
+  filter: drop-shadow(0 6px 14px rgba(0, 0, 0, 0.08));
   transition: transform 0.18s ease, filter 0.18s ease;
 }
 
+.desktop-crate-tile:hover .archive-storage-box-svg,
 .desktop-crate-tile:hover .literal-shipping-container-svg {
-  transform: scale(1.03);
-  filter: drop-shadow(0 8px 16px rgba(0, 0, 0, 0.14));
+  transform: translateY(-2px) scale(1.03);
+  filter: drop-shadow(0 10px 20px rgba(0, 0, 0, 0.12));
 }
 
 /* Swayed / Curled Sticky Note on Top Right */

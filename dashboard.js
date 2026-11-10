@@ -381,7 +381,7 @@ function navigateToContainer(contId) {
   updateBreadcrumbs([
     { label: "Dashboard", action: navigateToHome },
     { label: `📁 ${parentCol.name}`, action: () => navigateToCollection(parentCol.id) },
-    { label: `🗄️ ${cont.name}`, active: true },
+    { label: `📦 ${cont.name}`, active: true },
   ]);
 
   backToColText.textContent = `Back to 📁 ${parentCol.name}`;
@@ -450,6 +450,15 @@ function updateSidebar() {
 
   sidebarCollectionsList.innerHTML = "";
 
+  if (collections.length === 0) {
+    sidebarCollectionsList.innerHTML = `
+      <div style="padding: 10px 12px; font-size: 11.5px; color: var(--text-muted); font-style: italic;">
+        No folders yet
+      </div>
+    `;
+    return;
+  }
+
   collections.forEach((col) => {
     const colItems = allItems.filter((i) => i.collectionId === col.id);
     const colContainers = containers.filter((c) => c.collectionId === col.id);
@@ -485,7 +494,7 @@ function updateSidebar() {
 
         const crateColor = cont.color || "#2563EB";
         contBtn.innerHTML = `
-          <span class="sidebar-cont-dot" style="background-color: ${crateColor}"></span>
+          <span class="sidebar-sub-symbol" style="color: ${crateColor}">📦</span>
           <span class="sidebar-sub-label" title="${escapeHTML(cont.name)}">${escapeHTML(cont.name)}</span>
           <span class="sidebar-sub-badge">${contItems.length}</span>
         `;
@@ -541,6 +550,19 @@ function renderRecentsRow() {
 function renderDesktopFolders() {
   desktopFoldersGrid.innerHTML = "";
 
+  if (collections.length === 0) {
+    desktopFoldersGrid.innerHTML = `
+      <div class="empty-state-card" style="grid-column: 1 / -1;">
+        <div class="empty-icon-box">📁</div>
+        <h3>No collections yet</h3>
+        <p>Create your first folder to start organizing your storage containers and saved discoveries.</p>
+        <button class="btn btn-primary" id="btn-create-first-col">+ Create Folder</button>
+      </div>
+    `;
+    desktopFoldersGrid.querySelector("#btn-create-first-col").addEventListener("click", () => openColModal());
+    return;
+  }
+
   collections.forEach((col) => {
     const colContainers = containers.filter((c) => c.collectionId === col.id);
     const colItems = allItems.filter((i) => i.collectionId === col.id);
@@ -567,7 +589,7 @@ function renderDesktopFolders() {
         </svg>
       </div>
       <div class="folder-tile-name" title="${escapeHTML(col.name)}">${escapeHTML(col.name)}</div>
-      <div class="folder-tile-count">${colContainers.length} containers • ${colItems.length} items</div>
+      <div class="folder-tile-count">${colContainers.length} 📦 • ${colItems.length} items</div>
     `;
 
     // Click on tile opens folder
@@ -585,7 +607,7 @@ function renderCollectionHero(col) {
 
   const colContainers = containers.filter((c) => c.collectionId === col.id);
   const colItems = allItems.filter((i) => i.collectionId === col.id);
-  colViewMeta.textContent = `${colContainers.length} containers • ${colItems.length} saved items`;
+  colViewMeta.textContent = `${colContainers.length} 📦 • ${colItems.length} saved items`;
 }
 
 // Render Literal Storage Containers in Desktop Icon View!
@@ -596,10 +618,10 @@ function renderDesktopContainers(colId) {
   if (childContainers.length === 0) {
     desktopContainersGrid.innerHTML = `
       <div class="empty-state-card" style="grid-column: 1 / -1;">
-        <div class="empty-icon-box">🗄️</div>
-        <h3>No containers in this folder yet</h3>
-        <p>Create storage containers to store your design inspirations, marketing materials, and links.</p>
-        <button class="btn btn-primary" id="btn-create-first-cont">+ Create Container</button>
+        <div class="empty-icon-box">📦</div>
+        <h3>No storage boxes in this folder yet</h3>
+        <p>Create storage boxes to store your design inspirations, notes, and links.</p>
+        <button class="btn btn-primary" id="btn-create-first-cont">+ Create Box</button>
       </div>
     `;
     desktopContainersGrid.querySelector("#btn-create-first-cont").addEventListener("click", () => openContModal(colId));
@@ -615,130 +637,84 @@ function renderDesktopContainers(colId) {
     tile.className = "desktop-crate-tile";
     tile.dataset.contId = cont.id;
 
-    // Literal Enlarged Shipping Container Graphic with Top-Right Swayed / Curled Sticky Note
+    // Modern Archive Storage Box Graphic (Frosted Tub + Snap Lid + Swayed Sticky Note)
     tile.innerHTML = `
       <div class="enlarged-container-graphic">
-        <svg class="literal-shipping-container-svg" viewBox="0 0 160 110" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <svg class="archive-storage-box-svg" viewBox="0 0 160 115" fill="none" xmlns="http://www.w3.org/2000/svg">
           <defs>
-            <linearGradient id="metalRod_${cont.id}" x1="0%" y1="0%" x2="100%" y2="0%">
-              <stop offset="0%" stop-color="#94A3B8" />
-              <stop offset="45%" stop-color="#F8FAFC" />
-              <stop offset="70%" stop-color="#CBD5E1" />
-              <stop offset="100%" stop-color="#64748B" />
+            <linearGradient id="boxBodyGrad_${cont.id}" x1="0%" y1="0%" x2="0%" y2="100%">
+              <stop offset="0%" stop-color="#FFFFFF" stop-opacity="0.9" />
+              <stop offset="45%" stop-color="#F8FAFC" stop-opacity="0.84" />
+              <stop offset="100%" stop-color="#E2E8F0" stop-opacity="0.75" />
+            </linearGradient>
+            <linearGradient id="boxTintGrad_${cont.id}" x1="0%" y1="0%" x2="0%" y2="100%">
+              <stop offset="0%" stop-color="${crateColor}" stop-opacity="0.04" />
+              <stop offset="100%" stop-color="${crateColor}" stop-opacity="0.18" />
+            </linearGradient>
+            <linearGradient id="lidBevel_${cont.id}" x1="0%" y1="0%" x2="0%" y2="100%">
+              <stop offset="0%" stop-color="#FFFFFF" stop-opacity="0.35" />
+              <stop offset="100%" stop-color="#000000" stop-opacity="0.12" />
             </linearGradient>
           </defs>
 
           <!-- Ground drop shadow -->
-          <ellipse cx="80" cy="104" rx="66" ry="5.5" fill="#0F172A" fill-opacity="0.14" />
+          <ellipse cx="80" cy="107" rx="58" ry="6" fill="#0F172A" fill-opacity="0.12" />
 
-          <!-- Main Container Outer Shell -->
-          <rect x="10" y="14" width="140" height="86" rx="4" fill="${crateColor}" />
-          <rect x="10" y="14" width="140" height="86" rx="4" stroke="#0F172A" stroke-opacity="0.22" stroke-width="2" />
+          <!-- Inside Stacked Bookmarks / Document Cards Silhouettes (visible through frosted tub) -->
+          <g class="inner-cards-preview" opacity="0.6">
+            <!-- Back Card -->
+            <rect x="36" y="38" width="52" height="48" rx="4" fill="#FFFFFF" stroke="#CBD5E1" stroke-width="1" transform="rotate(-6 36 38)" />
+            <line x1="42" y1="46" x2="72" y2="43" stroke="#94A3B8" stroke-width="2" stroke-linecap="round" transform="rotate(-6 36 38)" />
+            <line x1="42" y1="52" x2="80" y2="49" stroke="#CBD5E1" stroke-width="1.5" stroke-linecap="round" transform="rotate(-6 36 38)" />
 
-          <!-- Top Roof Edge / Rail with specular highlight -->
-          <rect x="10" y="14" width="140" height="6" rx="2" fill="#FFFFFF" fill-opacity="0.28" />
-          <line x1="10" y1="20" x2="150" y2="20" stroke="#000000" stroke-opacity="0.25" stroke-width="1.5" />
+            <!-- Front Card -->
+            <rect x="68" y="42" width="56" height="52" rx="4" fill="#FFFFFF" stroke="#CBD5E1" stroke-width="1" transform="rotate(4 68 42)" />
+            <rect x="73" y="48" width="46" height="6" rx="2" fill="${crateColor}" fill-opacity="0.25" transform="rotate(4 68 42)" />
+            <line x1="73" y1="60" x2="114" y2="60" stroke="#94A3B8" stroke-width="1.8" stroke-linecap="round" transform="rotate(4 68 42)" />
+            <line x1="73" y1="66" x2="106" y2="66" stroke="#CBD5E1" stroke-width="1.5" stroke-linecap="round" transform="rotate(4 68 42)" />
+            <line x1="73" y1="72" x2="98" y2="72" stroke="#CBD5E1" stroke-width="1.5" stroke-linecap="round" transform="rotate(4 68 42)" />
+          </g>
 
-          <!-- Bottom Sills / Rail -->
-          <rect x="10" y="93" width="140" height="7" fill="#000000" fill-opacity="0.22" />
-          <line x1="10" y1="93" x2="150" y2="93" stroke="#000000" stroke-opacity="0.35" stroke-width="1.5" />
+          <!-- Main Frosted Container Tub Body (Rectangular with rounded bottom corners matching Image 3) -->
+          <path d="M 21 30 L 139 30 L 135 94 A 10 10 0 0 1 125 104 L 35 104 A 10 10 0 0 1 25 94 Z" fill="url(#boxBodyGrad_${cont.id})" />
+          <path d="M 21 30 L 139 30 L 135 94 A 10 10 0 0 1 125 104 L 35 104 A 10 10 0 0 1 25 94 Z" fill="url(#boxTintGrad_${cont.id})" />
+          <path d="M 21 30 L 139 30 L 135 94 A 10 10 0 0 1 125 104 L 35 104 A 10 10 0 0 1 25 94 Z" stroke="${crateColor}" stroke-opacity="0.28" stroke-width="1.5" />
 
-          <!-- Corrugated Steel Ribs (Vertical panels across container face) -->
-          <!-- Rib 1 -->
-          <rect x="22" y="21" width="10" height="72" fill="#000000" fill-opacity="0.18" />
-          <rect x="23" y="21" width="8" height="72" fill="#FFFFFF" fill-opacity="0.14" />
-          <line x1="22" y1="21" x2="22" y2="93" stroke="#FFFFFF" stroke-opacity="0.25" />
-          <line x1="32" y1="21" x2="32" y2="93" stroke="#000000" stroke-opacity="0.28" />
+          <!-- Acrylic wall specular edge reflections -->
+          <path d="M 23 32 L 27 94 A 8 8 0 0 0 35 102" stroke="#FFFFFF" stroke-opacity="0.75" stroke-width="2.5" stroke-linecap="round" />
+          <path d="M 137 32 L 133 94 A 8 8 0 0 1 125 102" stroke="#FFFFFF" stroke-opacity="0.55" stroke-width="2" stroke-linecap="round" />
+          <path d="M 37 101 L 123 101" stroke="#FFFFFF" stroke-opacity="0.6" stroke-width="1.5" stroke-linecap="round" />
 
-          <!-- Rib 2 -->
-          <rect x="36" y="21" width="10" height="72" fill="#000000" fill-opacity="0.18" />
-          <rect x="37" y="21" width="8" height="72" fill="#FFFFFF" fill-opacity="0.14" />
-          <line x1="36" y1="21" x2="36" y2="93" stroke="#FFFFFF" stroke-opacity="0.25" />
-          <line x1="46" y1="21" x2="46" y2="93" stroke="#000000" stroke-opacity="0.28" />
+          <!-- Soft shadow cast under lid -->
+          <path d="M 21 30 L 139 30 L 138 36 L 22 36 Z" fill="#000000" fill-opacity="0.14" />
 
-          <!-- Rib 3 -->
-          <rect x="50" y="21" width="10" height="72" fill="#000000" fill-opacity="0.18" />
-          <rect x="51" y="21" width="8" height="72" fill="#FFFFFF" fill-opacity="0.14" />
-          <line x1="50" y1="21" x2="50" y2="93" stroke="#FFFFFF" stroke-opacity="0.25" />
-          <line x1="60" y1="21" x2="60" y2="93" stroke="#000000" stroke-opacity="0.28" />
+          <!-- ── STORAGE BOX TOP LID (Snap-on rim + lid matching Image 3 & Gmail Archive) ── -->
+          <!-- Lid Under-Rim / Lip -->
+          <rect x="15" y="24" width="130" height="8" rx="3.5" fill="${crateColor}" />
+          <rect x="15" y="24" width="130" height="8" rx="3.5" fill="#000000" fill-opacity="0.12" />
 
-          <!-- Rib 4 -->
-          <rect x="64" y="21" width="10" height="72" fill="#000000" fill-opacity="0.18" />
-          <rect x="65" y="21" width="8" height="72" fill="#FFFFFF" fill-opacity="0.14" />
-          <line x1="64" y1="21" x2="64" y2="93" stroke="#FFFFFF" stroke-opacity="0.25" />
-          <line x1="74" y1="21" x2="74" y2="93" stroke="#000000" stroke-opacity="0.28" />
+          <!-- Main Top Lid Cap -->
+          <rect x="17" y="16" width="126" height="12" rx="4" fill="${crateColor}" />
+          <rect x="17" y="16" width="126" height="12" rx="4" fill="url(#lidBevel_${cont.id})" />
+          <rect x="17" y="16" width="126" height="12" rx="4" stroke="#0F172A" stroke-opacity="0.18" stroke-width="1" />
 
-          <!-- Center Double-Door Vertical Seam -->
-          <rect x="78" y="20" width="4" height="73" fill="#000000" fill-opacity="0.4" />
-          <line x1="80" y1="20" x2="80" y2="93" stroke="#FFFFFF" stroke-opacity="0.18" />
+          <!-- Lid Right-side Pull Tab (as in Image 3!) -->
+          <path d="M 143 25 C 146.5 25 149 26.5 149 28 C 149 29.5 146.5 31 143 31 Z" fill="${crateColor}" />
+          <path d="M 143 25 C 146.5 25 149 26.5 149 28 C 149 29.5 146.5 31 143 31 Z" fill="#000000" fill-opacity="0.12" />
 
-          <!-- Rib 5 -->
-          <rect x="86" y="21" width="10" height="72" fill="#000000" fill-opacity="0.18" />
-          <rect x="87" y="21" width="8" height="72" fill="#FFFFFF" fill-opacity="0.14" />
-          <line x1="86" y1="21" x2="86" y2="93" stroke="#FFFFFF" stroke-opacity="0.25" />
-          <line x1="96" y1="21" x2="96" y2="93" stroke="#000000" stroke-opacity="0.28" />
+          <!-- Beveled top rim highlight line -->
+          <path d="M 20 18 H 140 C 141.5 18 142.5 19 142.5 20 C 142.5 19.5 141.5 18.5 140 18.5 H 20 C 18.5 18.5 17.5 19.5 17.5 20 C 17.5 19 18.5 18 20 18 Z" fill="#FFFFFF" fill-opacity="0.45" />
 
-          <!-- Rib 6 -->
-          <rect x="100" y="21" width="10" height="72" fill="#000000" fill-opacity="0.18" />
-          <rect x="101" y="21" width="8" height="72" fill="#FFFFFF" fill-opacity="0.14" />
-          <line x1="100" y1="21" x2="100" y2="93" stroke="#FFFFFF" stroke-opacity="0.25" />
-          <line x1="110" y1="21" x2="110" y2="93" stroke="#000000" stroke-opacity="0.28" />
+          <!-- Center Recessed Seal Groove -->
+          <rect x="42" y="19" width="76" height="5" rx="2" fill="#FFFFFF" fill-opacity="0.18" />
 
-          <!-- Rib 7 -->
-          <rect x="114" y="21" width="10" height="72" fill="#000000" fill-opacity="0.18" />
-          <rect x="115" y="21" width="8" height="72" fill="#FFFFFF" fill-opacity="0.14" />
-          <line x1="114" y1="21" x2="114" y2="93" stroke="#FFFFFF" stroke-opacity="0.25" />
-          <line x1="124" y1="21" x2="124" y2="93" stroke="#000000" stroke-opacity="0.28" />
-
-          <!-- Rib 8 -->
-          <rect x="128" y="21" width="10" height="72" fill="#000000" fill-opacity="0.18" />
-          <rect x="129" y="21" width="8" height="72" fill="#FFFFFF" fill-opacity="0.14" />
-          <line x1="128" y1="21" x2="128" y2="93" stroke="#FFFFFF" stroke-opacity="0.25" />
-          <line x1="138" y1="21" x2="138" y2="93" stroke="#000000" stroke-opacity="0.28" />
-
-          <!-- Industrial Stencil Spec Box -->
-          <rect x="98" y="32" width="24" height="15" rx="1.5" fill="#FFFFFF" fill-opacity="0.22" />
-          <line x1="101" y1="36" x2="119" y2="36" stroke="#FFFFFF" stroke-opacity="0.8" stroke-width="1.2" />
-          <line x1="101" y1="39.5" x2="116" y2="39.5" stroke="#FFFFFF" stroke-opacity="0.65" stroke-width="1" />
-          <line x1="101" y1="43" x2="113" y2="43" stroke="#FFFFFF" stroke-opacity="0.65" stroke-width="1" />
-
-          <!-- Left Door Lock Rod -->
-          <rect x="58" y="16" width="3" height="82" rx="1.5" fill="url(#metalRod_${cont.id})" stroke="#334155" stroke-width="0.5" />
-          <rect x="56.5" y="16" width="6" height="5" rx="1" fill="#475569" />
-          <rect x="56.5" y="93" width="6" height="5" rx="1" fill="#475569" />
-          <rect x="55" y="52" width="9" height="12" rx="1.5" fill="#334155" />
-          <rect x="62" y="55" width="11" height="3" rx="1" fill="#E2E8F0" />
-          <rect x="71" y="54" width="3" height="5" rx="1" fill="#0F172A" />
-
-          <!-- Right Door Lock Rod -->
-          <rect x="99" y="16" width="3" height="82" rx="1.5" fill="url(#metalRod_${cont.id})" stroke="#334155" stroke-width="0.5" />
-          <rect x="97.5" y="16" width="6" height="5" rx="1" fill="#475569" />
-          <rect x="97.5" y="93" width="6" height="5" rx="1" fill="#475569" />
-          <rect x="96" y="52" width="9" height="12" rx="1.5" fill="#334155" />
-          <rect x="87" y="55" width="11" height="3" rx="1" fill="#E2E8F0" />
-          <rect x="86" y="54" width="3" height="5" rx="1" fill="#0F172A" />
-
-          <!-- Outer Hinges -->
-          <rect x="8.5" y="27" width="3.5" height="7" rx="1" fill="#334155" />
-          <rect x="8.5" y="53" width="3.5" height="7" rx="1" fill="#334155" />
-          <rect x="8.5" y="79" width="3.5" height="7" rx="1" fill="#334155" />
-          <rect x="148" y="27" width="3.5" height="7" rx="1" fill="#334155" />
-          <rect x="148" y="53" width="3.5" height="7" rx="1" fill="#334155" />
-          <rect x="148" y="79" width="3.5" height="7" rx="1" fill="#334155" />
-
-          <!-- Corner Castings -->
-          <rect x="10" y="14" width="11" height="11" rx="2" fill="#1E293B" fill-opacity="0.4" stroke="#0F172A" stroke-opacity="0.3" stroke-width="1" />
-          <ellipse cx="15.5" cy="19.5" rx="3.5" ry="2.5" fill="#0F172A" fill-opacity="0.6" />
-          <rect x="139" y="14" width="11" height="11" rx="2" fill="#1E293B" fill-opacity="0.4" stroke="#0F172A" stroke-opacity="0.3" stroke-width="1" />
-          <ellipse cx="144.5" cy="19.5" rx="3.5" ry="2.5" fill="#0F172A" fill-opacity="0.6" />
-          <rect x="10" y="89" width="11" height="11" rx="2" fill="#1E293B" fill-opacity="0.4" stroke="#0F172A" stroke-opacity="0.3" stroke-width="1" />
-          <ellipse cx="15.5" cy="94.5" rx="3.5" ry="2.5" fill="#0F172A" fill-opacity="0.6" />
-          <rect x="139" y="89" width="11" height="11" rx="2" fill="#1E293B" fill-opacity="0.4" stroke="#0F172A" stroke-opacity="0.3" stroke-width="1" />
-          <ellipse cx="144.5" cy="94.5" rx="3.5" ry="2.5" fill="#0F172A" fill-opacity="0.6" />
+          <!-- Front Center Archive Slot (Gmail Archive Box style) -->
+          <rect x="68" y="26" width="24" height="4" rx="2" fill="#000000" fill-opacity="0.22" />
+          <rect x="69" y="26" width="22" height="3" rx="1.5" fill="#FFFFFF" fill-opacity="0.32" />
         </svg>
 
         <!-- Swayed / Curled Sticky Note on Top Right -->
-        <div class="swayed-sticky-note ${noteText ? "has-note" : "empty-note"}" data-cont-id="${cont.id}" title="${escapeHTML(noteText ? 'Container Note: ' + noteText + ' (Click to edit)' : 'Click to add sticky note')}">
+        <div class="swayed-sticky-note ${noteText ? "has-note" : "empty-note"}" data-cont-id="${cont.id}" title="${escapeHTML(noteText ? 'Box Note: ' + noteText + ' (Click to edit)' : 'Click to add sticky note')}">
           <div class="sticky-pin"></div>
           <div class="sticky-note-text">${escapeHTML(noteText || "+ Note")}</div>
         </div>
@@ -984,6 +960,17 @@ async function deleteItem(id) {
 
 // 1. Item Modal (Save / Edit with Note)
 function openItemModal(defaultColId = null, defaultContId = null, editItem = null) {
+  if (collections.length === 0) {
+    showToast("Please create a folder first");
+    openColModal();
+    return;
+  }
+  if (containers.length === 0) {
+    showToast("Please create a container crate first");
+    openContModal(collections[0].id);
+    return;
+  }
+
   editingItemId = editItem ? editItem.id : null;
   itemModalTitle.textContent = editItem ? "Edit Item & Note" : "Save to Container";
 

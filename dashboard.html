@@ -173,8 +173,8 @@
             <div class="view-nav-actions">
               <button id="btn-edit-current-col" class="btn btn-secondary">Folder Settings</button>
               <button id="btn-new-container-in-col" class="btn btn-primary">
-                <span>🗄️+</span>
-                <span>New Container</span>
+                <span>📦+</span>
+                <span>New Box</span>
               </button>
             </div>
           </div>
@@ -183,8 +183,8 @@
             <div class="collection-title-left">
               <div class="collection-big-icon" id="col-view-icon">📁</div>
               <div>
-                <h1 class="collection-view-title" id="col-view-title">Brand</h1>
-                <p class="collection-view-meta" id="col-view-meta">3 containers • 12 items</p>
+                <h1 class="collection-view-title" id="col-view-title">Collection</h1>
+                <p class="collection-view-meta" id="col-view-meta">0 📦 • 0 items</p>
               </div>
             </div>
           </div>
@@ -193,8 +193,8 @@
           <div class="containers-icon-section">
             <div class="panel-header">
               <div>
-                <h2 class="panel-title">Containers</h2>
-                <p class="panel-subtitle">Storage crates inside this folder</p>
+                <h2 class="panel-title">📦 Storage Boxes</h2>
+                <p class="panel-subtitle">Organized storage boxes inside this folder</p>
               </div>
             </div>
 
@@ -212,7 +212,7 @@
               <span id="back-to-col-text">Back to Folder</span>
             </button>
             <div class="view-nav-actions">
-              <button id="btn-edit-cont-details" class="btn btn-secondary">Container Settings</button>
+              <button id="btn-edit-cont-details" class="btn btn-secondary">Box Settings</button>
               <button id="btn-add-item-to-current-cont" class="btn btn-primary">+ Save Item Here</button>
             </div>
           </div>
@@ -222,9 +222,9 @@
             <div class="crate-hero-stripe" id="cont-hero-stripe"></div>
             <div class="crate-hero-body">
               <div class="crate-hero-left">
-                <div class="crate-hero-icon" id="cont-hero-icon">🗄️</div>
+                <div class="crate-hero-icon" id="cont-hero-icon">📦</div>
                 <div>
-                  <h1 class="crate-hero-name" id="cont-hero-title">Theme Ideas</h1>
+                  <h1 class="crate-hero-name" id="cont-hero-title">Container</h1>
                   <span class="crate-hero-meta" id="cont-hero-meta">0 items</span>
                 </div>
               </div>
@@ -232,11 +232,11 @@
               <!-- Container Note Box -->
               <div class="crate-hero-note-box">
                 <div class="crate-note-top">
-                  <span>📝 CONTAINER NOTE</span>
+                  <span>📝 BOX NOTE</span>
                   <button id="btn-edit-cont-note" class="btn-note-edit">Edit Note</button>
                 </div>
                 <div class="crate-note-text" id="cont-hero-note-text">
-                  (No container note yet. Click "Edit Note" to add guidelines or hex palettes)
+                  (No note yet. Click "Edit Note" to add guidelines or hex palettes)
                 </div>
               </div>
             </div>
@@ -247,7 +247,7 @@
             <div class="panel-header">
               <div>
                 <h2 class="panel-title">Saved Items</h2>
-                <p class="panel-subtitle" id="container-items-subtitle">All cards in this container</p>
+                <p class="panel-subtitle" id="container-items-subtitle">All cards in this box</p>
               </div>
               <div class="filter-pills" id="container-type-filters">
                 <button class="chip-filter active" data-filter="all">All</button>
@@ -264,9 +264,9 @@
             </div>
 
             <div id="container-empty-state" class="empty-state-card hidden">
-              <div class="empty-icon-box">🗄️</div>
-              <h3>This container is empty</h3>
-              <p>Save quotes, links, YouTube videos, or images into this container.</p>
+              <div class="empty-icon-box">📦</div>
+              <h3>This box is empty</h3>
+              <p>Save quotes, links, YouTube videos, or images into this box.</p>
               <button class="btn btn-primary" id="btn-empty-cont-add">+ Add First Item</button>
             </div>
           </div>
@@ -341,7 +341,7 @@
         <div class="modal-form">
           <div class="form-field">
             <label for="col-name-input">Collection Name</label>
-            <input type="text" id="col-name-input" placeholder="e.g. Brand, Travel, Personal Growth" maxlength="30" />
+            <input type="text" id="col-name-input" placeholder="e.g. Projects, Personal, Work" maxlength="30" />
           </div>
           <div class="form-field">
             <label>Folder Color</label>
@@ -378,7 +378,7 @@
           </div>
           <div class="form-field">
             <label for="cont-name-input">Container Name</label>
-            <input type="text" id="cont-name-input" placeholder="e.g. Theme Ideas, Marketing Materials, Colour Templates" maxlength="35" />
+            <input type="text" id="cont-name-input" placeholder="e.g. Design Inspo, Research, Guides" maxlength="35" />
           </div>
           <div class="form-field">
             <label>Container Crate Color</label>
