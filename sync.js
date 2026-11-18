@@ -109,7 +109,7 @@ const SyncService = {
   },
 
   // ── Push Local Data to Firebase Cloud Firestore ──
-  async pushToCloud(items, containers) {
+  async pushToCloud(items, categories) {
     const session = await this.getUser();
     if (!session) return false;
 
@@ -121,7 +121,7 @@ const SyncService = {
     const body = {
       fields: {
         itemsJson: { stringValue: JSON.stringify(items || []) },
-        containersJson: { stringValue: JSON.stringify(containers || []) },
+        categoriesJson: { stringValue: JSON.stringify(categories || ["General", "Study", "Reading", "Ideas"]) },
         lastSyncedAt: { integerValue: Date.now().toString() },
       },
     };
@@ -163,12 +163,11 @@ const SyncService = {
 
       const data = await res.json();
       const itemsJson = data.fields?.itemsJson?.stringValue;
-      const containersJson = data.fields?.containersJson?.stringValue;
-
+      const categoriesJson = data.fields?.categoriesJson?.stringValue;
       const cloudItems = itemsJson ? JSON.parse(itemsJson) : [];
-      const cloudContainers = containersJson ? JSON.parse(containersJson) : [];
+      const cloudCategories = categoriesJson ? JSON.parse(categoriesJson) : ["General", "Study", "Reading", "Ideas"];
 
-      return { items: cloudItems, containers: cloudContainers };
+      return { items: cloudItems, categories: cloudCategories };
     } catch (err) {
       console.warn("Cloud pull failed:", err);
       throw err;
@@ -177,18 +176,13 @@ const SyncService = {
 
   // ── Full Bidirectional Sync ──
   async syncNow() {
-    const DEFAULT_CONTAINER = { id: "default", name: "Quick Saves", icon: "⚡", createdAt: 0 };
-    const { items = [], containers = [] } = await chrome.storage.local.get(["items", "containers"]);
-
-    // Ensure local has at least default container
-    const safeLocalContainers = containers && containers.length > 0 ? containers : [DEFAULT_CONTAINER];
+    const { items = [], categories = ["General", "Study", "Reading", "Ideas"] } = await chrome.storage.local.get(["items", "categories"]);
 
     const cloud = await this.pullFromCloud();
     if (!cloud) {
       // If no cloud data yet, push local data up
-      await this.pushToCloud(items, safeLocalContainers);
-      await chrome.storage.local.set({ containers: safeLocalContainers });
-      return { items, containers: safeLocalContainers };
+      await this.pushToCloud(items, categories);
+      return { items, categories };
     }
 
     // Merge items by ID (newer updatedAt/createdAt wins)
@@ -203,24 +197,17 @@ const SyncService = {
     });
     const mergedItems = Array.from(itemMap.values());
 
-    // Merge containers
-    const containerMap = new Map();
-    containerMap.set("default", DEFAULT_CONTAINER);
-    safeLocalContainers.forEach((c) => { if (c && c.id) containerMap.set(c.id, c); });
-    (cloud.containers || []).forEach((cc) => {
-      if (cc && cc.id && !containerMap.has(cc.id)) {
-        containerMap.set(cc.id, cc);
-      }
-    });
-    const mergedContainers = Array.from(containerMap.values());
+    // Merge categories
+    const categorySet = new Set([...categories, ...(cloud.categories || [])]);
+    const mergedCategories = Array.from(categorySet);
 
     // Save locally
-    await chrome.storage.local.set({ items: mergedItems, containers: mergedContainers });
+    await chrome.storage.local.set({ items: mergedItems, categories: mergedCategories });
 
     // Push unified data back to cloud
-    await this.pushToCloud(mergedItems, mergedContainers);
+    await this.pushToCloud(mergedItems, mergedCategories);
 
-    return { items: mergedItems, containers: mergedContainers };
+    return { items: mergedItems, categories: mergedCategories };
   },
 };
 

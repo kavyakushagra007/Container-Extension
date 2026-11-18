@@ -25,9 +25,6 @@
         <button id="btn-auth" class="icon-btn" title="Account & Cloud Sync">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
         </button>
-        <button id="btn-dashboard" class="icon-btn" title="Open full dashboard">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
-        </button>
         <button id="btn-add" class="icon-btn" title="Add new item">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
         </button>
@@ -59,39 +56,28 @@
       </button>
     </div>
 
-    <!-- Containers Bar -->
-    <div class="containers-bar">
-      <div class="containers-scroll" id="containers-list">
-        <!-- Rendered by JS -->
+    <!-- Top Toolbar: Count & Type Filters -->
+    <div class="toolbar-row">
+      <div id="count-bar" class="count-bar hidden">
+        <span id="item-count"></span>
       </div>
-      <button id="btn-add-container" class="container-add-btn" title="Create new container">+</button>
+      <div class="type-filter-group">
+        <button class="filter-btn active" data-filter="all">All</button>
+        <button class="filter-btn" data-filter="text">Text</button>
+        <button class="filter-btn" data-filter="link">Links</button>
+        <button class="filter-btn" data-filter="favorite" title="Favorites">★</button>
+      </div>
     </div>
 
-    <!-- Item Count Bar -->
-    <div id="count-bar" class="count-bar hidden">
-      <span id="item-count"></span>
-    </div>
-
-    <!-- Search & Filters -->
+    <!-- Search Bar -->
     <div class="search-bar">
       <svg class="search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
       <input type="text" id="search-input" placeholder="Search your saves..." />
     </div>
 
-    <div class="filters">
-      <button class="filter-btn active" data-filter="all">All</button>
-      <button class="filter-btn" data-filter="text">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="12" height="12"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
-        Text
-      </button>
-      <button class="filter-btn" data-filter="link">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="12" height="12"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
-        Links
-      </button>
-      <button class="filter-btn" data-filter="favorite">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="12" height="12"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
-        Favorites
-      </button>
+    <!-- Topic / Category Pills -->
+    <div class="categories-bar" id="categories-bar">
+      <!-- Rendered by JS -->
     </div>
 
     <!-- Items List -->
@@ -116,8 +102,9 @@
       <div class="modal-content">
         <h2>Edit Item</h2>
         <div class="form-group">
-          <label for="edit-container-select">Container</label>
-          <select id="edit-container-select" class="neon-select"></select>
+          <label for="edit-category">Category</label>
+          <input type="text" id="edit-category" list="category-datalist" placeholder="e.g. Study, Poems, Movies, Work" />
+          <datalist id="category-datalist"></datalist>
         </div>
         <div class="form-group">
           <label for="edit-content">Content</label>
@@ -140,8 +127,8 @@
       <div class="modal-content">
         <h2>Add New Item</h2>
         <div class="form-group">
-          <label for="add-container-select">Container</label>
-          <select id="add-container-select" class="neon-select"></select>
+          <label for="add-category">Category</label>
+          <input type="text" id="add-category" list="category-datalist" placeholder="e.g. Study, Poems, Movies, Work" />
         </div>
         <div class="form-group">
           <label for="add-content">Content</label>
@@ -158,35 +145,6 @@
       </div>
     </div>
 
-    <!-- Container Creation Modal -->
-    <div id="container-modal" class="modal hidden">
-      <div class="modal-backdrop"></div>
-      <div class="modal-content">
-        <h2>New Container</h2>
-        <div class="form-group">
-          <label for="container-name-input">Container Name</label>
-          <input type="text" id="container-name-input" placeholder="e.g. Articles, Work, Ideas" maxlength="25" />
-        </div>
-        <div class="form-group">
-          <label>Icon Emoji</label>
-          <div class="emoji-selector" id="emoji-selector">
-            <button type="button" class="emoji-opt active" data-emoji="⚡">⚡</button>
-            <button type="button" class="emoji-opt" data-emoji="📚">📚</button>
-            <button type="button" class="emoji-opt" data-emoji="💼">💼</button>
-            <button type="button" class="emoji-opt" data-emoji="💡">💡</button>
-            <button type="button" class="emoji-opt" data-emoji="📁">📁</button>
-            <button type="button" class="emoji-opt" data-emoji="🎯">🎯</button>
-            <button type="button" class="emoji-opt" data-emoji="🔖">🔖</button>
-            <button type="button" class="emoji-opt" data-emoji="🔥">🔥</button>
-          </div>
-        </div>
-        <div class="modal-actions">
-          <button id="container-modal-cancel" class="btn btn-secondary">Cancel</button>
-          <button id="container-modal-save" class="btn btn-primary">Create</button>
-        </div>
-      </div>
-    </div>
-
     <!-- Auth / Account Modal -->
     <div id="auth-modal" class="modal hidden">
       <div class="modal-backdrop"></div>
@@ -196,7 +154,7 @@
           <div class="auth-status-card">
             <div class="auth-avatar">👤</div>
             <div class="auth-info">
-              <div class="auth-email" id="auth-user-email">user@example.com</div>
+              <div class="auth-user-email" id="auth-user-email">user@example.com</div>
               <div class="auth-sync-status" id="auth-sync-status">🟢 Synced with Firebase Cloud</div>
             </div>
           </div>
@@ -206,7 +164,7 @@
           </div>
         </div>
         <div id="auth-logged-out-view">
-          <p class="auth-desc">Log in to sync your containers and clips across different Chrome profiles and computers.</p>
+          <p class="auth-desc">Log in to sync your saved items across different Chrome profiles and computers.</p>
           <div class="form-group">
             <label for="auth-email-input">Email</label>
             <input type="email" id="auth-email-input" placeholder="you@example.com" />

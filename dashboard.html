@@ -42,10 +42,10 @@
         </button>
 
         <div class="sidebar-section-header">
-          <span>CONTAINERS</span>
-          <button id="btn-add-container-dash" class="add-container-mini-btn" title="Create Container">+</button>
+          <span>CATEGORIES</span>
+          <button id="btn-add-category-dash" class="add-cat-mini-btn" title="Add Category">+</button>
         </div>
-        <div id="dash-containers-list" class="dash-containers-list">
+        <div id="dash-categories-list" class="dash-categories-list">
           <!-- Rendered by JS -->
         </div>
       </nav>
@@ -112,6 +112,7 @@
       <div class="bulk-bar hidden" id="bulk-bar">
         <span id="selected-count">0 selected</span>
         <button class="btn btn-sm btn-secondary" id="btn-select-all">Select All</button>
+        <button class="btn btn-sm btn-secondary" id="btn-bulk-category">Set Category</button>
         <button class="btn btn-sm btn-danger" id="btn-delete-selected">Delete Selected</button>
         <button class="btn btn-sm btn-secondary" id="btn-cancel-select">Cancel</button>
       </div>
@@ -173,8 +174,9 @@
     <div class="modal-content">
       <h2 id="modal-title">Add New Item</h2>
       <div class="form-group">
-        <label for="modal-container-select">Container</label>
-        <select id="modal-container-select" class="neon-select"></select>
+        <label for="modal-category-input">Category</label>
+        <input type="text" id="modal-category-input" list="dash-category-options" placeholder="e.g. Study, Poems, Movies, Work" />
+        <datalist id="dash-category-options"></datalist>
       </div>
       <div class="form-group">
         <label for="modal-content-input">Content</label>
@@ -187,35 +189,6 @@
       <div class="modal-actions">
         <button class="btn btn-secondary" id="modal-cancel">Cancel</button>
         <button class="btn btn-primary" id="modal-save">Save</button>
-      </div>
-    </div>
-  </div>
-
-  <!-- Container Creation Modal -->
-  <div id="container-modal" class="modal hidden">
-    <div class="modal-backdrop"></div>
-    <div class="modal-content">
-      <h2>New Container</h2>
-      <div class="form-group">
-        <label for="container-name-input">Container Name</label>
-        <input type="text" id="container-name-input" placeholder="e.g. Articles, Work, Ideas" maxlength="25" />
-      </div>
-      <div class="form-group">
-        <label>Icon Emoji</label>
-        <div class="emoji-selector" id="emoji-selector">
-          <button type="button" class="emoji-opt active" data-emoji="⚡">⚡</button>
-          <button type="button" class="emoji-opt" data-emoji="📚">📚</button>
-          <button type="button" class="emoji-opt" data-emoji="💼">💼</button>
-          <button type="button" class="emoji-opt" data-emoji="💡">💡</button>
-          <button type="button" class="emoji-opt" data-emoji="📁">📁</button>
-          <button type="button" class="emoji-opt" data-emoji="🎯">🎯</button>
-          <button type="button" class="emoji-opt" data-emoji="🔖">🔖</button>
-          <button type="button" class="emoji-opt" data-emoji="🔥">🔥</button>
-        </div>
-      </div>
-      <div class="modal-actions">
-        <button id="container-modal-cancel" class="btn btn-secondary">Cancel</button>
-        <button id="container-modal-save" class="btn btn-primary">Create</button>
       </div>
     </div>
   </div>
@@ -239,7 +212,7 @@
         </div>
       </div>
       <div id="auth-logged-out-view">
-        <p class="auth-desc">Log in to sync your containers and clips across different Chrome profiles and computers.</p>
+        <p class="auth-desc">Log in to sync your saved items across different Chrome profiles and computers.</p>
         <div class="form-group">
           <label for="auth-email-input">Email</label>
           <input type="email" id="auth-email-input" placeholder="you@example.com" />

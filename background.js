@@ -35,8 +35,8 @@ chrome.contextMenus.onClicked.addListener(async (info, tab) => {
     return;
   }
 
-  const { lastActiveContainer = "default" } = await chrome.storage.local.get("lastActiveContainer");
-  const containerId = lastActiveContainer !== "all" ? lastActiveContainer : "default";
+  const { activeCategory = "General" } = await chrome.storage.local.get("activeCategory");
+  const category = (activeCategory && activeCategory !== "all") ? activeCategory : "General";
   let item = null;
 
   if (info.menuItemId === "saveit-selection" && info.selectionText) {
@@ -44,7 +44,7 @@ chrome.contextMenus.onClicked.addListener(async (info, tab) => {
       id: generateId(),
       type: "text",
       content: info.selectionText,
-      containerId,
+      category,
       sourceUrl: tab?.url || "",
       sourceTitle: tab?.title || "",
       createdAt: Date.now(),
@@ -56,7 +56,7 @@ chrome.contextMenus.onClicked.addListener(async (info, tab) => {
       id: generateId(),
       type: "link",
       content: info.linkUrl,
-      containerId,
+      category,
       sourceUrl: tab?.url || "",
       sourceTitle: tab?.title || "",
       createdAt: Date.now(),
@@ -68,7 +68,7 @@ chrome.contextMenus.onClicked.addListener(async (info, tab) => {
       id: generateId(),
       type: "link",
       content: tab?.url || info.pageUrl,
-      containerId,
+      category,
       sourceUrl: tab?.url || info.pageUrl,
       sourceTitle: tab?.title || "Untitled Page",
       createdAt: Date.now(),
@@ -85,8 +85,8 @@ chrome.contextMenus.onClicked.addListener(async (info, tab) => {
 // ── Keyboard shortcut handler ──
 chrome.commands.onCommand.addListener(async (command) => {
   if (command === "save-selection") {
-    const { lastActiveContainer = "default" } = await chrome.storage.local.get("lastActiveContainer");
-    const containerId = lastActiveContainer !== "all" ? lastActiveContainer : "default";
+    const { activeCategory = "General" } = await chrome.storage.local.get("activeCategory");
+    const category = (activeCategory && activeCategory !== "all") ? activeCategory : "General";
 
     chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
       if (tabs[0]) {
@@ -100,7 +100,7 @@ chrome.commands.onCommand.addListener(async (command) => {
               id: generateId(),
               type: "text",
               content: text,
-              containerId,
+              category,
               sourceUrl: tabs[0].url || "",
               sourceTitle: tabs[0].title || "",
               createdAt: Date.now(),
@@ -129,20 +129,22 @@ function clearBadge() {
 chrome.runtime.onStartup.addListener(clearBadge);
 
 async function saveItem(item) {
-  const { items = [], containers = [] } = await chrome.storage.local.get(["items", "containers"]);
+  const { items = [], categories = ["General", "Study", "Reading", "Ideas"] } = await chrome.storage.local.get(["items", "categories"]);
   items.unshift(item);
-  await chrome.storage.local.set({ items });
+
+  // If item has a new category not yet in categories, add it
+  if (item.category && !categories.includes(item.category)) {
+    categories.push(item.category);
+    await chrome.storage.local.set({ items, categories });
+  } else {
+    await chrome.storage.local.set({ items });
+  }
 
   // Sync to cloud in background if user is logged in
   if (typeof SyncService !== "undefined" && SyncService.pushToCloud) {
-    const safeContainers =
-      containers && containers.length > 0
-        ? containers
-        : [{ id: "default", name: "Quick Saves", icon: "⚡", createdAt: 0 }];
-    SyncService.pushToCloud(items, safeContainers).catch(() => {});
+    SyncService.pushToCloud(items, categories).catch(() => {});
   }
 
-  // Ensure no badge is shown
   clearBadge();
 
   // Show floating notification on the active tab
@@ -163,7 +165,7 @@ function generateId() {
   return Date.now().toString(36) + Math.random().toString(36).substr(2, 9);
 }
 
-// ── Listen for messages from popup ──
+// ── Listen for messages from popup / dashboard ──
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (message.action === "getItems") {
     chrome.storage.local.get("items", (data) => {
@@ -195,24 +197,6 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     return true;
   }
 
-  if (message.action === "exportItems") {
-    chrome.storage.local.get("items", (data) => {
-      sendResponse(data.items || []);
-    });
-    return true;
-  }
-
-  if (message.action === "importItems") {
-    chrome.storage.local.get("items", (data) => {
-      const existing = data.items || [];
-      const merged = [...message.items, ...existing];
-      chrome.storage.local.set({ items: merged }, () =>
-        sendResponse({ success: true })
-      );
-    });
-    return true;
-  }
-
   if (message.action === "clearAll") {
     chrome.storage.local.set({ items: [] }, () =>
       sendResponse({ success: true })
@@ -220,4 +204,3 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     return true;
   }
 });
-
