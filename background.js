@@ -1,8 +1,10 @@
-importScripts("sync.js");
+importScripts("sync.js", "memory-store.js", "nlp-parser.js");
 
 // ── Context Menu Setup ──
 chrome.runtime.onInstalled.addListener(() => {
   clearBadge();
+  runMemoryRetentionPurge();
+
   chrome.contextMenus.create({
     id: "saveit-selection",
     title: 'Save "%s" to SaveIt',
@@ -126,7 +128,21 @@ function clearBadge() {
   } catch {}
 }
 
-chrome.runtime.onStartup.addListener(clearBadge);
+async function runMemoryRetentionPurge() {
+  try {
+    const { memoryRetentionDays = 14 } = await chrome.storage.local.get("memoryRetentionDays");
+    if (typeof MemoryStore !== "undefined" && MemoryStore.purgeOldMemories) {
+      await MemoryStore.purgeOldMemories(memoryRetentionDays);
+    }
+  } catch (err) {
+    console.warn("Memory retention purge:", err);
+  }
+}
+
+chrome.runtime.onStartup.addListener(() => {
+  clearBadge();
+  runMemoryRetentionPurge();
+});
 
 async function saveItem(item) {
   const { items = [], categories = ["General", "Study", "Reading", "Ideas"] } = await chrome.storage.local.get(["items", "categories"]);
@@ -156,7 +172,11 @@ async function saveItem(item) {
         action: "showSaveNotification",
         type: item.type,
         preview,
-      }).catch(() => {});
+      }, () => {
+        if (chrome.runtime.lastError) {
+          // Handled - content script may not be loaded on this tab
+        }
+      });
     }
   } catch {}
 }
@@ -165,8 +185,9 @@ function generateId() {
   return Date.now().toString(36) + Math.random().toString(36).substr(2, 9);
 }
 
-// ── Listen for messages from popup / dashboard ──
+// ── Message Listeners ──
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+  // ── Clipboard / Saves Actions ──
   if (message.action === "getItems") {
     chrome.storage.local.get("items", (data) => {
       sendResponse(data.items || []);
@@ -201,6 +222,164 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     chrome.storage.local.set({ items: [] }, () =>
       sendResponse({ success: true })
     );
+    return true;
+  }
+
+  // ── Web Memory Actions ──
+  if (message.action === "recordPageMemory") {
+    (async () => {
+      try {
+        const { memoryEnabled = true } = await chrome.storage.local.get("memoryEnabled");
+        if (memoryEnabled === false) {
+          sendResponse({ skipped: true });
+          return;
+        }
+        const record = await MemoryStore.saveMemory(message.payload);
+        sendResponse({ success: true, record });
+      } catch (err) {
+        sendResponse({ success: false, error: err?.message });
+      }
+    })();
+    return true;
+  }
+
+  if (message.action === "searchMemories") {
+    MemoryStore.searchMemories(message.query || "", message.limit || 50)
+      .then((results) => sendResponse(results))
+      .catch((err) => sendResponse([]));
+    return true;
+  }
+
+  if (message.action === "queryMemoriesNLP") {
+    const parsed = typeof NLPParser !== "undefined"
+      ? NLPParser.parseQuery(message.query || "")
+      : { cleanKeywords: (message.query || "").split(" "), timeRange: null, isConversational: false };
+
+    MemoryStore.queryMemoriesByTimeAndKeywords({
+      keywords: parsed.cleanKeywords,
+      timeRange: parsed.timeRange,
+      limit: message.limit || 40,
+    })
+      .then((res) => sendResponse({ ...res, parsed }))
+      .catch((err) => sendResponse({ items: [], parsed, error: err?.message }));
+    return true;
+  }
+
+  if (message.action === "getRecentMemories") {
+    MemoryStore.getRecentMemories(message.limit || 100)
+      .then((results) => sendResponse(results))
+      .catch((err) => sendResponse([]));
+    return true;
+  }
+
+  if (message.action === "deleteMemory") {
+    MemoryStore.deleteMemory(message.id)
+      .then(() => sendResponse({ success: true }))
+      .catch(() => sendResponse({ success: false }));
+    return true;
+  }
+
+  if (message.action === "clearAllMemories") {
+    MemoryStore.clearAllMemories()
+      .then(() => sendResponse({ success: true }))
+      .catch(() => sendResponse({ success: false }));
+    return true;
+  }
+
+  if (message.action === "getMemoryStats") {
+    MemoryStore.getStats()
+      .then((stats) => sendResponse(stats))
+      .catch(() => sendResponse({ count: 0, approxBytes: 0 }));
+    return true;
+  }
+
+  if (message.action === "saveMemoryToSaves") {
+    (async () => {
+      try {
+        const mem = message.memory;
+        if (!mem) return sendResponse({ success: false });
+
+        const { activeCategory = "General" } = await chrome.storage.local.get("activeCategory");
+        const category = message.category || (activeCategory !== "all" ? activeCategory : "General");
+
+        const newItem = {
+          id: generateId(),
+          type: "link",
+          content: mem.url,
+          category,
+          sourceUrl: mem.url,
+          sourceTitle: mem.title || "Web Memory Save",
+          createdAt: Date.now(),
+          tags: ["from-memory"],
+          favorite: false,
+        };
+
+        await saveItem(newItem);
+        sendResponse({ success: true, item: newItem });
+      } catch (err) {
+        sendResponse({ success: false, error: err?.message });
+      }
+    })();
+    return true;
+  }
+
+  if (message.action === "importChromeHistory") {
+    (async () => {
+      try {
+        if (!chrome.history || !chrome.history.search) {
+          sendResponse({ success: false, error: "Chrome history permission not available" });
+          return;
+        }
+
+        const days = message.days || 14;
+        const startTime = Date.now() - (days * 24 * 60 * 60 * 1000);
+        const historyItems = await new Promise((resolve) => {
+          chrome.history.search({ text: "", startTime, maxResults: 2000 }, resolve);
+        });
+
+        const sensitiveDomains = [
+          "accounts.google.com", "login.microsoftonline.com", "appleid.apple.com",
+          "paypal.com", "checkout.stripe.com", "auth0.com", "bankofamerica.com",
+          "chase.com", "wellsfargo.com", "citi.com", "fidelity.com", "capitalone.com",
+          "login.live.com"
+        ];
+
+        const { memoryBlacklist = [] } = await chrome.storage.local.get("memoryBlacklist");
+
+        const validItems = (historyItems || [])
+          .filter((h) => {
+            if (!h.url || !h.url.startsWith("http")) return false;
+            try {
+              const u = new URL(h.url);
+              const host = u.hostname.toLowerCase();
+              if (sensitiveDomains.some((d) => host.includes(d))) return false;
+              if (memoryBlacklist.some((b) => b && host.includes(b.toLowerCase().trim()))) return false;
+              return true;
+            } catch {
+              return false;
+            }
+          })
+          .map((h) => {
+            let domain = "";
+            try { domain = new URL(h.url).hostname.replace(/^www\./, ""); } catch {}
+            return {
+              url: h.url,
+              title: h.title || domain,
+              domain: domain,
+              visitedAt: h.lastVisitTime || Date.now(),
+              visitCount: h.visitCount || 1,
+              description: "",
+              keywords: "",
+              textContent: "",
+            };
+          });
+
+        const importedCount = await MemoryStore.importHistoryItems(validItems);
+        sendResponse({ success: true, count: importedCount });
+      } catch (err) {
+        sendResponse({ success: false, error: err?.message });
+      }
+    })();
     return true;
   }
 });

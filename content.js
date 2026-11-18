@@ -1,5 +1,6 @@
 // SaveIt - Content Script
-// Shows a floating notification on the webpage when an item is saved
+// 1. Shows floating notification on webpage when an item is saved
+// 2. Extracts page digest for Web Memory (local, non-blocking, privacy-first)
 
 (() => {
   // Listen for messages from background
@@ -10,11 +11,9 @@
   });
 
   function showNotification(type, preview) {
-    // Remove any existing notification
     const existing = document.getElementById("saveit-notification");
     if (existing) existing.remove();
 
-    const typeLabel = type === "text" ? "Text" : type === "link" ? "Link" : "Page";
     const typeEmoji = type === "text" ? "📝" : type === "link" ? "🔗" : "📄";
 
     const notification = document.createElement("div");
@@ -113,7 +112,6 @@
 
     document.body.appendChild(notification);
 
-    // Auto-dismiss after 2.5 seconds
     setTimeout(() => {
       notification.classList.add("saveit-fade-out");
       setTimeout(() => notification.remove(), 250);
@@ -125,5 +123,132 @@
     div.textContent = str;
     return div.innerHTML;
   }
-})();
 
+  // ── Web Memory Extractor ──
+  // Extracts lightweight summary of visited webpage for local memory index
+  async function initWebMemory() {
+    try {
+      // 1. Only run in top frame
+      if (window !== window.top) return;
+
+      // 2. Only run on HTTP/HTTPS
+      const loc = window.location;
+      if (!loc || !loc.protocol.startsWith("http")) return;
+
+      // 3. Skip if password field exists on page (security & privacy)
+      if (document.querySelector('input[type="password"]')) return;
+
+      const hostname = loc.hostname.toLowerCase();
+
+      // 4. Default sensitive domains to ignore
+      const sensitiveDomains = [
+        "accounts.google.com",
+        "login.microsoftonline.com",
+        "appleid.apple.com",
+        "paypal.com",
+        "checkout.stripe.com",
+        "auth0.com",
+        "bankofamerica.com",
+        "chase.com",
+        "wellsfargo.com",
+        "citi.com",
+        "fidelity.com",
+        "capitalone.com",
+        "login.live.com",
+      ];
+      if (sensitiveDomains.some((d) => hostname.includes(d))) return;
+
+      // 5. Check user settings in storage
+      const settings = await chrome.storage.local.get(["memoryEnabled", "memoryBlacklist"]);
+      if (settings.memoryEnabled === false) return;
+
+      const blacklist = settings.memoryBlacklist || [];
+      if (blacklist.some((blocked) => blocked && hostname.includes(blocked.toLowerCase().trim()))) {
+        return;
+      }
+
+      // 6. Extract page digest
+      const title = document.title ? document.title.trim() : "";
+      if (!title && !document.body) return;
+
+      const metaDesc =
+        document.querySelector('meta[name="description"]')?.getAttribute("content") ||
+        document.querySelector('meta[property="og:description"]')?.getAttribute("content") ||
+        document.querySelector('meta[name="twitter:description"]')?.getAttribute("content") ||
+        "";
+
+      // Headings (H1 to H3)
+      const headings = Array.from(document.querySelectorAll("h1, h2, h3"))
+        .map((h) => h.innerText || h.textContent || "")
+        .map((s) => s.trim().replace(/\s+/g, " "))
+        .filter((s) => s.length > 2 && s.length < 150)
+        .slice(0, 8)
+        .join(" • ");
+
+      // Clean text excerpt (first ~300 words)
+      const textExcerpt = extractCleanTextExcerpt();
+
+      // Favicon
+      let favicon = "";
+      const favEl =
+        document.querySelector('link[rel~="icon"]') ||
+        document.querySelector('link[rel="shortcut icon"]');
+      if (favEl && favEl.href) {
+        favicon = favEl.href;
+      } else {
+        favicon = `https://www.google.com/s2/favicons?domain=${hostname}&sz=32`;
+      }
+
+      const payload = {
+        url: loc.href,
+        domain: hostname.replace(/^www\./, ""),
+        title: title || hostname,
+        description: (metaDesc || "").slice(0, 300).trim(),
+        keywords: headings.slice(0, 300),
+        textContent: textExcerpt.slice(0, 1000),
+        favicon: favicon,
+      };
+
+      // Send to background to save in IndexedDB (guard against invalidated context)
+      if (!chrome.runtime || !chrome.runtime.id) return;
+
+      try {
+        chrome.runtime.sendMessage({
+          action: "recordPageMemory",
+          payload: payload,
+        }, () => {
+          // Consume chrome.runtime.lastError so Chrome never logs an unhandled error
+          if (chrome.runtime.lastError) {
+            // Silently handled
+          }
+        });
+      } catch (err) {
+        // Silently handled
+      }
+    } catch (e) {
+      // Fail silently to never disrupt the user's webpage
+    }
+  }
+
+  function extractCleanTextExcerpt() {
+    try {
+      const container = document.querySelector("main") || document.querySelector("article") || document.body;
+      if (!container) return "";
+
+      const clone = container.cloneNode(true);
+      // Remove unwanted elements
+      const unwanted = clone.querySelectorAll("script, style, noscript, nav, footer, header, form, svg, iframe");
+      unwanted.forEach((el) => el.remove());
+
+      const raw = clone.innerText || clone.textContent || "";
+      const cleaned = raw.replace(/\s+/g, " ").trim();
+      const words = cleaned.split(" ").slice(0, 300);
+      return words.join(" ");
+    } catch {
+      return "";
+    }
+  }
+
+  // Run page extraction after a short delay so dynamically loaded titles/content settle
+  setTimeout(initWebMemory, 1200);
+})();
