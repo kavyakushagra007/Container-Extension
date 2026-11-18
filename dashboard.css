@@ -1041,6 +1041,324 @@ body {
   to { opacity: 1; transform: translateY(0); }
 }
 
+/* ── Web Memory Timeline & Cards in Dashboard ── */
+.memory-assistant-bar {
+  background: linear-gradient(135deg, #070a04 0%, #030402 100%);
+  border: 1px solid rgba(190, 250, 79, 0.35);
+  border-radius: var(--radius);
+  padding: 16px 20px;
+  margin: 0 28px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.8), 0 0 16px rgba(190, 250, 79, 0.12);
+}
+
+.assistant-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.assistant-title {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  font-weight: 800;
+  color: var(--neon);
+  letter-spacing: 0.3px;
+}
+
+.assistant-title svg {
+  color: var(--neon);
+  filter: drop-shadow(0 0 6px var(--neon-glow));
+}
+
+.assistant-subtitle {
+  font-size: 12.5px;
+  color: var(--text-secondary);
+}
+
+.assistant-subtitle em {
+  color: var(--text);
+  font-style: normal;
+  background: rgba(190, 250, 79, 0.08);
+  padding: 1px 6px;
+  border-radius: 4px;
+}
+
+.assistant-chips {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.assistant-chip {
+  background: #0d1206;
+  border: 1px solid rgba(190, 250, 79, 0.25);
+  color: var(--text-secondary);
+  font-size: 12px;
+  padding: 5px 12px;
+  border-radius: 20px;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.assistant-chip:hover {
+  background: rgba(190, 250, 79, 0.15);
+  border-color: var(--neon);
+  color: var(--neon);
+  box-shadow: 0 0 10px rgba(190, 250, 79, 0.25);
+  transform: translateY(-1px);
+}
+
+/* ── Dashboard AI Spotlight Card ── */
+.dash-ai-spotlight {
+  grid-column: 1 / -1;
+  background: linear-gradient(145deg, #0e1507 0%, #060803 100%);
+  border: 1.5px solid var(--neon);
+  border-radius: var(--radius);
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  box-shadow: 0 8px 36px rgba(0, 0, 0, 0.95), 0 0 22px rgba(190, 250, 79, 0.25);
+  animation: cardIn 0.22s ease;
+  margin-bottom: 8px;
+}
+
+.dash-ai-spotlight-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.dash-ai-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+  color: var(--neon);
+  background: rgba(190, 250, 79, 0.18);
+  border: 1px solid rgba(190, 250, 79, 0.45);
+  padding: 3px 9px;
+  border-radius: 5px;
+}
+
+.dash-ai-echo {
+  font-size: 13.5px;
+  color: var(--text-secondary);
+}
+
+.dash-ai-echo strong {
+  color: var(--neon);
+}
+
+.timeline-section {
+  grid-column: 1 / -1;
+  margin-top: 14px;
+  margin-bottom: 6px;
+}
+
+.timeline-section:first-child {
+  margin-top: 0;
+}
+
+.timeline-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 11.5px;
+  font-weight: 800;
+  letter-spacing: 1px;
+  color: var(--neon);
+  text-transform: uppercase;
+}
+
+.timeline-header::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: linear-gradient(90deg, rgba(190, 250, 79, 0.3), rgba(24, 28, 15, 0.2));
+}
+
+.dash-memory-card {
+  position: relative;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  height: auto;
+  align-self: start;
+  transition: all 0.18s cubic-bezier(0.16, 1, 0.3, 1);
+  animation: cardIn 0.2s ease;
+}
+
+.dash-memory-card:hover {
+  border-color: rgba(190, 250, 79, 0.45);
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.9), 0 0 16px rgba(190, 250, 79, 0.18);
+  transform: translateY(-2px);
+}
+
+.dash-memory-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.dash-memory-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.dash-memory-favicon {
+  width: 16px;
+  height: 16px;
+  border-radius: 4px;
+  flex-shrink: 0;
+  object-fit: contain;
+}
+
+.dash-memory-domain {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--neon);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.dash-memory-time {
+  font-size: 11.5px;
+  color: var(--text-muted);
+  flex-shrink: 0;
+}
+
+.dash-memory-title {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--text);
+  line-height: 1.35;
+  text-decoration: none;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  transition: color 0.15s;
+  cursor: pointer;
+}
+
+.dash-memory-title:hover {
+  color: var(--neon);
+  text-shadow: 0 0 10px rgba(190, 250, 79, 0.35);
+}
+
+.dash-memory-snippet {
+  font-size: 12.5px;
+  color: var(--text-secondary);
+  line-height: 1.45;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.dash-memory-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 4px;
+  padding-top: 10px;
+  border-top: 1px solid rgba(24, 28, 15, 0.9);
+}
+
+.dash-memory-badges {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.dash-memory-visits {
+  font-size: 11px;
+  color: var(--text-muted);
+  background: #040502;
+  border: 1px solid var(--border);
+  padding: 2px 7px;
+  border-radius: 4px;
+}
+
+.dash-memory-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.btn-dash-promote {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  background: rgba(190, 250, 79, 0.12);
+  border: 1px solid rgba(190, 250, 79, 0.45);
+  color: var(--neon);
+  font-size: 11.5px;
+  font-weight: 700;
+  padding: 4px 10px;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.btn-dash-promote:hover {
+  background: var(--neon);
+  color: #000000;
+  box-shadow: 0 0 12px rgba(190, 250, 79, 0.4);
+}
+
+.btn-dash-promote.saved {
+  background: #0b0f05;
+  border-color: rgba(190, 250, 79, 0.2);
+  color: #7d9657;
+  cursor: default;
+}
+
+.btn-dash-icon {
+  background: transparent;
+  border: 1px solid transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  padding: 5px;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.12s;
+}
+
+.btn-dash-icon:hover {
+  color: var(--text);
+  border-color: var(--border);
+  background: var(--bg-hover);
+}
+
+.btn-dash-icon.danger:hover {
+  color: var(--neon-red);
+  border-color: rgba(255, 56, 86, 0.3);
+  background: var(--neon-red-bg);
+}
+
 @keyframes modalIn {
   from { opacity: 0; transform: scale(0.96) translateY(10px); }
   to { opacity: 1; transform: scale(1) translateY(0); }

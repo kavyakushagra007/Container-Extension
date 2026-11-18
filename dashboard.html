@@ -40,6 +40,11 @@
           Favorites
           <span class="nav-count" id="count-fav">0</span>
         </button>
+        <button class="nav-item" data-view="memory">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/></svg>
+          Web Memory
+          <span class="nav-count" id="count-memory">0</span>
+        </button>
 
         <div class="sidebar-section-header">
           <span>CATEGORIES</span>
@@ -117,6 +122,25 @@
         <button class="btn btn-sm btn-secondary" id="btn-cancel-select">Cancel</button>
       </div>
 
+      <!-- Web Memory Assistant Bar -->
+      <div class="memory-assistant-bar hidden" id="memory-assistant-bar">
+        <div class="assistant-header">
+          <div class="assistant-title">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16">
+              <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/>
+            </svg>
+            <span>Ask SaveIt Memory</span>
+          </div>
+          <span class="assistant-subtitle">Search naturally by time & topic (e.g. <em>"two days ago I saw black Nike shoes"</em>)</span>
+        </div>
+        <div class="assistant-chips">
+          <button class="assistant-chip" data-chip="two days ago I saw black Nike shoes">👟 "black Nike shoes 2 days ago"</button>
+          <button class="assistant-chip" data-chip="Python tutorial yesterday">🐍 "Python tutorial yesterday"</button>
+          <button class="assistant-chip" data-chip="job openings this week">💼 "jobs this week"</button>
+          <button class="assistant-chip" data-chip="articles read yesterday">📄 "articles yesterday"</button>
+        </div>
+      </div>
+
       <!-- Items Grid -->
       <div class="items-grid" id="items-grid">
         <!-- Items rendered by JS -->
@@ -147,6 +171,36 @@
             <p>Import items from a previously exported JSON backup file.</p>
             <button class="btn btn-secondary" id="settings-import">Import from File</button>
             <input type="file" id="import-file" accept=".json" style="display:none" />
+          </div>
+          <div class="settings-card">
+            <h3>🧠 Web Memory Settings</h3>
+            <p>Automatically records a private, searchable index of pages you visit.</p>
+            <div style="margin: 12px 0; display: flex; flex-direction: column; gap: 10px;">
+              <label style="display: flex; align-items: center; gap: 8px; font-size: 13px; cursor: pointer;">
+                <input type="checkbox" id="setting-memory-enabled" checked />
+                <span>Enable Web Memory tracking</span>
+              </label>
+              <div style="display: flex; align-items: center; justify-content: space-between; font-size: 12.5px;">
+                <span style="color: var(--text-secondary);">Retention period:</span>
+                <select id="setting-memory-retention" style="background:#000; color:var(--text); border:1px solid var(--border); padding:4px 8px; border-radius:6px;">
+                  <option value="3">3 Days</option>
+                  <option value="7">7 Days</option>
+                  <option value="14" selected>14 Days</option>
+                  <option value="30">30 Days</option>
+                </select>
+              </div>
+              <div style="display: flex; flex-direction: column; gap: 4px;">
+                <span style="color: var(--text-secondary); font-size: 12px;">Ignored domains (comma-separated):</span>
+                <input type="text" id="setting-memory-blacklist" placeholder="e.g. reddit.com, internal.company.com" style="background:#000; color:var(--text); border:1px solid var(--border); padding:6px 8px; border-radius:6px; font-size:12px;" />
+              </div>
+              <div id="memory-stats-text" style="font-size: 11.5px; color: var(--neon); margin-top: 2px;">
+                0 pages remembered (~0 KB)
+              </div>
+            </div>
+            <div style="display:flex; flex-direction:column; gap:8px;">
+              <button class="btn btn-secondary" id="btn-sync-history">📥 Sync Past 14 Days Chrome History</button>
+              <button class="btn btn-secondary" id="btn-clear-memory" style="color: var(--neon-red); border-color: rgba(255,56,86,0.3);">Clear Browsing Memory</button>
+            </div>
           </div>
           <div class="settings-card danger-card">
             <h3>🗑️ Clear All Data</h3>
@@ -235,6 +289,8 @@
   <!-- Toast -->
   <div id="toast" class="toast hidden"></div>
 
+  <script src="nlp-parser.js"></script>
+  <script src="memory-store.js"></script>
   <script src="sync.js"></script>
   <script src="dashboard.js"></script>
 </body>
