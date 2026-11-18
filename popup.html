@@ -56,8 +56,27 @@
       </button>
     </div>
 
+    <!-- View Mode Switcher: My Saves vs Web Memory -->
+    <div class="view-mode-bar">
+      <button class="mode-tab-btn active" id="tab-saves" data-mode="saves">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="13" height="13">
+          <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/>
+          <polyline points="17 21 17 13 7 13 7 21"/>
+          <polyline points="7 3 7 8 15 8"/>
+        </svg>
+        <span>My Saves</span>
+      </button>
+      <button class="mode-tab-btn" id="tab-memory" data-mode="memory">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="13" height="13">
+          <circle cx="12" cy="12" r="9"/>
+          <path d="M12 7v5l3 3"/>
+        </svg>
+        <span>Web Memory</span>
+      </button>
+    </div>
+
     <!-- Top Toolbar: Count & Type Filters -->
-    <div class="toolbar-row">
+    <div class="toolbar-row" id="saves-toolbar">
       <div id="count-bar" class="count-bar hidden">
         <span id="item-count"></span>
       </div>
@@ -189,6 +208,8 @@
   </div>
 
   <input type="file" id="import-file" accept=".json" style="display:none" />
+  <script src="nlp-parser.js"></script>
+  <script src="memory-store.js"></script>
   <script src="sync.js"></script>
   <script src="popup.js"></script>
 </body>

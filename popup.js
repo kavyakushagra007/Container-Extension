@@ -1,4 +1,4 @@
-// ── SaveIt: Popup Controller (Cloud Sync, Tags & Categories) ──
+// ── SaveIt: Popup Controller (Cloud Sync, Tags & Categories, Web Memory) ──
 let allItems = [];
 let categories = ["General", "Study", "Reading", "Ideas"];
 let activeCategory = "all";
@@ -6,8 +6,14 @@ let currentFilter = "all";
 let searchQuery = "";
 let editingItemId = null;
 let authIsSignUp = false;
+let activeMode = "saves"; // "saves" or "memory"
+let allMemories = [];
+let memorySearchDebounce = null;
 
 // ── DOM Elements ──
+const tabSaves = document.getElementById("tab-saves");
+const tabMemory = document.getElementById("tab-memory");
+const savesToolbar = document.getElementById("saves-toolbar");
 const itemsContainer = document.getElementById("items-container");
 const emptyState = document.getElementById("empty-state");
 const searchInput = document.getElementById("search-input");
@@ -346,12 +352,313 @@ function handleItemAction(e) {
   }
 }
 
+// ── Web Memory Renderer ──
+let currentNlpResult = null;
+
+async function loadAndRenderMemories() {
+  try {
+    currentNlpResult = null;
+    const trimmed = (searchQuery || "").trim();
+
+    if (trimmed && typeof NLPParser !== "undefined") {
+      const parsed = NLPParser.parseQuery(trimmed);
+
+      if (parsed.isConversational || parsed.timeRange) {
+        if (typeof MemoryStore !== "undefined" && MemoryStore.queryMemoriesByTimeAndKeywords) {
+          const res = await MemoryStore.queryMemoriesByTimeAndKeywords({
+            keywords: parsed.cleanKeywords,
+            timeRange: parsed.timeRange,
+            limit: 40,
+          });
+          currentNlpResult = { ...res, parsed };
+          allMemories = res.items || [];
+          renderMemories();
+          return;
+        }
+      }
+    }
+
+    // Standard search
+    let results = [];
+    if (typeof MemoryStore !== "undefined" && MemoryStore.searchMemories) {
+      results = await MemoryStore.searchMemories(searchQuery, 40);
+    } else {
+      results = await new Promise((resolve) => {
+        chrome.runtime.sendMessage({ action: "searchMemories", query: searchQuery, limit: 40 }, (res) => {
+          resolve(res || []);
+        });
+      });
+    }
+    allMemories = results || [];
+    renderMemories();
+  } catch (err) {
+    console.error("Error loading memories:", err);
+    renderMemories();
+  }
+}
+
+function renderMemories() {
+  if (allMemories.length === 0) {
+    itemsContainer.classList.add("hidden");
+    emptyState.classList.remove("hidden");
+    const emptyP = emptyState.querySelector("p");
+    const emptySpan = emptyState.querySelector("span");
+    if (searchQuery) {
+      if (emptyP) emptyP.textContent = "No memories found";
+      if (emptySpan) emptySpan.textContent = `Nothing matched "${searchQuery}". Try different words or dates.`;
+    } else {
+      if (emptyP) emptyP.textContent = "No browsing memories yet";
+      if (emptySpan) {
+        emptySpan.innerHTML = `Pages you browse will appear here automatically.<br/><button id="btn-popup-sync" style="margin-top:10px; background:rgba(190,250,79,0.12); border:1px solid var(--neon); color:var(--neon); padding:5px 12px; border-radius:6px; font-size:11px; font-weight:700; cursor:pointer;">⚡ Sync Past 14 Days History</button>`;
+        const btnSync = document.getElementById("btn-popup-sync");
+        if (btnSync) {
+          btnSync.addEventListener("click", () => {
+            btnSync.textContent = "⏳ Syncing...";
+            btnSync.disabled = true;
+            chrome.runtime.sendMessage({ action: "importChromeHistory", days: 14 }, (res) => {
+              if (res && res.success) {
+                showToast(`Imported ${res.count} pages!`);
+                loadAndRenderMemories();
+              } else {
+                showToast(res?.error || "Could not sync history");
+                btnSync.textContent = "⚡ Sync Past 14 Days History";
+                btnSync.disabled = false;
+              }
+            });
+          });
+        }
+      }
+    }
+    return;
+  }
+
+  emptyState.classList.add("hidden");
+  itemsContainer.classList.remove("hidden");
+
+  let html = "";
+
+  // If we have an AI conversational spotlight match
+  if (currentNlpResult && currentNlpResult.items && currentNlpResult.items.length > 0) {
+    const topMatch = currentNlpResult.items[0];
+    html += createSpotlightCardHTML(topMatch, currentNlpResult.parsed, currentNlpResult.matchedInTimeRange);
+
+    const remaining = currentNlpResult.items.slice(1);
+    if (remaining.length > 0) {
+      html += `<div style="font-size:11px; font-weight:700; color:var(--text-muted); text-transform:uppercase; margin: 10px 0 6px; letter-spacing:0.5px;">Other Relevant Visits</div>`;
+      html += remaining.map((mem) => createMemoryHTML(mem)).join("");
+    }
+  } else {
+    html = allMemories.map((mem) => createMemoryHTML(mem)).join("");
+  }
+
+  itemsContainer.innerHTML = html;
+
+  // Attach memory card events
+  itemsContainer.querySelectorAll(".memory-title-link").forEach((link) => {
+    link.addEventListener("click", (e) => {
+      e.preventDefault();
+      const url = link.dataset.url;
+      if (url) chrome.tabs.create({ url });
+    });
+  });
+
+  itemsContainer.querySelectorAll("[data-action='promote-memory']").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const id = btn.dataset.id;
+      promoteMemoryToSave(id, btn);
+    });
+  });
+
+  itemsContainer.querySelectorAll("[data-action='delete-memory']").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const id = btn.dataset.id;
+      deleteMemoryRecord(id);
+    });
+  });
+}
+
+function createSpotlightCardHTML(mem, parsed, matchedInTime) {
+  const isSaved = allItems.some(
+    (i) => i.content === mem.url || (i.sourceUrl && i.sourceUrl === mem.url)
+  );
+
+  const timeAgo = getTimeAgo(new Date(mem.visitedAt));
+  const domain = escapeHTML(mem.domain || "web");
+  const title = escapeHTML(mem.title || mem.url);
+  const snippet = escapeHTML(mem.description || mem.keywords || mem.textContent || "").slice(0, 160);
+  const favicon = mem.favicon || `https://www.google.com/s2/favicons?domain=${mem.domain}&sz=32`;
+
+  const timeBadge = matchedInTime && parsed.timeRange?.label
+    ? `From ${escapeHTML(parsed.timeRange.label)}`
+    : `Visited ${timeAgo}`;
+
+  const saveBtn = isSaved
+    ? `<span class="btn-promote-save saved">✓ Saved</span>`
+    : `<button class="btn-promote-save" data-action="promote-memory" data-id="${mem.id}">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="11" height="11"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+        Save
+       </button>`;
+
+  const promptEcho = parsed.promptText
+    ? `Found matching <strong>"${escapeHTML(parsed.promptText)}"</strong> ${parsed.timeRange?.label ? `from <strong>${escapeHTML(parsed.timeRange.label)}</strong>` : ""}:`
+    : "Best direct answer:";
+
+  return `
+    <div class="ai-answer-card" data-id="${mem.id}">
+      <div class="ai-answer-top">
+        <span class="ai-answer-badge">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="11" height="11"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+          Direct Match
+        </span>
+        <span class="ai-answer-time-tag">${timeBadge}</span>
+      </div>
+      <div class="ai-answer-prompt-echo">${promptEcho}</div>
+      <a class="ai-answer-title memory-title-link" href="#" data-url="${escapeHTML(mem.url)}" title="${title}">${title}</a>
+      ${snippet ? `<div class="ai-answer-snippet">${snippet}…</div>` : ""}
+      <div class="ai-answer-actions">
+        <div style="display:flex; align-items:center; gap:6px;">
+          <img class="memory-favicon" src="${escapeHTML(favicon)}" onerror="this.style.display='none'" alt="" />
+          <span class="memory-domain">${domain}</span>
+        </div>
+        <div class="memory-actions">
+          ${saveBtn}
+          <button class="memory-del-btn" data-action="delete-memory" data-id="${mem.id}" title="Remove memory">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="12" height="12"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+          </button>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+function createMemoryHTML(mem) {
+  const isSaved = allItems.some(
+    (i) => i.content === mem.url || (i.sourceUrl && i.sourceUrl === mem.url)
+  );
+
+  const timeAgo = getTimeAgo(new Date(mem.visitedAt));
+  const domain = escapeHTML(mem.domain || "web");
+  const title = escapeHTML(mem.title || mem.url);
+  const snippet = escapeHTML(mem.description || mem.keywords || mem.textContent || "").slice(0, 140);
+  const favicon = mem.favicon || `https://www.google.com/s2/favicons?domain=${mem.domain}&sz=32`;
+  const visits = mem.visitCount > 1 ? ` · Visited ${mem.visitCount}x` : "";
+
+  const saveBtn = isSaved
+    ? `<span class="btn-promote-save saved">✓ Saved</span>`
+    : `<button class="btn-promote-save" data-action="promote-memory" data-id="${mem.id}">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="11" height="11"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+        Save
+       </button>`;
+
+  return `
+    <div class="memory-card" data-id="${mem.id}">
+      <div class="memory-header">
+        <div class="memory-origin">
+          <img class="memory-favicon" src="${escapeHTML(favicon)}" onerror="this.style.display='none'" alt="" />
+          <span class="memory-domain">${domain}</span>
+        </div>
+        <span class="memory-time">${timeAgo}${visits}</span>
+      </div>
+      <a class="memory-title-link" href="#" data-url="${escapeHTML(mem.url)}" title="${title}">${title}</a>
+      ${snippet ? `<div class="memory-snippet">${snippet}…</div>` : ""}
+      <div class="memory-footer">
+        <div class="memory-visits">
+          <span style="color:var(--text-muted); font-size:10px;">${escapeHTML(mem.url.slice(0, 38))}…</span>
+        </div>
+        <div class="memory-actions">
+          ${saveBtn}
+          <button class="memory-del-btn" data-action="delete-memory" data-id="${mem.id}" title="Remove memory">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="12" height="12"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+          </button>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+async function promoteMemoryToSave(memId, btnElement) {
+  const mem = allMemories.find((m) => m.id === memId);
+  if (!mem) return;
+
+  const cat = activeCategory !== "all" ? activeCategory : "General";
+  const item = {
+    id: Date.now().toString(36) + Math.random().toString(36).substr(2, 9),
+    type: "link",
+    content: mem.url,
+    category: cat,
+    sourceUrl: mem.url,
+    sourceTitle: mem.title || "Web Memory Save",
+    createdAt: Date.now(),
+    tags: ["from-memory"],
+    favorite: false,
+  };
+
+  chrome.runtime.sendMessage({ action: "saveItem", item }, () => {
+    allItems.unshift(item);
+    renderCategoriesBar();
+    showToast(`Saved to ${cat}!`);
+    SyncService.pushToCloud(allItems, categories);
+
+    if (btnElement) {
+      btnElement.outerHTML = `<span class="btn-promote-save saved">✓ Saved</span>`;
+    }
+  });
+}
+
+async function deleteMemoryRecord(memId) {
+  if (typeof MemoryStore !== "undefined" && MemoryStore.deleteMemory) {
+    await MemoryStore.deleteMemory(memId);
+  } else {
+    await new Promise((resolve) => {
+      chrome.runtime.sendMessage({ action: "deleteMemory", id: memId }, resolve);
+    });
+  }
+
+  allMemories = allMemories.filter((m) => m.id !== memId);
+  renderMemories();
+  showToast("Memory removed");
+}
+
 // ── Event Listeners Setup ──
 function setupEventListeners() {
+  // Mode Switch Tabs (My Saves vs Web Memory)
+  if (tabSaves && tabMemory) {
+    tabSaves.addEventListener("click", () => {
+      if (activeMode === "saves") return;
+      activeMode = "saves";
+      tabSaves.classList.add("active");
+      tabMemory.classList.remove("active");
+      if (savesToolbar) savesToolbar.classList.remove("hidden");
+      if (categoriesBar) categoriesBar.classList.remove("hidden");
+      searchInput.placeholder = "Search your saves...";
+      searchQuery = searchInput.value;
+      renderItems();
+    });
+
+    tabMemory.addEventListener("click", () => {
+      if (activeMode === "memory") return;
+      activeMode = "memory";
+      tabMemory.classList.add("active");
+      tabSaves.classList.remove("active");
+      if (savesToolbar) savesToolbar.classList.add("hidden");
+      if (categoriesBar) categoriesBar.classList.add("hidden");
+      searchInput.placeholder = "Search browsing memory (e.g. Nike, Python, tutorial)...";
+      searchQuery = searchInput.value;
+      loadAndRenderMemories();
+    });
+  }
+
   // Search
   searchInput.addEventListener("input", (e) => {
     searchQuery = e.target.value;
-    renderItems();
+    if (activeMode === "saves") {
+      renderItems();
+    } else {
+      if (memorySearchDebounce) clearTimeout(memorySearchDebounce);
+      memorySearchDebounce = setTimeout(() => {
+        loadAndRenderMemories();
+      }, 180);
+    }
   });
 
   // Filter Buttons

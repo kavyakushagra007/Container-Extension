@@ -177,6 +177,53 @@ body {
   margin: 5px 0;
 }
 
+/* ── View Mode Switcher: Saves vs Web Memory ── */
+.view-mode-bar {
+  display: flex;
+  padding: 8px 14px 4px;
+  background: #020301;
+  gap: 6px;
+}
+
+.mode-tab-btn {
+  flex: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  padding: 6px 12px;
+  background: #070804;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  color: var(--text-secondary);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.mode-tab-btn svg {
+  color: var(--text-muted);
+  transition: color 0.15s;
+}
+
+.mode-tab-btn:hover {
+  background: var(--bg-hover);
+  color: var(--text);
+  border-color: rgba(190, 250, 79, 0.3);
+}
+
+.mode-tab-btn.active {
+  background: rgba(190, 250, 79, 0.12);
+  border-color: var(--neon);
+  color: var(--neon);
+  box-shadow: 0 0 12px rgba(190, 250, 79, 0.22);
+}
+
+.mode-tab-btn.active svg {
+  color: var(--neon);
+}
+
 /* ── Toolbar Row: Count & Type Filters ── */
 .toolbar-row {
   display: flex;
@@ -860,3 +907,243 @@ body {
   from { opacity: 0; transform: translateX(-50%) translateY(8px); }
   to { opacity: 1; transform: translateX(-50%) translateY(0); }
 }
+
+/* ── Memory Cards in Popup ── */
+.ai-answer-card {
+  background: linear-gradient(145deg, #0e1406 0%, #060803 100%);
+  border: 1px solid var(--neon);
+  border-radius: var(--radius);
+  padding: 12px 14px;
+  margin-bottom: 12px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.9), 0 0 16px rgba(190, 250, 79, 0.22);
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  animation: slideIn 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.ai-answer-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+}
+
+.ai-answer-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.8px;
+  text-transform: uppercase;
+  color: var(--neon);
+  background: rgba(190, 250, 79, 0.15);
+  border: 1px solid rgba(190, 250, 79, 0.35);
+  padding: 2px 7px;
+  border-radius: 4px;
+}
+
+.ai-answer-time-tag {
+  font-size: 11px;
+  color: var(--text-secondary);
+}
+
+.ai-answer-prompt-echo {
+  font-size: 12px;
+  color: var(--text-secondary);
+  line-height: 1.4;
+}
+
+.ai-answer-prompt-echo strong {
+  color: var(--neon);
+}
+
+.ai-answer-title {
+  font-size: 13.5px;
+  font-weight: 700;
+  color: #ffffff;
+  text-decoration: none;
+  line-height: 1.35;
+  cursor: pointer;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  transition: color 0.15s;
+}
+
+.ai-answer-title:hover {
+  color: var(--neon);
+  text-shadow: 0 0 8px var(--neon-glow);
+}
+
+.ai-answer-snippet {
+  font-size: 11.5px;
+  color: #b2c2a3;
+  line-height: 1.4;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.ai-answer-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 2px;
+  padding-top: 7px;
+  border-top: 1px solid rgba(190, 250, 79, 0.2);
+}
+
+.memory-card {
+  position: relative;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 11px 13px;
+  margin-bottom: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  transition: border-color 0.15s, box-shadow 0.15s, transform 0.12s;
+  animation: slideIn 0.15s ease;
+}
+
+.memory-card:hover {
+  border-color: rgba(190, 250, 79, 0.4);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.8), 0 0 12px rgba(190, 250, 79, 0.15);
+  transform: translateY(-1px);
+}
+
+.memory-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.memory-origin {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+
+.memory-favicon {
+  width: 14px;
+  height: 14px;
+  border-radius: 3px;
+  flex-shrink: 0;
+  object-fit: contain;
+}
+
+.memory-domain {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--neon);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.memory-time {
+  font-size: 11px;
+  color: var(--text-muted);
+  flex-shrink: 0;
+}
+
+.memory-title-link {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text);
+  text-decoration: none;
+  line-height: 1.35;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  transition: color 0.15s;
+  cursor: pointer;
+}
+
+.memory-title-link:hover {
+  color: var(--neon);
+}
+
+.memory-snippet {
+  font-size: 11.5px;
+  color: var(--text-secondary);
+  line-height: 1.4;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.memory-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 2px;
+  padding-top: 6px;
+  border-top: 1px solid rgba(24, 28, 15, 0.8);
+}
+
+.memory-visits {
+  font-size: 10.5px;
+  color: var(--text-muted);
+}
+
+.memory-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.btn-promote-save {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: rgba(190, 250, 79, 0.12);
+  border: 1px solid rgba(190, 250, 79, 0.45);
+  color: var(--neon);
+  font-size: 11px;
+  font-weight: 700;
+  padding: 3px 8px;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.btn-promote-save:hover {
+  background: var(--neon);
+  color: #000000;
+  box-shadow: 0 0 10px rgba(190, 250, 79, 0.4);
+}
+
+.btn-promote-save.saved {
+  background: #0d1206;
+  border-color: rgba(190, 250, 79, 0.2);
+  color: #8da464;
+  cursor: default;
+}
+
+.memory-del-btn {
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: color 0.12s;
+}
+
+.memory-del-btn:hover {
+  color: var(--neon-red);
+}
+
