@@ -1,11 +1,12 @@
-// ── SaveIt: Dashboard Controller (Cloud Sync, Tags & Categories) ──
+// ── SaveIt: Dashboard Controller (Cloud Sync & Saved Materials) ──
 let allItems = [];
-let categories = ["General", "Study", "Reading", "Ideas"];
-let currentView = "all"; // "all", "text", "link", "favorite", or "cat:CategoryName"
+let categories = ["General"];
+let currentView = "all"; // "all", "favorite", or "memory"
 let searchQuery = "";
 let currentSort = "newest";
 let selectedIds = new Set();
 let editingItemId = null;
+let currentDetailItemId = null;
 let authIsSignUp = false;
 
 // ── DOM Elements ──
@@ -19,7 +20,6 @@ const pageTitle = document.getElementById("page-title");
 const bulkBar = document.getElementById("bulk-bar");
 const selectedCount = document.getElementById("selected-count");
 const btnSelectAll = document.getElementById("btn-select-all");
-const btnBulkCategory = document.getElementById("btn-bulk-category");
 const btnDeleteSelected = document.getElementById("btn-delete-selected");
 const btnCancelSelect = document.getElementById("btn-cancel-select");
 const btnAddNew = document.getElementById("btn-add-new");
@@ -27,19 +27,27 @@ const btnSettings = document.getElementById("btn-settings");
 const toast = document.getElementById("toast");
 const importFile = document.getElementById("import-file");
 
-// Categories in sidebar
-const dashCategoriesList = document.getElementById("dash-categories-list");
-const btnAddCategoryDash = document.getElementById("btn-add-category-dash");
-const dashCategoryOptions = document.getElementById("dash-category-options");
-
 // Add / Edit Modal elements
 const modal = document.getElementById("modal");
 const modalTitle = document.getElementById("modal-title");
-const modalCategoryInput = document.getElementById("modal-category-input");
 const modalContentInput = document.getElementById("modal-content-input");
 const modalTagsInput = document.getElementById("modal-tags-input");
 const modalCancel = document.getElementById("modal-cancel");
 const modalSave = document.getElementById("modal-save");
+
+// Detail View Modal elements
+const detailModal = document.getElementById("detail-modal");
+const detailTitle = document.getElementById("detail-title");
+const detailContent = document.getElementById("detail-content");
+const detailSourceRow = document.getElementById("detail-source-row");
+const detailSource = document.getElementById("detail-source");
+const detailDate = document.getElementById("detail-date");
+const detailTagsRow = document.getElementById("detail-tags-row");
+const detailTags = document.getElementById("detail-tags");
+const detailCloseBtn = document.getElementById("detail-close-btn");
+const detailCopyBtn = document.getElementById("detail-copy-btn");
+const detailEditBtn = document.getElementById("detail-edit-btn");
+const detailDeleteBtn = document.getElementById("detail-delete-btn");
 
 // Auth / Cloud Sync modal
 const btnDashAuth = document.getElementById("btn-dash-auth");
@@ -60,13 +68,9 @@ const btnLogout = document.getElementById("btn-logout");
 
 // Counts & Stats
 const countAll = document.getElementById("count-all");
-const countText = document.getElementById("count-text");
-const countLink = document.getElementById("count-link");
 const countFav = document.getElementById("count-fav");
 const countMemory = document.getElementById("count-memory");
 const statTotal = document.getElementById("stat-total");
-const statText = document.getElementById("stat-text");
-const statLinks = document.getElementById("stat-links");
 const statFavs = document.getElementById("stat-favs");
 
 // Theme elements
@@ -150,8 +154,6 @@ async function autoSyncBackground() {
       if (res.categories && res.categories.length > 0) {
         categories = res.categories;
       }
-      updateCategoryDatalist();
-      renderSidebarCategories();
       updateStats();
       render();
     }
@@ -166,140 +168,33 @@ async function loadState() {
   if (data.categories && data.categories.length > 0) {
     categories = data.categories;
   }
-  updateCategoryDatalist();
-  renderSidebarCategories();
   updateStats();
   render();
-}
-
-function updateCategoryDatalist() {
-  if (!dashCategoryOptions) return;
-  dashCategoryOptions.innerHTML = categories
-    .map((c) => `<option value="${escapeHTML(c)}">`)
-    .join("");
-}
-
-// ── Sidebar Categories ──
-function renderSidebarCategories() {
-  if (!dashCategoriesList) return;
-
-  dashCategoriesList.innerHTML = categories
-    .map((cat) => {
-      const isAct = currentView === `cat:${cat}`;
-      const count = allItems.filter(
-        (i) => (i.category || "General").toLowerCase() === cat.toLowerCase()
-      ).length;
-      const isDefault = cat.toLowerCase() === "general";
-      const delBtn = isDefault
-        ? ""
-        : `<span class="nav-del-btn" data-del-cat="${escapeHTML(cat)}" title="Delete category">×</span>`;
-
-      return `
-        <button class="nav-item ${isAct ? "active" : ""}" data-cat-name="${escapeHTML(cat)}">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
-          <span style="flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${escapeHTML(cat)}</span>
-          <span class="nav-count">${count}</span>
-          ${delBtn}
-        </button>
-      `;
-    })
-    .join("");
-
-  dashCategoriesList.querySelectorAll(".nav-item").forEach((btn) => {
-    btn.addEventListener("click", (e) => {
-      if (e.target.closest(".nav-del-btn")) return;
-      document.querySelectorAll(".sidebar-nav .nav-item").forEach((b) => b.classList.remove("active"));
-      btn.classList.add("active");
-      const cat = btn.dataset.catName;
-      currentView = `cat:${cat}`;
-      pageTitle.textContent = cat;
-      settingsPanel.classList.add("hidden");
-      statsRow.classList.remove("hidden");
-      itemsGrid.classList.remove("hidden");
-      render();
-    });
-  });
-
-  dashCategoriesList.querySelectorAll(".nav-del-btn").forEach((delBtn) => {
-    delBtn.addEventListener("click", (e) => {
-      e.stopPropagation();
-      const catToDelete = delBtn.dataset.delCat;
-      if (!catToDelete) return;
-
-      const count = allItems.filter(
-        (i) => (i.category || "General").toLowerCase() === catToDelete.toLowerCase()
-      ).length;
-
-      const confirmMsg = count > 0
-        ? `Delete category "${catToDelete}"?\n${count} item(s) will be moved to "General".`
-        : `Delete category "${catToDelete}"?`;
-
-      if (confirm(confirmMsg)) {
-        allItems.forEach((i) => {
-          if ((i.category || "General").toLowerCase() === catToDelete.toLowerCase()) {
-            i.category = "General";
-          }
-        });
-        categories = categories.filter((c) => c.toLowerCase() !== catToDelete.toLowerCase());
-        if (currentView === `cat:${catToDelete}`) {
-          currentView = "all";
-          const allBtn = document.querySelector('.sidebar-nav .nav-item[data-view="all"]');
-          if (allBtn) allBtn.classList.add("active");
-          pageTitle.textContent = "All Items";
-        }
-        chrome.storage.local.set({ items: allItems, categories }, () => {
-          updateCategoryDatalist();
-          renderSidebarCategories();
-          updateStats();
-          render();
-          showToast(`Category "${catToDelete}" removed`);
-          SyncService.pushToCloud(allItems, categories);
-        });
-      }
-    });
-  });
 }
 
 // ── Stats ──
 function updateStats() {
   const total = allItems.length;
-  const texts = allItems.filter((i) => i.type === "text").length;
-  const links = allItems.filter((i) => i.type === "link").length;
   const favs = allItems.filter((i) => i.favorite).length;
 
-  statTotal.textContent = total;
-  statText.textContent = texts;
-  statLinks.textContent = links;
-  statFavs.textContent = favs;
+  if (statTotal) statTotal.textContent = total;
+  if (statFavs) statFavs.textContent = favs;
 
-  countAll.textContent = total;
-  countText.textContent = texts;
-  countLink.textContent = links;
-  countFav.textContent = favs;
+  if (countAll) countAll.textContent = total;
+  if (countFav) countFav.textContent = favs;
 }
 
 // ── Filter & Sort ──
 function getFilteredItems() {
   let items = allItems.filter((item) => {
-    // If viewing a category
-    if (currentView.startsWith("cat:")) {
-      const targetCat = currentView.slice(4).toLowerCase();
-      const itemCat = (item.category || "General").toLowerCase();
-      if (itemCat !== targetCat) return false;
-    } else {
-      // Standard views
-      if (currentView === "favorite" && !item.favorite) return false;
-      if (currentView !== "all" && currentView !== "favorite" && item.type !== currentView)
-        return false;
-    }
+    if (currentView === "favorite" && !item.favorite) return false;
 
     if (searchQuery) {
       const q = searchQuery.toLowerCase();
-      const matchContent = item.content.toLowerCase().includes(q);
+      const matchContent = (item.content || "").toLowerCase().includes(q);
       const matchTags = item.tags?.some((t) => t.toLowerCase().includes(q));
-      const matchCategory = (item.category || "General").toLowerCase().includes(q);
       const matchSource = item.sourceTitle?.toLowerCase().includes(q);
-      if (!matchContent && !matchTags && !matchCategory && !matchSource) return false;
+      if (!matchContent && !matchTags && !matchSource) return false;
     }
 
     return true;
@@ -311,7 +206,7 @@ function getFilteredItems() {
   } else if (currentSort === "oldest") {
     items.sort((a, b) => a.createdAt - b.createdAt);
   } else if (currentSort === "alpha") {
-    items.sort((a, b) => a.content.localeCompare(b.content));
+    items.sort((a, b) => (a.content || "").localeCompare(b.content || ""));
   }
 
   return items;
@@ -321,15 +216,11 @@ function getFilteredItems() {
 function render() {
   if (!settingsPanel.classList.contains("hidden")) return;
 
-  const memoryAssistantBar = document.getElementById("memory-assistant-bar");
   if (currentView === "memory") {
     statsRow.classList.add("hidden");
     bulkBar.classList.add("hidden");
-    if (memoryAssistantBar) memoryAssistantBar.classList.remove("hidden");
     renderMemoryView();
     return;
-  } else {
-    if (memoryAssistantBar) memoryAssistantBar.classList.add("hidden");
   }
 
   const items = getFilteredItems();
@@ -354,8 +245,18 @@ function render() {
     cb.addEventListener("click", handleCheckbox);
   });
 
-  itemsGrid.querySelectorAll(".card-content").forEach((el) => {
-    el.addEventListener("click", () => el.classList.toggle("expanded"));
+  // Card click opens Detail View (not directly navigating away)
+  itemsGrid.querySelectorAll(".item-card").forEach((card) => {
+    card.addEventListener("click", (e) => {
+      if (e.target.closest(".item-checkbox") || e.target.closest(".card-actions") || e.target.closest(".tag")) {
+        return;
+      }
+      const id = card.dataset.id;
+      const item = allItems.find((i) => i.id === id);
+      if (item) {
+        showDetailModal(item);
+      }
+    });
   });
 
   itemsGrid.querySelectorAll(".tag").forEach((tagEl) => {
@@ -369,38 +270,12 @@ function render() {
       }
     });
   });
-
-  // Clickable category badges on cards
-  itemsGrid.querySelectorAll(".card-category-badge").forEach((catBadge) => {
-    catBadge.addEventListener("click", (e) => {
-      e.stopPropagation();
-      const cat = catBadge.dataset.category;
-      if (cat) {
-        document.querySelectorAll(".sidebar-nav .nav-item").forEach((b) => b.classList.remove("active"));
-        const targetBtn = document.querySelector(`.sidebar-nav .nav-item[data-cat-name="${cat}"]`);
-        if (targetBtn) targetBtn.classList.add("active");
-        currentView = `cat:${cat}`;
-        pageTitle.textContent = cat;
-        render();
-      }
-    });
-  });
 }
 
 function createCardHTML(item) {
   const isSelected = selectedIds.has(item.id);
   const timeAgo = getTimeAgo(new Date(item.createdAt));
-  const badgeClass = item.type === "link" ? "badge-link" : "badge-text";
-  const typeLabel = item.type === "link" ? "Link" : "Text";
-  const catName = item.category || "General";
-
-  let contentHTML;
-  if (item.type === "link") {
-    const url = /^https?:\/\//i.test(item.content) ? item.content : `https://${item.content}`;
-    contentHTML = `<a href="${escapeHTML(url)}" target="_blank" rel="noopener">${escapeHTML(item.content)}</a>`;
-  } else {
-    contentHTML = escapeHTML(item.content);
-  }
+  const contentHTML = escapeHTML(item.content);
 
   const tagsHTML =
     item.tags?.length > 0
@@ -412,12 +287,8 @@ function createCardHTML(item) {
     : "";
 
   return `
-    <div class="item-card ${isSelected ? "selected" : ""}" data-id="${item.id}">
+    <div class="item-card ${isSelected ? "selected" : ""}" data-id="${item.id}" style="cursor:pointer;">
       <div class="item-checkbox" data-id="${item.id}"></div>
-      <div class="card-top">
-        <span class="item-badge ${badgeClass}">${typeLabel}</span>
-        <span class="card-category-badge" data-category="${escapeHTML(catName)}" title="Filter by category">${escapeHTML(catName)}</span>
-      </div>
       <div class="card-content">${contentHTML}</div>
       ${tagsHTML}
       <div class="card-footer">
@@ -443,6 +314,54 @@ function createCardHTML(item) {
       </div>
     </div>
   `;
+}
+
+// ── Detail View Modal Logic ──
+function showDetailModal(item) {
+  currentDetailItemId = item.id;
+  if (!detailModal) return;
+
+  detailTitle.textContent = "Saved Material";
+
+  // Check if content is a URL
+  const trimmed = (item.content || "").trim();
+  const isUrl = /^https?:\/\//i.test(trimmed) || /^(www\.)/i.test(trimmed);
+  if (isUrl) {
+    const url = /^https?:\/\//i.test(trimmed) ? trimmed : `https://${trimmed}`;
+    detailContent.innerHTML = `<a href="${escapeHTML(url)}" target="_blank" rel="noopener">${escapeHTML(item.content)}</a>`;
+  } else {
+    detailContent.textContent = item.content;
+  }
+
+  // Source
+  if (item.sourceTitle || item.sourceUrl) {
+    detailSourceRow.style.display = "flex";
+    if (item.sourceUrl) {
+      detailSource.innerHTML = `<a href="${escapeHTML(item.sourceUrl)}" target="_blank" rel="noopener">${escapeHTML(item.sourceTitle || item.sourceUrl)}</a>`;
+    } else {
+      detailSource.textContent = item.sourceTitle;
+    }
+  } else {
+    detailSourceRow.style.display = "none";
+  }
+
+  // Date
+  detailDate.textContent = new Date(item.createdAt).toLocaleString();
+
+  // Tags
+  if (item.tags && item.tags.length > 0) {
+    detailTagsRow.style.display = "flex";
+    detailTags.innerHTML = item.tags.map((t) => `<span class="tag">#${escapeHTML(t)}</span>`).join("");
+  } else {
+    detailTagsRow.style.display = "none";
+  }
+
+  detailModal.classList.remove("hidden");
+}
+
+function hideDetailModal() {
+  if (detailModal) detailModal.classList.add("hidden");
+  currentDetailItemId = null;
 }
 
 // ── Card Actions ──
@@ -475,7 +394,6 @@ function handleCardAction(e) {
     editingItemId = id;
     modalTitle.textContent = "Edit Item";
     modalContentInput.value = item.content;
-    modalCategoryInput.value = item.category || "General";
     modalTagsInput.value = (item.tags || []).join(", ");
     modal.classList.remove("hidden");
     modalContentInput.focus();
@@ -486,7 +404,6 @@ function handleCardAction(e) {
     selectedIds.delete(id);
     chrome.storage.local.set({ items: allItems }, () => {
       updateBulkBar();
-      renderSidebarCategories();
       updateStats();
       render();
       showToast("Item deleted");
@@ -786,7 +703,6 @@ async function promoteDashMemory(mem, btnElement) {
   chrome.runtime.sendMessage({ action: "saveItem", item: newItem }, () => {
     allItems.unshift(newItem);
     updateStats();
-    renderSidebarCategories();
     showToast("Saved to your collection!");
     SyncService.pushToCloud(allItems, categories);
 
@@ -953,41 +869,10 @@ function setupEventListeners() {
     btnThemeDash.addEventListener("click", toggleTheme);
   }
 
-  // Add Category Mini Button
-  if (btnAddCategoryDash) {
-    btnAddCategoryDash.addEventListener("click", () => {
-      const newCat = prompt("Enter new category name (e.g. Study, Poems, Movies, Work):");
-      if (newCat && newCat.trim()) {
-        const trimmed = newCat.trim();
-        if (!categories.some((c) => c.toLowerCase() === trimmed.toLowerCase())) {
-          categories.push(trimmed);
-          chrome.storage.local.set({ categories }, () => {
-            updateCategoryDatalist();
-            renderSidebarCategories();
-            showToast(`Category "${trimmed}" created!`);
-            SyncService.pushToCloud(allItems, categories);
-          });
-        }
-      }
-    });
-  }
-
   // Search
   searchInput.addEventListener("input", (e) => {
     searchQuery = e.target.value;
     render();
-  });
-
-  // Memory Assistant Chips
-  document.querySelectorAll(".assistant-chip").forEach((chip) => {
-    chip.addEventListener("click", () => {
-      const q = chip.dataset.chip;
-      if (q) {
-        searchInput.value = q;
-        searchQuery = q;
-        render();
-      }
-    });
   });
 
   // Sort
@@ -1001,7 +886,6 @@ function setupEventListeners() {
     editingItemId = null;
     modalTitle.textContent = "Add New Item";
     modalContentInput.value = "";
-    modalCategoryInput.value = currentView.startsWith("cat:") ? currentView.slice(4) : "General";
     modalTagsInput.value = "";
     modal.classList.remove("hidden");
     modalContentInput.focus();
@@ -1011,6 +895,56 @@ function setupEventListeners() {
   modal.querySelector(".modal-backdrop").addEventListener("click", () => modal.classList.add("hidden"));
   modalSave.addEventListener("click", handleModalSave);
 
+  // Detail Modal Actions
+  if (detailCloseBtn) {
+    detailCloseBtn.addEventListener("click", hideDetailModal);
+  }
+  if (detailModal) {
+    const backdrop = detailModal.querySelector(".modal-backdrop");
+    if (backdrop) backdrop.addEventListener("click", hideDetailModal);
+  }
+  if (detailCopyBtn) {
+    detailCopyBtn.addEventListener("click", () => {
+      if (!currentDetailItemId) return;
+      const item = allItems.find((i) => i.id === currentDetailItemId);
+      if (item) {
+        navigator.clipboard.writeText(item.content);
+        showToast("Copied to clipboard!");
+      }
+    });
+  }
+  if (detailEditBtn) {
+    detailEditBtn.addEventListener("click", () => {
+      if (!currentDetailItemId) return;
+      const item = allItems.find((i) => i.id === currentDetailItemId);
+      hideDetailModal();
+      if (item) {
+        editingItemId = item.id;
+        modalTitle.textContent = "Edit Item";
+        modalContentInput.value = item.content;
+        modalTagsInput.value = (item.tags || []).join(", ");
+        modal.classList.remove("hidden");
+        modalContentInput.focus();
+      }
+    });
+  }
+  if (detailDeleteBtn) {
+    detailDeleteBtn.addEventListener("click", () => {
+      if (!currentDetailItemId) return;
+      const id = currentDetailItemId;
+      allItems = allItems.filter((i) => i.id !== id);
+      selectedIds.delete(id);
+      hideDetailModal();
+      chrome.storage.local.set({ items: allItems }, () => {
+        updateBulkBar();
+        updateStats();
+        render();
+        showToast("Item deleted");
+        SyncService.pushToCloud(allItems, categories);
+      });
+    });
+  }
+
   // Bulk Actions
   btnSelectAll.addEventListener("click", () => {
     const visible = getFilteredItems();
@@ -1019,42 +953,12 @@ function setupEventListeners() {
     render();
   });
 
-  if (btnBulkCategory) {
-    btnBulkCategory.addEventListener("click", () => {
-      const targetCat = prompt(
-        `Move ${selectedIds.size} selected item(s) to which category?`,
-        "Study"
-      );
-      if (targetCat && targetCat.trim()) {
-        const trimmed = targetCat.trim();
-        if (!categories.some((c) => c.toLowerCase() === trimmed.toLowerCase())) {
-          categories.push(trimmed);
-        }
-        allItems.forEach((i) => {
-          if (selectedIds.has(i.id)) {
-            i.category = trimmed;
-          }
-        });
-        chrome.storage.local.set({ items: allItems, categories }, () => {
-          selectedIds.clear();
-          updateBulkBar();
-          updateCategoryDatalist();
-          renderSidebarCategories();
-          render();
-          showToast(`Items moved to "${trimmed}"`);
-          SyncService.pushToCloud(allItems, categories);
-        });
-      }
-    });
-  }
-
   btnDeleteSelected.addEventListener("click", () => {
     if (confirm(`Delete ${selectedIds.size} selected items?`)) {
       allItems = allItems.filter((i) => !selectedIds.has(i.id));
       chrome.storage.local.set({ items: allItems }, () => {
         selectedIds.clear();
         updateBulkBar();
-        renderSidebarCategories();
         updateStats();
         render();
         showToast("Selected items deleted");
@@ -1120,8 +1024,6 @@ function setupEventListeners() {
         if (synced.categories && synced.categories.length > 0) {
           categories = synced.categories;
         }
-        updateCategoryDatalist();
-        renderSidebarCategories();
         updateStats();
         render();
       }
@@ -1144,8 +1046,6 @@ function setupEventListeners() {
         if (res.categories && res.categories.length > 0) {
           categories = res.categories;
         }
-        updateCategoryDatalist();
-        renderSidebarCategories();
         updateStats();
         render();
         showToast("Cloud sync complete!");
@@ -1181,15 +1081,9 @@ function setupEventListeners() {
 function handleModalSave() {
   const content = modalContentInput.value.trim();
   if (!content) {
-    modalContentInput.style.borderColor = "var(--red)";
+    modalContentInput.style.borderColor = "var(--neon-red)";
     setTimeout(() => (modalContentInput.style.borderColor = ""), 1000);
     return;
-  }
-
-  const cat = modalCategoryInput.value.trim() || "General";
-  if (!categories.some((c) => c.toLowerCase() === cat.toLowerCase())) {
-    categories.push(cat);
-    updateCategoryDatalist();
   }
 
   const tags = modalTagsInput.value
@@ -1204,7 +1098,6 @@ function handleModalSave() {
     const item = allItems.find((i) => i.id === editingItemId);
     if (item) {
       item.content = content;
-      item.category = cat;
       item.tags = tags;
       item.type = detectedType;
     }
@@ -1214,7 +1107,7 @@ function handleModalSave() {
       id: Date.now().toString(36) + Math.random().toString(36).substr(2, 9),
       type: detectedType,
       content,
-      category: cat,
+      category: "General",
       sourceUrl: "",
       sourceTitle: "",
       createdAt: Date.now(),
@@ -1228,8 +1121,6 @@ function handleModalSave() {
   chrome.storage.local.set({ items: allItems, categories }, () => {
     modal.classList.add("hidden");
     editingItemId = null;
-    updateCategoryDatalist();
-    renderSidebarCategories();
     updateStats();
     render();
     SyncService.pushToCloud(allItems, categories);
@@ -1287,8 +1178,6 @@ function handleImport(e) {
       }
 
       chrome.storage.local.set({ items: allItems, categories }, () => {
-        updateCategoryDatalist();
-        renderSidebarCategories();
         updateStats();
         render();
         showToast(`Imported ${importedItems.length} items!`);
@@ -1308,7 +1197,6 @@ function clearAllData() {
       allItems = [];
       selectedIds.clear();
       updateBulkBar();
-      renderSidebarCategories();
       updateStats();
       render();
       showToast("All data cleared");

@@ -25,16 +25,6 @@
           All Items
           <span class="nav-count" id="count-all">0</span>
         </button>
-        <button class="nav-item" data-view="text">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
-          Text Snippets
-          <span class="nav-count" id="count-text">0</span>
-        </button>
-        <button class="nav-item" data-view="link">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
-          Links
-          <span class="nav-count" id="count-link">0</span>
-        </button>
         <button class="nav-item" data-view="favorite">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
           Favorites
@@ -45,14 +35,6 @@
           Web Memory
           <span class="nav-count" id="count-memory">0</span>
         </button>
-
-        <div class="sidebar-section-header">
-          <span>CATEGORIES</span>
-          <button id="btn-add-category-dash" class="add-cat-mini-btn" title="Add Category">+</button>
-        </div>
-        <div id="dash-categories-list" class="dash-categories-list">
-          <!-- Rendered by JS -->
-        </div>
       </nav>
 
       <div class="sidebar-footer">
@@ -105,14 +87,6 @@
           <div class="stat-label">Total Saves</div>
         </div>
         <div class="stat-card">
-          <div class="stat-number stat-text" id="stat-text">0</div>
-          <div class="stat-label">Text Snippets</div>
-        </div>
-        <div class="stat-card">
-          <div class="stat-number stat-link" id="stat-links">0</div>
-          <div class="stat-label">Links</div>
-        </div>
-        <div class="stat-card">
           <div class="stat-number stat-fav" id="stat-favs">0</div>
           <div class="stat-label">Favorites</div>
         </div>
@@ -122,28 +96,8 @@
       <div class="bulk-bar hidden" id="bulk-bar">
         <span id="selected-count">0 selected</span>
         <button class="btn btn-sm btn-secondary" id="btn-select-all">Select All</button>
-        <button class="btn btn-sm btn-secondary" id="btn-bulk-category">Set Category</button>
         <button class="btn btn-sm btn-danger" id="btn-delete-selected">Delete Selected</button>
         <button class="btn btn-sm btn-secondary" id="btn-cancel-select">Cancel</button>
-      </div>
-
-      <!-- Web Memory Assistant Bar -->
-      <div class="memory-assistant-bar hidden" id="memory-assistant-bar">
-        <div class="assistant-header">
-          <div class="assistant-title">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16">
-              <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/>
-            </svg>
-            <span>Ask SaveIt Memory</span>
-          </div>
-          <span class="assistant-subtitle">Search naturally by time & topic (e.g. <em>"two days ago I saw black Nike shoes"</em>)</span>
-        </div>
-        <div class="assistant-chips">
-          <button class="assistant-chip" data-chip="two days ago I saw black Nike shoes">👟 "black Nike shoes 2 days ago"</button>
-          <button class="assistant-chip" data-chip="Python tutorial yesterday">🐍 "Python tutorial yesterday"</button>
-          <button class="assistant-chip" data-chip="job openings this week">💼 "jobs this week"</button>
-          <button class="assistant-chip" data-chip="articles read yesterday">📄 "articles yesterday"</button>
-        </div>
       </div>
 
       <!-- Items Grid -->
@@ -159,90 +113,173 @@
           <polyline points="7 3 7 8 15 8"/>
         </svg>
         <h3>No saved items yet</h3>
-        <p>Start saving text, links, and notes from any webpage.<br/>Select text → Right-click → "Save to SaveIt"</p>
+        <p>Start saving clips, research, and notes from any webpage.<br/>Select text → Right-click → "Save to SaveIt"</p>
       </div>
 
       <!-- Settings Panel -->
       <div class="settings-panel hidden" id="settings-panel">
-        <h2>Settings</h2>
-        <div class="settings-grid">
-          <div class="settings-card">
-            <h3>📤 Export Data</h3>
-            <p>Download all your saved items as a JSON file for backup.</p>
-            <button class="btn btn-secondary" id="settings-export">Export All Items</button>
-          </div>
-          <div class="settings-card">
-            <h3>📥 Import Data</h3>
-            <p>Import items from a previously exported JSON backup file.</p>
-            <button class="btn btn-secondary" id="settings-import">Import from File</button>
-            <input type="file" id="import-file" accept=".json" style="display:none" />
-          </div>
-          <div class="settings-card">
-            <h3>🧠 Web Memory Settings</h3>
-            <p>Automatically records a private, searchable index of pages you visit.</p>
-            <div style="margin: 12px 0; display: flex; flex-direction: column; gap: 10px;">
-              <label style="display: flex; align-items: center; gap: 8px; font-size: 13px; cursor: pointer;">
-                <input type="checkbox" id="setting-memory-enabled" checked />
-                <span>Enable Web Memory tracking</span>
-              </label>
-              <div style="display: flex; align-items: center; justify-content: space-between; font-size: 12.5px;">
-                <span style="color: var(--text-secondary);">Retention period:</span>
-                <select id="setting-memory-retention" style="background:#000; color:var(--text); border:1px solid var(--border); padding:4px 8px; border-radius:6px;">
-                  <option value="3">3 Days</option>
-                  <option value="7">7 Days</option>
-                  <option value="14" selected>14 Days</option>
-                  <option value="30">30 Days</option>
-                </select>
+        <div class="settings-header">
+          <h2>Settings</h2>
+          <p class="settings-subtext">Manage extension preferences, web memory indexing, backups, and appearance.</p>
+        </div>
+
+        <div class="settings-container">
+          <!-- Section 1: Appearance & Quick Save -->
+          <div class="settings-section">
+            <h3 class="section-title">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+              General & Appearance
+            </h3>
+            <div class="settings-card-group">
+              <div class="settings-row">
+                <div class="setting-info">
+                  <span class="setting-name">Theme Mode</span>
+                  <span class="setting-desc">Switch between high-contrast dark theme, light theme, or follow system.</span>
+                </div>
+                <div class="setting-control">
+                  <select id="settings-theme-select" class="settings-select">
+                    <option value="dark">Dark Theme (Default)</option>
+                    <option value="light">Light Theme</option>
+                    <option value="system">Follow System</option>
+                  </select>
+                </div>
               </div>
-              <div style="display: flex; flex-direction: column; gap: 4px;">
-                <span style="color: var(--text-secondary); font-size: 12px;">Ignored domains (comma-separated):</span>
-                <input type="text" id="setting-memory-blacklist" placeholder="e.g. reddit.com, internal.company.com" style="background:#000; color:var(--text); border:1px solid var(--border); padding:6px 8px; border-radius:6px; font-size:12px;" />
+
+              <div class="settings-row">
+                <div class="setting-info">
+                  <span class="setting-name">1-Click Quick Save</span>
+                  <span class="setting-desc">Display a floating "Save" pill directly over selected text for instant saving.</span>
+                </div>
+                <div class="setting-control">
+                  <label class="toggle-switch">
+                    <input type="checkbox" id="setting-quick-save" checked />
+                    <span class="toggle-slider"></span>
+                  </label>
+                </div>
               </div>
-              <div id="memory-stats-text" style="font-size: 11.5px; color: var(--neon); margin-top: 2px;">
-                0 pages remembered (~0 KB)
+
+              <div class="settings-row">
+                <div class="setting-info">
+                  <span class="setting-name">Keyboard Shortcut</span>
+                  <span class="setting-desc">Quickly save highlighted text from any webpage: <kbd class="kbd-badge">⌘+Shift+S</kbd> / <kbd class="kbd-badge">Ctrl+Shift+S</kbd></span>
+                </div>
+                <div class="setting-control">
+                  <button class="btn btn-secondary btn-sm" id="btn-shortcuts">Customize Shortcut</button>
+                </div>
               </div>
             </div>
-            <div style="display:flex; flex-direction:column; gap:8px;">
-              <button class="btn btn-secondary" id="btn-sync-history">📥 Sync Past 14 Days Chrome History</button>
-              <button class="btn btn-secondary" id="btn-clear-memory" style="color: var(--neon-red); border-color: rgba(255,56,86,0.3);">Clear Browsing Memory</button>
+          </div>
+
+          <!-- Section 2: Web Memory (Browsing Index) -->
+          <div class="settings-section">
+            <h3 class="section-title">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/></svg>
+              Web Memory (Browsing Index)
+            </h3>
+            <div class="settings-card-group">
+              <div class="settings-row">
+                <div class="setting-info">
+                  <span class="setting-name">Enable Web Memory</span>
+                  <span class="setting-desc">Automatically index visited pages locally so you can search them naturally in the Web Memory view.</span>
+                </div>
+                <div class="setting-control">
+                  <label class="toggle-switch">
+                    <input type="checkbox" id="setting-memory-enabled" checked />
+                    <span class="toggle-slider"></span>
+                  </label>
+                </div>
+              </div>
+
+              <div class="settings-row">
+                <div class="setting-info">
+                  <span class="setting-name">Retention Period</span>
+                  <span class="setting-desc">Automatically purge browsing memory older than this timeframe to save disk space.</span>
+                </div>
+                <div class="setting-control">
+                  <select id="setting-memory-retention" class="settings-select">
+                    <option value="3">3 Days</option>
+                    <option value="7">7 Days</option>
+                    <option value="14" selected>14 Days</option>
+                    <option value="30">30 Days</option>
+                  </select>
+                </div>
+              </div>
+
+              <div class="settings-row vertical">
+                <div class="setting-info">
+                  <span class="setting-name">Ignored Domains</span>
+                  <span class="setting-desc">Pages visited on these domains will never be indexed into Web Memory (comma-separated).</span>
+                </div>
+                <div class="setting-control full-width">
+                  <input type="text" id="setting-memory-blacklist" class="settings-input" placeholder="e.g. reddit.com, internal.company.com, bank.com" />
+                </div>
+              </div>
+
+              <div class="settings-row memory-status-row">
+                <div class="setting-info">
+                  <span class="setting-name">Index Storage & Maintenance</span>
+                  <div id="memory-stats-text" class="memory-stat-pill">
+                    0 pages remembered (~0 KB)
+                  </div>
+                </div>
+                <div class="setting-actions-group">
+                  <button class="btn btn-secondary btn-sm" id="btn-sync-history">📥 Sync 14d Chrome History</button>
+                  <button class="btn btn-danger-outline btn-sm" id="btn-clear-memory">Clear Browsing Memory</button>
+                </div>
+              </div>
             </div>
           </div>
-          <div class="settings-card danger-card">
-            <h3>🗑️ Clear All Data</h3>
-            <p>Permanently delete all saved items. This action cannot be undone.</p>
-            <button class="btn btn-danger" id="settings-clear">Delete Everything</button>
-          </div>
-          <div class="settings-card">
-            <h3>⚡ 1-Click Quick Save</h3>
-            <p>Save text in 1 click using the direct right-click menu or floating button.</p>
-            <div style="margin: 12px 0; display:flex; flex-direction:column; gap:10px;">
-              <label style="display:flex; align-items:center; gap:8px; font-size:13px; cursor:pointer;">
-                <input type="checkbox" id="setting-quick-save" checked />
-                <span>Show floating "Save" pill when highlighting text</span>
-              </label>
+
+          <!-- Section 3: Data Management -->
+          <div class="settings-section">
+            <h3 class="section-title">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+              Data Management & Backup
+            </h3>
+            <div class="settings-card-group">
+              <div class="settings-subgrid">
+                <div class="settings-subcard">
+                  <div class="subcard-header">
+                    <span class="subcard-icon">📤</span>
+                    <h4>Export Backup</h4>
+                  </div>
+                  <p class="subcard-desc">Download all your saved materials into a JSON file for safe offline keeping.</p>
+                  <button class="btn btn-secondary btn-sm" id="settings-export">Export All Items</button>
+                </div>
+
+                <div class="settings-subcard">
+                  <div class="subcard-header">
+                    <span class="subcard-icon">📥</span>
+                    <h4>Import Backup</h4>
+                  </div>
+                  <p class="subcard-desc">Restore or merge items from a previously exported SaveIt JSON backup file.</p>
+                  <button class="btn btn-secondary btn-sm" id="settings-import">Import from File</button>
+                  <input type="file" id="import-file" accept=".json" style="display:none" />
+                </div>
+              </div>
             </div>
           </div>
-          <div class="settings-card">
-            <h3>⌨️ Keyboard Shortcut</h3>
-            <p>Quick save selection: <kbd class="kbd-badge">⌘+Shift+S</kbd> / <kbd class="kbd-badge">Ctrl+Shift+S</kbd></p>
-            <button class="btn btn-secondary" id="btn-shortcuts">Customize Shortcut</button>
-          </div>
-          <div class="settings-card">
-            <h3>🎨 Appearance</h3>
-            <p>Customize the look and feel of SaveIt.</p>
-            <div style="margin: 12px 0; display:flex; align-items:center; justify-content:space-between;">
-              <span style="color:var(--text-secondary); font-size:13px;">Theme Mode:</span>
-              <select id="settings-theme-select" style="background:var(--bg-input); color:var(--text); border:1px solid var(--border); padding:6px 12px; border-radius:6px; font-weight:600; cursor:pointer;">
-                <option value="dark">Dark Theme (Default)</option>
-                <option value="light">Light Theme</option>
-                <option value="system">Follow System</option>
-              </select>
+
+          <!-- Section 4: Danger Zone -->
+          <div class="settings-section">
+            <div class="danger-zone-card">
+              <div class="danger-zone-info">
+                <h4 class="danger-zone-title">🗑️ Danger Zone: Clear All Saved Data</h4>
+                <p class="danger-zone-desc">Permanently wipe all saved items from local storage. This action cannot be reversed.</p>
+              </div>
+              <button class="btn btn-danger" id="settings-clear">Delete Everything</button>
             </div>
           </div>
-          <div class="settings-card">
-            <h3>ℹ️ About</h3>
-            <p>SaveIt v1.0.0<br/>Your permanent clipboard for the web.<br/>All data stored locally — nothing sent to servers.</p>
-            <a href="privacy-policy.html" target="_blank" style="color: var(--accent-hover); text-decoration: none; font-size: 13px;">View Privacy Policy →</a>
+
+          <!-- Section 5: About & Privacy -->
+          <div class="settings-section">
+            <div class="about-card">
+              <div class="about-info">
+                <span class="about-brand">SaveIt v1.0.0</span>
+                <span class="about-tagline">Your permanent, private web clipboard. All data is kept locally on your machine.</span>
+              </div>
+              <a href="privacy-policy.html" target="_blank" class="about-link">View Privacy Policy →</a>
+            </div>
           </div>
         </div>
       </div>
@@ -255,13 +292,8 @@
     <div class="modal-content">
       <h2 id="modal-title">Add New Item</h2>
       <div class="form-group">
-        <label for="modal-category-input">Category</label>
-        <input type="text" id="modal-category-input" list="dash-category-options" placeholder="e.g. Study, Poems, Movies, Work" />
-        <datalist id="dash-category-options"></datalist>
-      </div>
-      <div class="form-group">
         <label for="modal-content-input">Content</label>
-        <textarea id="modal-content-input" rows="5" placeholder="Paste text snippet or link..."></textarea>
+        <textarea id="modal-content-input" rows="5" placeholder="Paste or write content here..."></textarea>
       </div>
       <div class="form-group">
         <label for="modal-tags-input">Tags <span class="hint">(comma separated)</span></label>
@@ -270,6 +302,48 @@
       <div class="modal-actions">
         <button class="btn btn-secondary" id="modal-cancel">Cancel</button>
         <button class="btn btn-primary" id="modal-save">Save</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Detail View Modal -->
+  <div id="detail-modal" class="modal hidden">
+    <div class="modal-backdrop"></div>
+    <div class="modal-content modal-detail">
+      <div class="detail-header">
+        <h2 id="detail-title">Saved Material</h2>
+        <button id="detail-close-btn" class="modal-close-icon" title="Close">✕</button>
+      </div>
+      <div class="detail-body">
+        <div class="detail-content-box" id="detail-content"></div>
+        <div class="detail-meta-list">
+          <div class="detail-meta-item" id="detail-source-row">
+            <span class="detail-meta-label">Source:</span>
+            <span class="detail-meta-val" id="detail-source"></span>
+          </div>
+          <div class="detail-meta-item">
+            <span class="detail-meta-label">Saved on:</span>
+            <span class="detail-meta-val" id="detail-date"></span>
+          </div>
+          <div class="detail-meta-item" id="detail-tags-row">
+            <span class="detail-meta-label">Tags:</span>
+            <div class="detail-tags" id="detail-tags"></div>
+          </div>
+        </div>
+      </div>
+      <div class="modal-actions detail-actions">
+        <button class="btn btn-secondary" id="detail-copy-btn">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+          Copy
+        </button>
+        <button class="btn btn-secondary" id="detail-edit-btn">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+          Edit
+        </button>
+        <button class="btn btn-danger" id="detail-delete-btn">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+          Delete
+        </button>
       </div>
     </div>
   </div>

@@ -90,9 +90,7 @@
       </div>
       <div class="type-filter-group">
         <button class="filter-btn active" data-filter="all">All</button>
-        <button class="filter-btn" data-filter="text">Text</button>
-        <button class="filter-btn" data-filter="link">Links</button>
-        <button class="filter-btn" data-filter="favorite" title="Favorites">★</button>
+        <button class="filter-btn" data-filter="favorite" title="Favorites">★ Favorites</button>
       </div>
     </div>
 
@@ -100,11 +98,6 @@
     <div class="search-bar">
       <svg class="search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
       <input type="text" id="search-input" placeholder="Search your saves..." />
-    </div>
-
-    <!-- Topic / Category Pills -->
-    <div class="categories-bar" id="categories-bar">
-      <!-- Rendered by JS -->
     </div>
 
     <!-- Items List -->
@@ -129,11 +122,6 @@
       <div class="modal-content">
         <h2>Edit Item</h2>
         <div class="form-group">
-          <label for="edit-category">Category</label>
-          <input type="text" id="edit-category" list="category-datalist" placeholder="e.g. Study, Poems, Movies, Work" />
-          <datalist id="category-datalist"></datalist>
-        </div>
-        <div class="form-group">
           <label for="edit-content">Content</label>
           <textarea id="edit-content" rows="5"></textarea>
         </div>
@@ -154,12 +142,8 @@
       <div class="modal-content">
         <h2>Add New Item</h2>
         <div class="form-group">
-          <label for="add-category">Category</label>
-          <input type="text" id="add-category" list="category-datalist" placeholder="e.g. Study, Poems, Movies, Work" />
-        </div>
-        <div class="form-group">
           <label for="add-content">Content</label>
-          <textarea id="add-content" rows="4" placeholder="Paste text or a link..."></textarea>
+          <textarea id="add-content" rows="4" placeholder="Paste or write content here..."></textarea>
         </div>
         <div class="form-group">
           <label for="add-tags">Tags <span class="hint">(comma separated)</span></label>

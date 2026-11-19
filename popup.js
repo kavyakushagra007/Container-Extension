@@ -18,8 +18,6 @@ const itemsContainer = document.getElementById("items-container");
 const emptyState = document.getElementById("empty-state");
 const searchInput = document.getElementById("search-input");
 const filterBtns = document.querySelectorAll(".filter-btn");
-const categoriesBar = document.getElementById("categories-bar");
-const categoryDatalist = document.getElementById("category-datalist");
 const btnAdd = document.getElementById("btn-add");
 const btnPaste = document.getElementById("btn-paste");
 const btnMenu = document.getElementById("btn-menu");
@@ -30,7 +28,6 @@ const itemCount = document.getElementById("item-count");
 // Add item modal
 const addModal = document.getElementById("add-modal");
 const addContent = document.getElementById("add-content");
-const addCategory = document.getElementById("add-category");
 const addTags = document.getElementById("add-tags");
 const modalCancel = document.getElementById("modal-cancel");
 const modalSave = document.getElementById("modal-save");
@@ -38,7 +35,6 @@ const modalSave = document.getElementById("modal-save");
 // Edit modal
 const editModal = document.getElementById("edit-modal");
 const editContent = document.getElementById("edit-content");
-const editCategory = document.getElementById("edit-category");
 const editTags = document.getElementById("edit-tags");
 const editCancel = document.getElementById("edit-cancel");
 const editSave = document.getElementById("edit-save");
@@ -132,104 +128,27 @@ async function autoSyncBackground() {
 }
 
 async function loadState() {
-  const data = await chrome.storage.local.get(["items", "categories", "activeCategory"]);
+  const data = await chrome.storage.local.get(["items", "categories"]);
   allItems = data.items || [];
   if (data.categories && data.categories.length > 0) {
     categories = data.categories;
   }
-  if (data.activeCategory) {
-    activeCategory = data.activeCategory;
-  }
-  updateCategoryDatalist();
-  renderCategoriesBar();
   renderItems();
-}
-
-// ── Category Datalist & Pills ──
-function updateCategoryDatalist() {
-  if (!categoryDatalist) return;
-  categoryDatalist.innerHTML = categories
-    .map((c) => `<option value="${escapeHTML(c)}">`)
-    .join("");
-}
-
-function renderCategoriesBar() {
-  if (!categoriesBar) return;
-
-  let html = `
-    <button class="category-pill ${activeCategory === "all" ? "active" : ""}" data-category="all">
-      All Topics
-    </button>
-  `;
-
-  categories.forEach((cat) => {
-    const isAct = activeCategory.toLowerCase() === cat.toLowerCase();
-    const count = allItems.filter(
-      (i) => (i.category || "General").toLowerCase() === cat.toLowerCase()
-    ).length;
-    html += `
-      <button class="category-pill ${isAct ? "active" : ""}" data-category="${escapeHTML(cat)}">
-        ${escapeHTML(cat)} <span style="opacity:0.6; font-size:10px;">${count}</span>
-      </button>
-    `;
-  });
-
-  html += `<button class="category-pill category-pill-add" id="btn-add-category-quick" title="Add Category">+</button>`;
-
-  categoriesBar.innerHTML = html;
-
-  categoriesBar.querySelectorAll(".category-pill[data-category]").forEach((pill) => {
-    pill.addEventListener("click", () => {
-      activeCategory = pill.dataset.category;
-      chrome.storage.local.set({ activeCategory });
-      renderCategoriesBar();
-      renderItems();
-    });
-  });
-
-  const btnAddCat = document.getElementById("btn-add-category-quick");
-  if (btnAddCat) {
-    btnAddCat.addEventListener("click", () => {
-      const newCat = prompt("Enter new category name (e.g. Poems, Movies, Study):");
-      if (newCat && newCat.trim()) {
-        const trimmed = newCat.trim();
-        if (!categories.some((c) => c.toLowerCase() === trimmed.toLowerCase())) {
-          categories.push(trimmed);
-          activeCategory = trimmed;
-          chrome.storage.local.set({ categories, activeCategory }, () => {
-            updateCategoryDatalist();
-            renderCategoriesBar();
-            renderItems();
-            SyncService.pushToCloud(allItems, categories);
-          });
-        }
-      }
-    });
-  }
 }
 
 // ── Render Items ──
 function renderItems() {
   const filtered = allItems.filter((item) => {
-    // Filter by Category
-    if (activeCategory !== "all") {
-      const itemCat = (item.category || "General").toLowerCase();
-      if (itemCat !== activeCategory.toLowerCase()) return false;
-    }
-
-    // Filter by Type / Favorite
+    // Filter by Favorite
     if (currentFilter === "favorite" && !item.favorite) return false;
-    if (currentFilter !== "all" && currentFilter !== "favorite" && item.type !== currentFilter)
-      return false;
 
     // Search query
     if (searchQuery) {
       const q = searchQuery.toLowerCase();
-      const matchContent = item.content.toLowerCase().includes(q);
+      const matchContent = (item.content || "").toLowerCase().includes(q);
       const matchTags = item.tags?.some((t) => t.toLowerCase().includes(q));
-      const matchCategory = (item.category || "General").toLowerCase().includes(q);
       const matchSource = item.sourceTitle?.toLowerCase().includes(q);
-      if (!matchContent && !matchTags && !matchCategory && !matchSource) return false;
+      if (!matchContent && !matchTags && !matchSource) return false;
     }
 
     return true;
@@ -238,8 +157,7 @@ function renderItems() {
   // Count bar
   if (allItems.length > 0) {
     countBar.classList.remove("hidden");
-    const catLabel = activeCategory === "all" ? "" : ` in ${activeCategory}`;
-    itemCount.textContent = `${filtered.length} saved item${filtered.length === 1 ? "" : "s"}${catLabel}`;
+    itemCount.textContent = `${filtered.length} saved item${filtered.length === 1 ? "" : "s"}`;
   } else {
     countBar.classList.add("hidden");
   }
@@ -277,31 +195,14 @@ function renderItems() {
       }
     });
   });
-
-  // Clickable category badges
-  itemsContainer.querySelectorAll(".item-category-badge").forEach((catBadge) => {
-    catBadge.addEventListener("click", (e) => {
-      e.stopPropagation();
-      const cat = catBadge.dataset.category;
-      if (cat) {
-        activeCategory = cat;
-        chrome.storage.local.set({ activeCategory });
-        renderCategoriesBar();
-        renderItems();
-      }
-    });
-  });
 }
 
 function createItemHTML(item) {
   const date = new Date(item.createdAt);
   const timeAgo = getTimeAgo(date);
-  const badgeClass = item.type === "link" ? "badge-link" : "badge-text";
-  const typeLabel = item.type === "link" ? "Link" : "Text";
-  const categoryName = item.category || "General";
 
   let contentHTML;
-  if (item.type === "link") {
+  if (/^https?:\/\//i.test(item.content)) {
     const url = /^https?:\/\//i.test(item.content) ? item.content : `https://${item.content}`;
     contentHTML = `<a href="${escapeHTML(url)}" target="_blank" rel="noopener">${escapeHTML(item.content)}</a>`;
   } else {
@@ -320,11 +221,7 @@ function createItemHTML(item) {
   return `
     <div class="item-card" data-id="${item.id}">
       <div class="item-top">
-        <div style="display:flex; align-items:center; gap:6px;">
-          <span class="item-type-badge ${badgeClass}">${typeLabel}</span>
-          <span class="item-category-badge" data-category="${escapeHTML(categoryName)}" title="Filter by category">${escapeHTML(categoryName)}</span>
-        </div>
-        <div class="item-actions">
+        <div class="item-actions" style="margin-left: auto;">
           <button class="item-action-btn ${item.favorite ? "favorite-active" : ""}" data-action="favorite" data-id="${item.id}" title="Favorite">
             <svg viewBox="0 0 24 24" fill="${item.favorite ? "currentColor" : "none"}" stroke="currentColor" stroke-width="2"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
           </button>
@@ -377,7 +274,6 @@ function handleItemAction(e) {
   if (action === "edit") {
     editingItemId = id;
     editContent.value = item.content;
-    editCategory.value = item.category || "General";
     editTags.value = (item.tags || []).join(", ");
     editModal.classList.remove("hidden");
     editContent.focus();
@@ -386,7 +282,6 @@ function handleItemAction(e) {
   if (action === "delete") {
     chrome.runtime.sendMessage({ action: "deleteItem", id }, () => {
       allItems = allItems.filter((i) => i.id !== id);
-      renderCategoriesBar();
       renderItems();
       showToast("Item deleted");
       SyncService.pushToCloud(allItems, categories);
@@ -622,12 +517,11 @@ async function promoteMemoryToSave(memId, btnElement) {
   const mem = allMemories.find((m) => m.id === memId);
   if (!mem) return;
 
-  const cat = activeCategory !== "all" ? activeCategory : "General";
   const item = {
     id: Date.now().toString(36) + Math.random().toString(36).substr(2, 9),
     type: "link",
     content: mem.url,
-    category: cat,
+    category: "General",
     sourceUrl: mem.url,
     sourceTitle: mem.title || "Web Memory Save",
     createdAt: Date.now(),
@@ -637,8 +531,8 @@ async function promoteMemoryToSave(memId, btnElement) {
 
   chrome.runtime.sendMessage({ action: "saveItem", item }, () => {
     allItems.unshift(item);
-    renderCategoriesBar();
-    showToast(`Saved to ${cat}!`);
+    renderItems();
+    showToast("Saved to your collection!");
     SyncService.pushToCloud(allItems, categories);
 
     if (btnElement) {
@@ -682,7 +576,6 @@ function setupEventListeners() {
       tabSaves.classList.add("active");
       tabMemory.classList.remove("active");
       if (savesToolbar) savesToolbar.classList.remove("hidden");
-      if (categoriesBar) categoriesBar.classList.remove("hidden");
       searchInput.placeholder = "Search your saves...";
       searchQuery = searchInput.value;
       renderItems();
@@ -694,7 +587,6 @@ function setupEventListeners() {
       tabMemory.classList.add("active");
       tabSaves.classList.remove("active");
       if (savesToolbar) savesToolbar.classList.add("hidden");
-      if (categoriesBar) categoriesBar.classList.add("hidden");
       searchInput.placeholder = "Search browsing memory (e.g. Nike, Python, tutorial)...";
       searchQuery = searchInput.value;
       loadAndRenderMemories();
@@ -734,13 +626,12 @@ function setupEventListeners() {
       }
 
       const isUrl = /^https?:\/\//i.test(text.trim()) || /^(www\.)/i.test(text.trim());
-      const cat = activeCategory !== "all" ? activeCategory : "General";
 
       const item = {
         id: Date.now().toString(36) + Math.random().toString(36).substr(2, 9),
         type: isUrl ? "link" : "text",
         content: text.trim(),
-        category: cat,
+        category: "General",
         sourceUrl: "",
         sourceTitle: "",
         createdAt: Date.now(),
@@ -750,9 +641,8 @@ function setupEventListeners() {
 
       chrome.runtime.sendMessage({ action: "saveItem", item }, () => {
         allItems.unshift(item);
-        renderCategoriesBar();
         renderItems();
-        showToast(`${isUrl ? "Link" : "Text"} saved to ${cat}!`);
+        showToast("Saved to your collection!");
         SyncService.pushToCloud(allItems, categories);
       });
     } catch {
@@ -764,7 +654,6 @@ function setupEventListeners() {
   btnAdd.addEventListener("click", () => {
     addModal.classList.remove("hidden");
     addContent.value = "";
-    addCategory.value = activeCategory !== "all" ? activeCategory : "General";
     addTags.value = "";
     addContent.focus();
   });
@@ -775,16 +664,9 @@ function setupEventListeners() {
   modalSave.addEventListener("click", () => {
     const content = addContent.value.trim();
     if (!content) {
-      addContent.style.borderColor = "var(--red)";
+      addContent.style.borderColor = "var(--neon-red)";
       setTimeout(() => (addContent.style.borderColor = ""), 1000);
       return;
-    }
-
-    const cat = addCategory.value.trim() || "General";
-    if (!categories.some((c) => c.toLowerCase() === cat.toLowerCase())) {
-      categories.push(cat);
-      chrome.storage.local.set({ categories });
-      updateCategoryDatalist();
     }
 
     const tags = addTags.value
@@ -798,7 +680,7 @@ function setupEventListeners() {
       id: Date.now().toString(36) + Math.random().toString(36).substr(2, 9),
       type: isUrl ? "link" : "text",
       content,
-      category: cat,
+      category: "General",
       sourceUrl: "",
       sourceTitle: "",
       createdAt: Date.now(),
@@ -808,7 +690,6 @@ function setupEventListeners() {
 
     chrome.runtime.sendMessage({ action: "saveItem", item }, () => {
       allItems.unshift(item);
-      renderCategoriesBar();
       renderItems();
       addModal.classList.add("hidden");
       showToast("Item saved!");
@@ -830,13 +711,6 @@ function setupEventListeners() {
     const content = editContent.value.trim();
     if (!content) return;
 
-    const cat = editCategory.value.trim() || "General";
-    if (!categories.some((c) => c.toLowerCase() === cat.toLowerCase())) {
-      categories.push(cat);
-      chrome.storage.local.set({ categories });
-      updateCategoryDatalist();
-    }
-
     const tags = editTags.value
       .split(",")
       .map((t) => t.trim())
@@ -845,12 +719,10 @@ function setupEventListeners() {
     const item = allItems.find((i) => i.id === editingItemId);
     if (item) {
       item.content = content;
-      item.category = cat;
       item.tags = tags;
       item.type = /^https?:\/\//i.test(content) || /^(www\.)/i.test(content) ? "link" : "text";
 
       chrome.runtime.sendMessage({ action: "updateItem", item }, () => {
-        renderCategoriesBar();
         renderItems();
         editModal.classList.add("hidden");
         editingItemId = null;
