@@ -11,6 +11,8 @@ let activePreviewId = null;
 let authIsSignUp = false;
 
 // ── DOM Elements ──
+const sidebar = document.getElementById("sidebar");
+const btnSidebarToggle = document.getElementById("btn-sidebar-toggle");
 const dashboardSplit = document.getElementById("dashboard-split");
 const feedColumn = document.getElementById("feed-column");
 const itemsGrid = document.getElementById("items-grid");
@@ -34,6 +36,7 @@ const importFile = document.getElementById("import-file");
 
 // Preview Pane elements (Outlook / iCloud Mail Style)
 const previewPane = document.getElementById("preview-pane");
+const previewResizer = document.getElementById("preview-resizer");
 const previewEmpty = document.getElementById("preview-empty");
 const previewCard = document.getElementById("preview-card");
 const previewBadge = document.getElementById("preview-badge");
@@ -117,6 +120,24 @@ const settingsThemeSelect = document.getElementById("settings-theme-select");
 document.addEventListener("DOMContentLoaded", async () => {
   await initTheme();
   await loadState();
+
+  // Load layout preferences (collapsed sidebar & preview pane width)
+  try {
+    const { sidebarCollapsed = false, previewPaneWidth } = await chrome.storage.local.get([
+      "sidebarCollapsed",
+      "previewPaneWidth",
+    ]);
+    if (sidebarCollapsed && sidebar) {
+      sidebar.classList.add("collapsed");
+      if (btnSidebarToggle) btnSidebarToggle.title = "Expand sidebar";
+    }
+    if (previewPaneWidth && previewPane) {
+      previewPane.style.width = `${previewPaneWidth}px`;
+    }
+  } catch (err) {
+    console.warn("Layout preference load:", err);
+  }
+
   setupEventListeners();
   checkAuthStatus();
   autoSyncBackground();
@@ -1153,6 +1174,51 @@ function switchView(view) {
 
 // ── Setup Event Listeners ──
 function setupEventListeners() {
+  // Left Sidebar Collapse / Expand Toggle
+  if (btnSidebarToggle && sidebar) {
+    btnSidebarToggle.addEventListener("click", () => {
+      sidebar.classList.toggle("collapsed");
+      const isCollapsed = sidebar.classList.contains("collapsed");
+      btnSidebarToggle.title = isCollapsed ? "Expand sidebar" : "Collapse sidebar";
+      chrome.storage.local.set({ sidebarCollapsed: isCollapsed });
+    });
+  }
+
+  // Right Preview Pane Draggable Resizer
+  if (previewResizer && previewPane) {
+    let isResizing = false;
+    let startX = 0;
+    let startWidth = 0;
+
+    previewResizer.addEventListener("mousedown", (e) => {
+      isResizing = true;
+      startX = e.clientX;
+      startWidth = previewPane.getBoundingClientRect().width;
+      previewResizer.classList.add("is-resizing");
+      document.body.style.cursor = "col-resize";
+      document.body.style.userSelect = "none";
+    });
+
+    window.addEventListener("mousemove", (e) => {
+      if (!isResizing) return;
+      const diff = startX - e.clientX;
+      const minWidth = 300;
+      const maxWidth = Math.min(window.innerWidth * 0.65, 800);
+      const newWidth = Math.max(minWidth, Math.min(maxWidth, startWidth + diff));
+      previewPane.style.width = `${newWidth}px`;
+    });
+
+    window.addEventListener("mouseup", () => {
+      if (!isResizing) return;
+      isResizing = false;
+      previewResizer.classList.remove("is-resizing");
+      document.body.style.cursor = "";
+      document.body.style.userSelect = "";
+      const currentWidth = Math.round(previewPane.getBoundingClientRect().width);
+      chrome.storage.local.set({ previewPaneWidth: currentWidth });
+    });
+  }
+
   // Navigation
   document.querySelectorAll(".sidebar-nav > .nav-item").forEach((btn) => {
     btn.addEventListener("click", () => {
