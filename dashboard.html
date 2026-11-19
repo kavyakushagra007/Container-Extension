@@ -183,6 +183,45 @@
               </button>
             </div>
           </div>
+
+          <!-- Inline Editor inside Preview Pane -->
+          <div class="preview-editor hidden" id="preview-editor">
+            <div class="preview-header">
+              <div class="preview-header-meta">
+                <span class="preview-badge" id="preview-editor-badge">EDITING</span>
+                <h3 id="preview-editor-title" class="preview-title">Edit Item</h3>
+              </div>
+              <div class="preview-header-actions">
+                <button class="preview-icon-btn" id="preview-editor-close-btn" title="Cancel Editing">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                </button>
+              </div>
+            </div>
+
+            <div class="preview-editor-body">
+              <div class="form-group">
+                <label for="preview-editor-content">Content</label>
+                <textarea id="preview-editor-content" rows="8" placeholder="Paste or write content here..."></textarea>
+              </div>
+
+              <div class="form-group">
+                <label for="preview-editor-tags">Tags <span class="hint">(comma separated)</span></label>
+                <input type="text" id="preview-editor-tags" placeholder="e.g. work, ideas, research" />
+              </div>
+
+              <div class="preview-editor-hint">
+                <span>Tip: Press <kbd>Cmd</kbd>+<kbd>Enter</kbd> (or <kbd>Ctrl</kbd>+<kbd>Enter</kbd>) to save quickly.</span>
+              </div>
+            </div>
+
+            <div class="preview-editor-actions">
+              <button class="btn btn-secondary btn-sm" id="preview-editor-cancel-btn">Cancel</button>
+              <button class="btn btn-primary btn-sm" id="preview-editor-save-btn">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><polyline points="20 6 9 17 4 12"/></svg>
+                Save
+              </button>
+            </div>
+          </div>
         </aside>
       </div>
 

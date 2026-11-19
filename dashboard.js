@@ -50,6 +50,16 @@ const previewCopyBtn = document.getElementById("preview-copy-btn");
 const previewEditBtn = document.getElementById("preview-edit-btn");
 const previewDeleteBtn = document.getElementById("preview-delete-btn");
 
+// Inline Editor inside Preview Pane
+const previewEditor = document.getElementById("preview-editor");
+const previewEditorBadge = document.getElementById("preview-editor-badge");
+const previewEditorTitle = document.getElementById("preview-editor-title");
+const previewEditorCloseBtn = document.getElementById("preview-editor-close-btn");
+const previewEditorContent = document.getElementById("preview-editor-content");
+const previewEditorTags = document.getElementById("preview-editor-tags");
+const previewEditorCancelBtn = document.getElementById("preview-editor-cancel-btn");
+const previewEditorSaveBtn = document.getElementById("preview-editor-save-btn");
+
 // Add / Edit Modal elements
 const modal = document.getElementById("modal");
 const modalTitle = document.getElementById("modal-title");
@@ -373,6 +383,7 @@ function showPreview(item) {
     }
   });
 
+  if (previewEditor) previewEditor.classList.add("hidden");
   if (previewEmpty) previewEmpty.classList.add("hidden");
   if (previewCard) previewCard.classList.remove("hidden");
 
@@ -457,7 +468,130 @@ function closePreview() {
     card.classList.remove("active-preview");
   });
   if (previewCard) previewCard.classList.add("hidden");
+  if (previewEditor) previewEditor.classList.add("hidden");
   if (previewEmpty) previewEmpty.classList.remove("hidden");
+}
+
+// ── Inline Editor Controller (inside Sidebar Preview Pane) ──
+function openEditorInSidebar(item = null) {
+  if (currentView === "settings" || currentView === "memory") {
+    switchView("all");
+  }
+
+  if (item) {
+    editingItemId = item.id;
+    activePreviewId = item.id;
+    if (previewEditorBadge) previewEditorBadge.textContent = "EDITING";
+    if (previewEditorTitle) previewEditorTitle.textContent = "Edit Item";
+    if (previewEditorContent) previewEditorContent.value = item.content || "";
+    if (previewEditorTags) previewEditorTags.value = (item.tags || []).join(", ");
+  } else {
+    editingItemId = null;
+    if (previewEditorBadge) previewEditorBadge.textContent = "NEW";
+    if (previewEditorTitle) previewEditorTitle.textContent = "Add New Item";
+    if (previewEditorContent) previewEditorContent.value = "";
+    if (previewEditorTags) previewEditorTags.value = "";
+  }
+
+  // Highlight active card in grid if editing
+  itemsGrid.querySelectorAll(".item-card").forEach((card) => {
+    if (editingItemId && card.dataset.id === editingItemId) {
+      card.classList.add("active-preview");
+    } else {
+      card.classList.remove("active-preview");
+    }
+  });
+
+  if (previewEmpty) previewEmpty.classList.add("hidden");
+  if (previewCard) previewCard.classList.add("hidden");
+  if (previewEditor) previewEditor.classList.remove("hidden");
+
+  // Focus textarea
+  if (previewEditorContent) {
+    previewEditorContent.focus();
+    previewEditorContent.setSelectionRange(previewEditorContent.value.length, previewEditorContent.value.length);
+  }
+}
+
+function closeEditorInSidebar() {
+  if (previewEditor) previewEditor.classList.add("hidden");
+  if (editingItemId) {
+    const item = allItems.find((i) => i.id === editingItemId);
+    editingItemId = null;
+    if (item) {
+      showPreview(item);
+      return;
+    }
+  } else if (activePreviewId) {
+    const item = allItems.find((i) => i.id === activePreviewId);
+    if (item) {
+      showPreview(item);
+      return;
+    }
+  }
+  closePreview();
+}
+
+function saveEditorInSidebar() {
+  const content = previewEditorContent ? previewEditorContent.value.trim() : "";
+  if (!content) {
+    if (previewEditorContent) {
+      previewEditorContent.style.borderColor = "var(--neon-red)";
+      setTimeout(() => (previewEditorContent.style.borderColor = ""), 1200);
+      previewEditorContent.focus();
+    }
+    showToast("Content cannot be empty");
+    return;
+  }
+
+  const tags = previewEditorTags
+    ? previewEditorTags.value
+        .split(",")
+        .map((t) => t.trim())
+        .filter(Boolean)
+    : [];
+
+  const isUrl = /^https?:\/\//i.test(content) || /^(www\.)/i.test(content);
+  const detectedType = isUrl ? "link" : "text";
+
+  if (editingItemId) {
+    const item = allItems.find((i) => i.id === editingItemId);
+    if (item) {
+      item.content = content;
+      item.tags = tags;
+      item.type = detectedType;
+    }
+    editingItemId = null;
+    chrome.storage.local.set({ items: allItems }, () => {
+      if (previewEditor) previewEditor.classList.add("hidden");
+      updateStats();
+      render();
+      if (item) showPreview(item);
+      showToast("Item updated!");
+      SyncService.pushToCloud(allItems, categories);
+    });
+  } else {
+    const newItem = {
+      id: Date.now().toString(36) + Math.random().toString(36).substr(2, 9),
+      type: detectedType,
+      content,
+      category: "General",
+      sourceUrl: "",
+      sourceTitle: "",
+      createdAt: Date.now(),
+      tags,
+      favorite: false,
+    };
+    allItems.unshift(newItem);
+    chrome.storage.local.set({ items: allItems, categories }, () => {
+      if (previewEditor) previewEditor.classList.add("hidden");
+      updateStats();
+      render();
+      showPreview(newItem);
+      showToast("Item saved!");
+      SyncService.pushToCloud(allItems, categories);
+    });
+  }
 }
 
 // ── Detail View Modal Logic (Fallback Modal) ──
@@ -538,12 +672,7 @@ function handleCardAction(e) {
   }
 
   if (action === "edit") {
-    editingItemId = id;
-    modalTitle.textContent = "Edit Item";
-    modalContentInput.value = item.content;
-    modalTagsInput.value = (item.tags || []).join(", ");
-    modal.classList.remove("hidden");
-    modalContentInput.focus();
+    openEditorInSidebar(item);
   }
 
   if (action === "delete") {
@@ -1102,16 +1231,32 @@ function setupEventListeners() {
     previewEditBtn.addEventListener("click", () => {
       if (!activePreviewId) return;
       const item = allItems.find((i) => i.id === activePreviewId);
-      if (!item) return;
-
-      editingItemId = item.id;
-      modalTitle.textContent = "Edit Item";
-      modalContentInput.value = item.content;
-      modalTagsInput.value = (item.tags || []).join(", ");
-      modal.classList.remove("hidden");
-      modalContentInput.focus();
+      if (item) openEditorInSidebar(item);
     });
   }
+
+  // Sidebar Inline Editor Actions
+  if (previewEditorCloseBtn) {
+    previewEditorCloseBtn.addEventListener("click", closeEditorInSidebar);
+  }
+  if (previewEditorCancelBtn) {
+    previewEditorCancelBtn.addEventListener("click", closeEditorInSidebar);
+  }
+  if (previewEditorSaveBtn) {
+    previewEditorSaveBtn.addEventListener("click", saveEditorInSidebar);
+  }
+  [previewEditorContent, previewEditorTags].forEach((inputEl) => {
+    if (!inputEl) return;
+    inputEl.addEventListener("keydown", (e) => {
+      if ((e.metaKey || e.ctrlKey) && e.key === "Enter") {
+        e.preventDefault();
+        saveEditorInSidebar();
+      } else if (e.key === "Escape") {
+        e.preventDefault();
+        closeEditorInSidebar();
+      }
+    });
+  });
 
   if (previewDeleteBtn) {
     previewDeleteBtn.addEventListener("click", () => {
@@ -1147,14 +1292,9 @@ function setupEventListeners() {
     render();
   });
 
-  // Add New Item Button
+  // Add New Item Button (opens sidebar editor directly)
   btnAddNew.addEventListener("click", () => {
-    editingItemId = null;
-    modalTitle.textContent = "Add New Item";
-    modalContentInput.value = "";
-    modalTagsInput.value = "";
-    modal.classList.remove("hidden");
-    modalContentInput.focus();
+    openEditorInSidebar(null);
   });
 
   modalCancel.addEventListener("click", () => modal.classList.add("hidden"));
@@ -1184,14 +1324,7 @@ function setupEventListeners() {
       if (!currentDetailItemId) return;
       const item = allItems.find((i) => i.id === currentDetailItemId);
       hideDetailModal();
-      if (item) {
-        editingItemId = item.id;
-        modalTitle.textContent = "Edit Item";
-        modalContentInput.value = item.content;
-        modalTagsInput.value = (item.tags || []).join(", ");
-        modal.classList.remove("hidden");
-        modalContentInput.focus();
-      }
+      if (item) openEditorInSidebar(item);
     });
   }
   if (detailDeleteBtn) {
