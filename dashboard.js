@@ -7,13 +7,18 @@ let currentSort = "newest";
 let selectedIds = new Set();
 let editingItemId = null;
 let currentDetailItemId = null;
+let activePreviewId = null;
 let authIsSignUp = false;
 
 // ── DOM Elements ──
+const dashboardSplit = document.getElementById("dashboard-split");
+const feedColumn = document.getElementById("feed-column");
 const itemsGrid = document.getElementById("items-grid");
 const emptyState = document.getElementById("empty-state");
 const settingsPanel = document.getElementById("settings-panel");
 const statsRow = document.getElementById("stats-row");
+const statCardTotal = document.getElementById("stat-card-total");
+const statCardFavs = document.getElementById("stat-card-favs");
 const searchInput = document.getElementById("search-input");
 const sortSelect = document.getElementById("sort-select");
 const pageTitle = document.getElementById("page-title");
@@ -27,6 +32,24 @@ const btnSettings = document.getElementById("btn-settings");
 const toast = document.getElementById("toast");
 const importFile = document.getElementById("import-file");
 
+// Preview Pane elements (Outlook / iCloud Mail Style)
+const previewPane = document.getElementById("preview-pane");
+const previewEmpty = document.getElementById("preview-empty");
+const previewCard = document.getElementById("preview-card");
+const previewBadge = document.getElementById("preview-badge");
+const previewTitle = document.getElementById("preview-title");
+const previewFavBtn = document.getElementById("preview-fav-btn");
+const previewCloseBtn = document.getElementById("preview-close-btn");
+const previewContent = document.getElementById("preview-content");
+const previewSourceRow = document.getElementById("preview-source-row");
+const previewSource = document.getElementById("preview-source");
+const previewDate = document.getElementById("preview-date");
+const previewTagsRow = document.getElementById("preview-tags-row");
+const previewTags = document.getElementById("preview-tags");
+const previewCopyBtn = document.getElementById("preview-copy-btn");
+const previewEditBtn = document.getElementById("preview-edit-btn");
+const previewDeleteBtn = document.getElementById("preview-delete-btn");
+
 // Add / Edit Modal elements
 const modal = document.getElementById("modal");
 const modalTitle = document.getElementById("modal-title");
@@ -35,7 +58,7 @@ const modalTagsInput = document.getElementById("modal-tags-input");
 const modalCancel = document.getElementById("modal-cancel");
 const modalSave = document.getElementById("modal-save");
 
-// Detail View Modal elements
+// Detail View Modal elements (Fallback)
 const detailModal = document.getElementById("detail-modal");
 const detailTitle = document.getElementById("detail-title");
 const detailContent = document.getElementById("detail-content");
@@ -219,15 +242,19 @@ function render() {
   if (currentView === "memory") {
     statsRow.classList.add("hidden");
     bulkBar.classList.add("hidden");
+    if (previewPane) previewPane.classList.add("hidden");
     renderMemoryView();
     return;
   }
+
+  if (previewPane) previewPane.classList.remove("hidden");
 
   const items = getFilteredItems();
 
   if (items.length === 0) {
     itemsGrid.classList.add("hidden");
     emptyState.classList.remove("hidden");
+    closePreview();
     return;
   }
 
@@ -245,7 +272,7 @@ function render() {
     cb.addEventListener("click", handleCheckbox);
   });
 
-  // Card click opens Detail View (not directly navigating away)
+  // Card click opens Preview Pane (Outlook/iCloud Mail style)
   itemsGrid.querySelectorAll(".item-card").forEach((card) => {
     card.addEventListener("click", (e) => {
       if (e.target.closest(".item-checkbox") || e.target.closest(".card-actions") || e.target.closest(".tag")) {
@@ -254,7 +281,7 @@ function render() {
       const id = card.dataset.id;
       const item = allItems.find((i) => i.id === id);
       if (item) {
-        showDetailModal(item);
+        showPreview(item);
       }
     });
   });
@@ -270,10 +297,23 @@ function render() {
       }
     });
   });
+
+  // Synchronize active preview state
+  if (activePreviewId) {
+    const activeItem = items.find((i) => i.id === activePreviewId);
+    if (activeItem) {
+      showPreview(activeItem);
+    } else {
+      closePreview();
+    }
+  } else {
+    closePreview();
+  }
 }
 
 function createCardHTML(item) {
   const isSelected = selectedIds.has(item.id);
+  const isActivePreview = activePreviewId === item.id;
   const timeAgo = getTimeAgo(new Date(item.createdAt));
   const contentHTML = escapeHTML(item.content);
 
@@ -287,7 +327,7 @@ function createCardHTML(item) {
     : "";
 
   return `
-    <div class="item-card ${isSelected ? "selected" : ""}" data-id="${item.id}" style="cursor:pointer;">
+    <div class="item-card ${isSelected ? "selected" : ""} ${isActivePreview ? "active-preview" : ""}" data-id="${item.id}" style="cursor:pointer;">
       <div class="item-checkbox" data-id="${item.id}"></div>
       <div class="card-content">${contentHTML}</div>
       ${tagsHTML}
@@ -316,7 +356,111 @@ function createCardHTML(item) {
   `;
 }
 
-// ── Detail View Modal Logic ──
+// ── Preview Pane Controller (Outlook / iCloud Mail Style) ──
+function showPreview(item) {
+  if (!item) {
+    closePreview();
+    return;
+  }
+  activePreviewId = item.id;
+
+  // Highlight active card in grid
+  itemsGrid.querySelectorAll(".item-card").forEach((card) => {
+    if (card.dataset.id === item.id) {
+      card.classList.add("active-preview");
+    } else {
+      card.classList.remove("active-preview");
+    }
+  });
+
+  if (previewEmpty) previewEmpty.classList.add("hidden");
+  if (previewCard) previewCard.classList.remove("hidden");
+
+  if (previewTitle) {
+    previewTitle.textContent = item.sourceTitle || "Saved Material";
+    previewTitle.title = item.sourceTitle || "Saved Material";
+  }
+
+  if (previewBadge) {
+    previewBadge.textContent = "SAVED";
+  }
+
+  // Update Favorite button
+  if (previewFavBtn) {
+    previewFavBtn.classList.toggle("fav-active", !!item.favorite);
+    const starSvg = previewFavBtn.querySelector("svg");
+    if (starSvg) {
+      starSvg.setAttribute("fill", item.favorite ? "#ffe600" : "none");
+      starSvg.setAttribute("stroke", item.favorite ? "#ffe600" : "currentColor");
+    }
+  }
+
+  // Content rendering
+  if (previewContent) {
+    const trimmed = (item.content || "").trim();
+    const isUrl = /^https?:\/\//i.test(trimmed) || /^(www\.)/i.test(trimmed);
+    if (isUrl) {
+      const url = /^https?:\/\//i.test(trimmed) ? trimmed : `https://${trimmed}`;
+      previewContent.innerHTML = `<a href="${escapeHTML(url)}" target="_blank" rel="noopener">${escapeHTML(item.content)}</a>`;
+    } else {
+      previewContent.textContent = item.content;
+    }
+  }
+
+  // Source Row
+  if (previewSourceRow) {
+    if (item.sourceTitle || item.sourceUrl) {
+      previewSourceRow.style.display = "flex";
+      if (item.sourceUrl) {
+        previewSource.innerHTML = `<a href="${escapeHTML(item.sourceUrl)}" target="_blank" rel="noopener">${escapeHTML(item.sourceTitle || item.sourceUrl)}</a>`;
+      } else {
+        previewSource.textContent = item.sourceTitle;
+      }
+    } else {
+      previewSourceRow.style.display = "none";
+    }
+  }
+
+  // Date
+  if (previewDate) {
+    previewDate.textContent = new Date(item.createdAt).toLocaleString();
+  }
+
+  // Tags
+  if (previewTagsRow) {
+    if (item.tags && item.tags.length > 0) {
+      previewTagsRow.style.display = "flex";
+      previewTags.innerHTML = item.tags
+        .map((t) => `<span class="tag" data-tag="${escapeHTML(t)}">#${escapeHTML(t)}</span>`)
+        .join("");
+
+      previewTags.querySelectorAll(".tag").forEach((tagEl) => {
+        tagEl.addEventListener("click", (e) => {
+          e.stopPropagation();
+          const tag = e.currentTarget.dataset.tag;
+          if (tag) {
+            searchInput.value = tag;
+            searchQuery = tag;
+            render();
+          }
+        });
+      });
+    } else {
+      previewTagsRow.style.display = "none";
+    }
+  }
+}
+
+function closePreview() {
+  activePreviewId = null;
+  itemsGrid.querySelectorAll(".item-card").forEach((card) => {
+    card.classList.remove("active-preview");
+  });
+  if (previewCard) previewCard.classList.add("hidden");
+  if (previewEmpty) previewEmpty.classList.remove("hidden");
+}
+
+// ── Detail View Modal Logic (Fallback Modal) ──
 function showDetailModal(item) {
   currentDetailItemId = item.id;
   if (!detailModal) return;
@@ -386,6 +530,9 @@ function handleCardAction(e) {
     chrome.storage.local.set({ items: allItems }, () => {
       updateStats();
       render();
+      if (activePreviewId === id) {
+        showPreview(item);
+      }
       SyncService.pushToCloud(allItems, categories);
     });
   }
@@ -402,6 +549,9 @@ function handleCardAction(e) {
   if (action === "delete") {
     allItems = allItems.filter((i) => i.id !== id);
     selectedIds.delete(id);
+    if (activePreviewId === id) {
+      closePreview();
+    }
     chrome.storage.local.set({ items: allItems }, () => {
       updateBulkBar();
       updateStats();
@@ -836,33 +986,149 @@ async function updateMemoryStats() {
   }
 }
 
+// ── View Switcher ──
+function switchView(view) {
+  document.querySelectorAll(".sidebar-nav .nav-item").forEach((b) => b.classList.remove("active"));
+  if (btnSettings) btnSettings.classList.remove("active");
+
+  if (view === "settings") {
+    if (btnSettings) btnSettings.classList.add("active");
+    currentView = "settings";
+    pageTitle.textContent = "Settings";
+    if (dashboardSplit) dashboardSplit.classList.add("hidden");
+    if (bulkBar) bulkBar.classList.add("hidden");
+    if (settingsPanel) settingsPanel.classList.remove("hidden");
+    return;
+  }
+
+  const navBtn = document.querySelector(`.sidebar-nav .nav-item[data-view="${view}"]`);
+  if (navBtn) navBtn.classList.add("active");
+
+  currentView = view;
+  pageTitle.textContent = view === "all" ? "All Items" : view === "favorite" ? "Favorites" : view === "memory" ? "Web Memory" : "All Items";
+
+  if (settingsPanel) settingsPanel.classList.add("hidden");
+  if (dashboardSplit) dashboardSplit.classList.remove("hidden");
+
+  if (view === "memory") {
+    if (statsRow) statsRow.classList.add("hidden");
+    if (bulkBar) bulkBar.classList.add("hidden");
+    if (previewPane) previewPane.classList.add("hidden");
+    renderMemoryView();
+  } else {
+    if (statsRow) statsRow.classList.remove("hidden");
+    if (previewPane) previewPane.classList.remove("hidden");
+    render();
+  }
+}
+
 // ── Setup Event Listeners ──
 function setupEventListeners() {
   // Navigation
   document.querySelectorAll(".sidebar-nav > .nav-item").forEach((btn) => {
     btn.addEventListener("click", () => {
-      document.querySelectorAll(".sidebar-nav .nav-item").forEach((b) => b.classList.remove("active"));
-      btn.classList.add("active");
-      currentView = btn.dataset.view;
-      pageTitle.textContent = btn.childNodes[2].textContent.trim();
-      settingsPanel.classList.add("hidden");
-      statsRow.classList.remove("hidden");
-      itemsGrid.classList.remove("hidden");
-      render();
+      const view = btn.dataset.view;
+      if (view) switchView(view);
     });
   });
 
   // Settings nav
-  btnSettings.addEventListener("click", () => {
-    document.querySelectorAll(".sidebar-nav .nav-item").forEach((b) => b.classList.remove("active"));
-    btnSettings.classList.add("active");
-    pageTitle.textContent = "Settings";
-    statsRow.classList.add("hidden");
-    itemsGrid.classList.add("hidden");
-    emptyState.classList.add("hidden");
-    bulkBar.classList.add("hidden");
-    settingsPanel.classList.remove("hidden");
-  });
+  if (btnSettings) {
+    btnSettings.addEventListener("click", () => switchView("settings"));
+  }
+
+  // Clickable Stat Cards (Total Saves & Favorites)
+  if (statCardTotal) {
+    statCardTotal.addEventListener("click", () => switchView("all"));
+    statCardTotal.addEventListener("keydown", (e) => {
+      if (e.key === "Enter" || e.key === " ") {
+        e.preventDefault();
+        switchView("all");
+      }
+    });
+  }
+
+  if (statCardFavs) {
+    statCardFavs.addEventListener("click", () => switchView("favorite"));
+    statCardFavs.addEventListener("keydown", (e) => {
+      if (e.key === "Enter" || e.key === " ") {
+        e.preventDefault();
+        switchView("favorite");
+      }
+    });
+  }
+
+  // Preview Pane Actions
+  if (previewCloseBtn) {
+    previewCloseBtn.addEventListener("click", closePreview);
+  }
+
+  if (previewFavBtn) {
+    previewFavBtn.addEventListener("click", () => {
+      if (!activePreviewId) return;
+      const item = allItems.find((i) => i.id === activePreviewId);
+      if (!item) return;
+
+      item.favorite = !item.favorite;
+      chrome.storage.local.set({ items: allItems }, () => {
+        updateStats();
+        showPreview(item);
+        const cardFavBtn = itemsGrid.querySelector(`.item-card[data-id="${item.id}"] [data-action="favorite"]`);
+        if (cardFavBtn) {
+          cardFavBtn.classList.toggle("fav-active", item.favorite);
+          const svg = cardFavBtn.querySelector("svg");
+          if (svg) svg.setAttribute("fill", item.favorite ? "currentColor" : "none");
+        }
+        SyncService.pushToCloud(allItems, categories);
+      });
+    });
+  }
+
+  if (previewCopyBtn) {
+    previewCopyBtn.addEventListener("click", () => {
+      if (!activePreviewId) return;
+      const item = allItems.find((i) => i.id === activePreviewId);
+      if (!item) return;
+
+      navigator.clipboard.writeText(item.content);
+      showToast("Copied to clipboard!");
+      const originalHTML = previewCopyBtn.innerHTML;
+      previewCopyBtn.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="color:var(--neon);" width="14" height="14"><polyline points="20 6 9 17 4 12"/></svg> Copied!`;
+      setTimeout(() => (previewCopyBtn.innerHTML = originalHTML), 1200);
+    });
+  }
+
+  if (previewEditBtn) {
+    previewEditBtn.addEventListener("click", () => {
+      if (!activePreviewId) return;
+      const item = allItems.find((i) => i.id === activePreviewId);
+      if (!item) return;
+
+      editingItemId = item.id;
+      modalTitle.textContent = "Edit Item";
+      modalContentInput.value = item.content;
+      modalTagsInput.value = (item.tags || []).join(", ");
+      modal.classList.remove("hidden");
+      modalContentInput.focus();
+    });
+  }
+
+  if (previewDeleteBtn) {
+    previewDeleteBtn.addEventListener("click", () => {
+      if (!activePreviewId) return;
+      const id = activePreviewId;
+      allItems = allItems.filter((i) => i.id !== id);
+      selectedIds.delete(id);
+      closePreview();
+      chrome.storage.local.set({ items: allItems }, () => {
+        updateBulkBar();
+        updateStats();
+        render();
+        showToast("Item deleted");
+        SyncService.pushToCloud(allItems, categories);
+      });
+    });
+  }
 
   // Theme Toggle Button
   if (btnThemeDash) {

@@ -80,40 +80,110 @@
         </div>
       </header>
 
-      <!-- Stats Cards -->
-      <div class="stats-row" id="stats-row">
-        <div class="stat-card">
-          <div class="stat-number" id="stat-total">0</div>
-          <div class="stat-label">Total Saves</div>
+      <!-- Split View Workspace (Feed + Outlook/iCloud-style Preview Pane) -->
+      <div class="dashboard-split" id="dashboard-split">
+        <div class="feed-column" id="feed-column">
+          <!-- Stats Cards (Clickable) -->
+          <div class="stats-row" id="stats-row">
+            <div class="stat-card stat-card-clickable" id="stat-card-total" role="button" tabindex="0" title="Click to view All Items">
+              <div class="stat-number" id="stat-total">0</div>
+              <div class="stat-label">Total Saves</div>
+            </div>
+            <div class="stat-card stat-card-clickable" id="stat-card-favs" role="button" tabindex="0" title="Click to view Favorites">
+              <div class="stat-number stat-fav" id="stat-favs">0</div>
+              <div class="stat-label">Favorites</div>
+            </div>
+          </div>
+
+          <!-- Bulk Actions Bar -->
+          <div class="bulk-bar hidden" id="bulk-bar">
+            <span id="selected-count">0 selected</span>
+            <button class="btn btn-sm btn-secondary" id="btn-select-all">Select All</button>
+            <button class="btn btn-sm btn-danger" id="btn-delete-selected">Delete Selected</button>
+            <button class="btn btn-sm btn-secondary" id="btn-cancel-select">Cancel</button>
+          </div>
+
+          <!-- Items Grid -->
+          <div class="items-grid" id="items-grid">
+            <!-- Items rendered by JS -->
+          </div>
+
+          <!-- Empty State -->
+          <div class="empty-state hidden" id="empty-state">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" width="64" height="64">
+              <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/>
+              <polyline points="17 21 17 13 7 13 7 21"/>
+              <polyline points="7 3 7 8 15 8"/>
+            </svg>
+            <h3>No saved items yet</h3>
+            <p>Start saving clips, research, and notes from any webpage.<br/>Select text → Right-click → "Save to SaveIt"</p>
+          </div>
         </div>
-        <div class="stat-card">
-          <div class="stat-number stat-fav" id="stat-favs">0</div>
-          <div class="stat-label">Favorites</div>
-        </div>
-      </div>
 
-      <!-- Bulk Actions Bar -->
-      <div class="bulk-bar hidden" id="bulk-bar">
-        <span id="selected-count">0 selected</span>
-        <button class="btn btn-sm btn-secondary" id="btn-select-all">Select All</button>
-        <button class="btn btn-sm btn-danger" id="btn-delete-selected">Delete Selected</button>
-        <button class="btn btn-sm btn-secondary" id="btn-cancel-select">Cancel</button>
-      </div>
+        <!-- Right Preview Pane (Outlook/iCloud Mail Style) -->
+        <aside class="preview-pane" id="preview-pane">
+          <div class="preview-empty" id="preview-empty">
+            <div class="preview-empty-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" width="48" height="48">
+                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                <polyline points="14 2 14 8 20 8"/>
+                <line x1="16" y1="13" x2="8" y2="13"/>
+                <line x1="16" y1="17" x2="8" y2="17"/>
+              </svg>
+            </div>
+            <h3>No item selected</h3>
+            <p>Click on any saved card to preview its full content and actions here.</p>
+          </div>
 
-      <!-- Items Grid -->
-      <div class="items-grid" id="items-grid">
-        <!-- Items rendered by JS -->
-      </div>
+          <div class="preview-card hidden" id="preview-card">
+            <div class="preview-header">
+              <div class="preview-header-meta">
+                <span class="preview-badge" id="preview-badge">SAVED</span>
+                <h3 id="preview-title" class="preview-title">Material Preview</h3>
+              </div>
+              <div class="preview-header-actions">
+                <button class="preview-icon-btn" id="preview-fav-btn" title="Toggle Favorite">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+                </button>
+                <button class="preview-icon-btn" id="preview-close-btn" title="Close Preview">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                </button>
+              </div>
+            </div>
 
-      <!-- Empty State -->
-      <div class="empty-state hidden" id="empty-state">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" width="64" height="64">
-          <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/>
-          <polyline points="17 21 17 13 7 13 7 21"/>
-          <polyline points="7 3 7 8 15 8"/>
-        </svg>
-        <h3>No saved items yet</h3>
-        <p>Start saving clips, research, and notes from any webpage.<br/>Select text → Right-click → "Save to SaveIt"</p>
+            <div class="preview-content-box" id="preview-content"></div>
+
+            <div class="preview-meta-section">
+              <div class="preview-meta-row" id="preview-source-row">
+                <span class="preview-meta-label">Source</span>
+                <span class="preview-meta-val" id="preview-source"></span>
+              </div>
+              <div class="preview-meta-row">
+                <span class="preview-meta-label">Saved</span>
+                <span class="preview-meta-val" id="preview-date"></span>
+              </div>
+              <div class="preview-meta-row" id="preview-tags-row">
+                <span class="preview-meta-label">Tags</span>
+                <div class="preview-tags" id="preview-tags"></div>
+              </div>
+            </div>
+
+            <div class="preview-actions">
+              <button class="btn btn-secondary btn-sm" id="preview-copy-btn">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+                Copy
+              </button>
+              <button class="btn btn-secondary btn-sm" id="preview-edit-btn">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+                Edit
+              </button>
+              <button class="btn btn-danger btn-sm" id="preview-delete-btn">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+                Delete
+              </button>
+            </div>
+          </div>
+        </aside>
       </div>
 
       <!-- Settings Panel -->
