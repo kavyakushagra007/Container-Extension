@@ -6,6 +6,7 @@
 }
 
 :root {
+  color-scheme: dark;
   --bg: #000000;
   --bg-card: #080905;
   --bg-hover: #10120a;
@@ -38,6 +39,7 @@
 
 /* ── Light Mode Palette: Pure Minimal Monochrome (Chalk White & Deep Black) ── */
 [data-theme="light"] {
+  color-scheme: light;
   --bg: #f9fafb;
   --bg-secondary: #f4f4f5;
   --bg-card: #ffffff;
@@ -314,17 +316,32 @@
 }
 
 [data-theme="light"] .form-group input,
+[data-theme="light"] .form-group input[type="text"],
 [data-theme="light"] .form-group textarea {
-  background: #ffffff;
-  border-color: var(--border);
-  color: #111827;
+  background: #ffffff !important;
+  border-color: #d1d5db !important;
+  color: #111827 !important;
 }
 
 [data-theme="light"] .form-group input:focus,
+[data-theme="light"] .form-group input[type="text"]:focus,
 [data-theme="light"] .form-group textarea:focus {
-  border-color: #111827;
-  background: #ffffff;
-  box-shadow: 0 0 0 1px #111827;
+  border-color: #111827 !important;
+  background: #ffffff !important;
+  color: #111827 !important;
+  box-shadow: 0 0 0 1px #111827 !important;
+}
+
+[data-theme="light"] .search-bar input {
+  background: #ffffff !important;
+  border-color: var(--border) !important;
+  color: #111827 !important;
+}
+
+[data-theme="light"] .search-bar input:focus {
+  border-color: #111827 !important;
+  box-shadow: 0 0 0 1px #111827 !important;
+  background: #ffffff !important;
 }
 
 [data-theme="light"] .btn-primary {
@@ -378,6 +395,21 @@
   color: #111827;
   font-weight: 700;
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08);
+}
+
+[data-theme="light"] .toast {
+  background: #111827;
+  color: #ffffff;
+  border: 1px solid #374151;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.18);
+}
+
+[data-theme="light"] .memory-footer {
+  border-top: 1px solid #f3f4f6;
+}
+
+[data-theme="light"] .memory-visits {
+  color: #6b7280;
 }
 
 body {
@@ -657,8 +689,8 @@ body {
 
 .search-bar input:focus {
   border-color: var(--neon);
-  box-shadow: 0 0 12px rgba(190, 250, 79, 0.3);
-  background: #080905;
+  box-shadow: 0 0 12px var(--neon-glow);
+  background: var(--bg-hover);
 }
 
 /* ── Topic / Category Pills ── */
@@ -1076,8 +1108,8 @@ body {
 .form-group textarea:focus,
 .form-group input[type="text"]:focus {
   border-color: var(--neon);
-  box-shadow: 0 0 12px rgba(190, 250, 79, 0.3);
-  background: #080905;
+  box-shadow: 0 0 12px var(--neon-glow);
+  background: var(--bg-hover);
 }
 
 .modal-actions {
@@ -1127,8 +1159,8 @@ body {
   left: 50%;
   transform: translateX(-50%);
   background: #090b05;
-  border: 1px solid var(--neon);
-  color: var(--neon);
+  border: 1px solid #befa4f;
+  color: #befa4f;
   padding: 8px 18px;
   border-radius: 20px;
   font-size: 12.5px;
