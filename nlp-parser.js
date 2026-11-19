@@ -120,8 +120,10 @@ const NLPParser = (() => {
 
     // 2. Strip conversational phrases
     CONVERSATIONAL_PATTERNS.forEach((pattern) => {
+      pattern.lastIndex = 0;
       if (pattern.test(working)) {
         isConversational = true;
+        pattern.lastIndex = 0;
         working = working.replace(pattern, " ");
       }
     });

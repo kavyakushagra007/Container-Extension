@@ -251,4 +251,174 @@
 
   // Run page extraction after a short delay so dynamically loaded titles/content settle
   setTimeout(initWebMemory, 1200);
+
+  // ── 1-Click Floating Quick Save Button on Selection ──
+  let floatingSaveBtn = null;
+
+  function removeFloatingSaveBtn() {
+    if (floatingSaveBtn) {
+      floatingSaveBtn.remove();
+      floatingSaveBtn = null;
+    }
+  }
+
+  function setupFloatingQuickSave() {
+    document.addEventListener("mouseup", (e) => {
+      // Don't trigger if clicked inside the button itself
+      if (floatingSaveBtn && floatingSaveBtn.contains(e.target)) return;
+
+      setTimeout(async () => {
+        try {
+          const { quickSaveEnabled = true } = await chrome.storage.local.get("quickSaveEnabled");
+          if (quickSaveEnabled === false) return;
+
+          const selection = window.getSelection();
+          if (!selection || selection.isCollapsed) {
+            removeFloatingSaveBtn();
+            return;
+          }
+
+          const text = selection.toString().trim();
+          if (text.length < 2) {
+            removeFloatingSaveBtn();
+            return;
+          }
+
+          // Skip if inside an input, textarea or contenteditable element
+          const activeEl = document.activeElement;
+          if (
+            activeEl &&
+            (activeEl.tagName === "INPUT" ||
+              activeEl.tagName === "TEXTAREA" ||
+              activeEl.isContentEditable)
+          ) {
+            removeFloatingSaveBtn();
+            return;
+          }
+
+          const range = selection.getRangeAt(0);
+          const rect = range.getBoundingClientRect();
+          if (!rect || (rect.width === 0 && rect.height === 0)) {
+            removeFloatingSaveBtn();
+            return;
+          }
+
+          removeFloatingSaveBtn();
+
+          floatingSaveBtn = document.createElement("div");
+          floatingSaveBtn.id = "saveit-floating-save";
+          floatingSaveBtn.innerHTML = `
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="13" height="13">
+              <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/>
+              <polyline points="17 21 17 13 7 13 7 21"/>
+              <polyline points="7 3 7 8 15 8"/>
+            </svg>
+            <span>Save</span>
+          `;
+
+          // Inject styles if needed
+          if (!document.getElementById("saveit-floating-styles")) {
+            const style = document.createElement("style");
+            style.id = "saveit-floating-styles";
+            style.textContent = `
+              #saveit-floating-save {
+                position: absolute;
+                z-index: 2147483646;
+                display: flex;
+                align-items: center;
+                gap: 5px;
+                background: #000000;
+                color: #BEFA4F;
+                border: 1px solid rgba(190, 250, 79, 0.6);
+                border-radius: 16px;
+                padding: 4px 10px;
+                font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+                font-size: 11.5px;
+                font-weight: 700;
+                cursor: pointer;
+                user-select: none;
+                box-shadow: 0 4px 14px rgba(0, 0, 0, 0.7), 0 0 10px rgba(190, 250, 79, 0.35);
+                transform: translateY(0);
+                transition: transform 0.12s ease, background 0.12s ease, border-color 0.12s ease;
+                animation: saveit-float-pop 0.15s cubic-bezier(0.16, 1, 0.3, 1);
+              }
+              #saveit-floating-save:hover {
+                background: #111508;
+                border-color: #BEFA4F;
+                transform: translateY(-1px) scale(1.04);
+                box-shadow: 0 6px 18px rgba(0, 0, 0, 0.8), 0 0 14px rgba(190, 250, 79, 0.5);
+              }
+              #saveit-floating-save:active {
+                transform: translateY(1px) scale(0.97);
+              }
+              @keyframes saveit-float-pop {
+                from { opacity: 0; transform: scale(0.85) translateY(4px); }
+                to { opacity: 1; transform: scale(1) translateY(0); }
+              }
+            `;
+            document.head.appendChild(style);
+          }
+
+          // Calculate coordinates: place above selection, or below if near top
+          const btnHeight = 28;
+          let top = window.scrollY + rect.top - btnHeight - 8;
+          if (rect.top < 40) {
+            top = window.scrollY + rect.bottom + 8;
+          }
+          let left = window.scrollX + rect.left + rect.width / 2 - 35;
+          if (left < 10) left = 10;
+          if (left + 70 > window.innerWidth) left = window.innerWidth - 75;
+
+          floatingSaveBtn.style.top = `${top}px`;
+          floatingSaveBtn.style.left = `${left}px`;
+
+          // Handle clicking the button
+          floatingSaveBtn.addEventListener("mousedown", (ev) => {
+            ev.preventDefault();
+            ev.stopPropagation();
+          });
+
+          floatingSaveBtn.addEventListener("click", (ev) => {
+            ev.preventDefault();
+            ev.stopPropagation();
+
+            floatingSaveBtn.innerHTML = `<span>✓ Saved!</span>`;
+            floatingSaveBtn.style.background = "#BEFA4F";
+            floatingSaveBtn.style.color = "#000000";
+
+            try {
+              chrome.runtime.sendMessage({
+                action: "saveSelectionFromPage",
+                text,
+                url: window.location.href,
+                title: document.title,
+              }, () => {
+                if (chrome.runtime.lastError) {}
+              });
+            } catch (err) {}
+
+            setTimeout(() => {
+              removeFloatingSaveBtn();
+            }, 350);
+          });
+
+          document.body.appendChild(floatingSaveBtn);
+        } catch {}
+      }, 30);
+    });
+
+    // Remove button when user clicks anywhere else
+    document.addEventListener("mousedown", (e) => {
+      if (floatingSaveBtn && !floatingSaveBtn.contains(e.target)) {
+        removeFloatingSaveBtn();
+      }
+    });
+
+    // Remove button on scroll
+    window.addEventListener("scroll", () => {
+      removeFloatingSaveBtn();
+    }, { passive: true });
+  }
+
+  setupFloatingQuickSave();
 })();

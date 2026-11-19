@@ -1,34 +1,39 @@
 importScripts("sync.js", "memory-store.js", "nlp-parser.js");
 
-// ── Context Menu Setup ──
+// ── Context Menu Setup (1-Click Top Level — No Submenus) ──
+function setupContextMenus() {
+  chrome.contextMenus.removeAll(() => {
+    // Single item for selected text: renders directly at the top level of right-click menu!
+    chrome.contextMenus.create({
+      id: "saveit-selection",
+      title: "Save to SaveIt",
+      contexts: ["selection"],
+    });
+
+    // Single item for links: renders directly at top level!
+    chrome.contextMenus.create({
+      id: "saveit-link",
+      title: "Save link to SaveIt",
+      contexts: ["link"],
+    });
+
+    // Single item for empty page: renders directly at top level!
+    chrome.contextMenus.create({
+      id: "saveit-page",
+      title: "Save page to SaveIt",
+      contexts: ["page"],
+    });
+  });
+}
+
 chrome.runtime.onInstalled.addListener(() => {
   clearBadge();
   runMemoryRetentionPurge();
-
-  chrome.contextMenus.create({
-    id: "saveit-selection",
-    title: 'Save "%s" to SaveIt',
-    contexts: ["selection"],
-  });
-
-  chrome.contextMenus.create({
-    id: "saveit-link",
-    title: "Save this link to SaveIt",
-    contexts: ["link"],
-  });
-
-  chrome.contextMenus.create({
-    id: "saveit-page",
-    title: "Save this page to SaveIt",
-    contexts: ["page"],
-  });
-
-  chrome.contextMenus.create({
-    id: "saveit-open-dashboard",
-    title: "Open SaveIt Dashboard",
-    contexts: ["all"],
-  });
+  setupContextMenus();
 });
+
+// Also initialize context menus when service worker starts
+setupContextMenus();
 
 // ── Handle context menu clicks ──
 chrome.contextMenus.onClicked.addListener(async (info, tab) => {
@@ -197,6 +202,27 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 
   if (message.action === "saveItem") {
     saveItem(message.item).then(() => sendResponse({ success: true }));
+    return true;
+  }
+
+  if (message.action === "saveSelectionFromPage") {
+    (async () => {
+      const { activeCategory = "General" } = await chrome.storage.local.get("activeCategory");
+      const category = (activeCategory && activeCategory !== "all") ? activeCategory : "General";
+      const item = {
+        id: generateId(),
+        type: "text",
+        content: message.text,
+        category,
+        sourceUrl: sender.tab?.url || message.url || "",
+        sourceTitle: sender.tab?.title || message.title || "",
+        createdAt: Date.now(),
+        tags: [],
+        favorite: false,
+      };
+      await saveItem(item);
+      sendResponse({ success: true, item });
+    })();
     return true;
   }
 

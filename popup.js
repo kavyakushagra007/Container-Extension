@@ -62,13 +62,55 @@ const btnLogout = document.getElementById("btn-logout");
 const toast = document.getElementById("toast");
 const importFile = document.getElementById("import-file");
 
+// Theme elements
+const btnTheme = document.getElementById("btn-theme");
+const themeIconSun = document.getElementById("theme-icon-sun");
+const themeIconMoon = document.getElementById("theme-icon-moon");
+const menuTheme = document.getElementById("menu-theme");
+const menuThemeLabel = document.getElementById("menu-theme-label");
+
 // ── Init ──
 document.addEventListener("DOMContentLoaded", async () => {
+  await initTheme();
   await loadState();
   setupEventListeners();
   checkAuthStatus();
   autoSyncBackground();
 });
+
+async function initTheme() {
+  const { theme = "dark" } = await chrome.storage.local.get("theme");
+  applyTheme(theme);
+
+  // Sync across windows
+  chrome.storage.onChanged.addListener((changes) => {
+    if (changes.theme) {
+      applyTheme(changes.theme.newValue);
+    }
+  });
+}
+
+function applyTheme(theme) {
+  if (theme === "light") {
+    document.documentElement.setAttribute("data-theme", "light");
+    if (themeIconSun) themeIconSun.classList.remove("hidden");
+    if (themeIconMoon) themeIconMoon.classList.add("hidden");
+    if (menuThemeLabel) menuThemeLabel.textContent = "Switch to Dark Mode";
+  } else {
+    document.documentElement.removeAttribute("data-theme");
+    if (themeIconSun) themeIconSun.classList.add("hidden");
+    if (themeIconMoon) themeIconMoon.classList.remove("hidden");
+    if (menuThemeLabel) menuThemeLabel.textContent = "Switch to Light Mode";
+  }
+}
+
+async function toggleTheme() {
+  const current = document.documentElement.getAttribute("data-theme") === "light" ? "light" : "dark";
+  const next = current === "light" ? "dark" : "light";
+  applyTheme(next);
+  await chrome.storage.local.set({ theme: next });
+  showToast(next === "light" ? "☀️ Light mode activated" : "🌙 Dark mode activated");
+}
 
 async function autoSyncBackground() {
   const session = await SyncService.getUser();
@@ -621,6 +663,17 @@ async function deleteMemoryRecord(memId) {
 
 // ── Event Listeners Setup ──
 function setupEventListeners() {
+  // Theme Toggle Buttons
+  if (btnTheme) {
+    btnTheme.addEventListener("click", toggleTheme);
+  }
+  if (menuTheme) {
+    menuTheme.addEventListener("click", () => {
+      toggleTheme();
+      dropdownMenu.classList.add("hidden");
+    });
+  }
+
   // Mode Switch Tabs (My Saves vs Web Memory)
   if (tabSaves && tabMemory) {
     tabSaves.addEventListener("click", () => {
@@ -816,15 +869,20 @@ function setupEventListeners() {
   authModalCancel.addEventListener("click", () => authModal.classList.add("hidden"));
   authModal.querySelector(".modal-backdrop").addEventListener("click", () => authModal.classList.add("hidden"));
 
-  authToggleMode.addEventListener("click", (e) => {
-    e.preventDefault();
+  function toggleAuthMode(e) {
+    if (e) e.preventDefault();
     authIsSignUp = !authIsSignUp;
     authSubmitBtn.textContent = authIsSignUp ? "Create Account" : "Log In";
     authModeText.innerHTML = authIsSignUp
       ? `Already have an account? <a href="#" id="auth-toggle-mode" style="color:var(--neon);">Log In</a>`
       : `Don't have an account? <a href="#" id="auth-toggle-mode" style="color:var(--neon);">Sign Up</a>`;
-    document.getElementById("auth-toggle-mode").addEventListener("click", arguments.callee);
-  });
+    const toggleLink = document.getElementById("auth-toggle-mode");
+    if (toggleLink) toggleLink.addEventListener("click", toggleAuthMode);
+  }
+
+  if (authToggleMode) {
+    authToggleMode.addEventListener("click", toggleAuthMode);
+  }
 
   authSubmitBtn.addEventListener("click", async () => {
     const email = authEmailInput.value.trim();

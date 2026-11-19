@@ -69,8 +69,16 @@ const statText = document.getElementById("stat-text");
 const statLinks = document.getElementById("stat-links");
 const statFavs = document.getElementById("stat-favs");
 
+// Theme elements
+const btnThemeDash = document.getElementById("btn-theme-dash");
+const themeIconSunDash = document.getElementById("theme-icon-sun-dash");
+const themeIconMoonDash = document.getElementById("theme-icon-moon-dash");
+const themeDashLabel = document.getElementById("theme-dash-label");
+const settingsThemeSelect = document.getElementById("settings-theme-select");
+
 // ── Init ──
 document.addEventListener("DOMContentLoaded", async () => {
+  await initTheme();
   await loadState();
   setupEventListeners();
   checkAuthStatus();
@@ -78,6 +86,59 @@ document.addEventListener("DOMContentLoaded", async () => {
   initMemorySettings();
   updateMemoryStats();
 });
+
+async function initTheme() {
+  const { theme = "dark" } = await chrome.storage.local.get("theme");
+  applyTheme(theme);
+
+  // Sync across windows
+  chrome.storage.onChanged.addListener((changes) => {
+    if (changes.theme) {
+      applyTheme(changes.theme.newValue);
+    }
+  });
+
+  if (settingsThemeSelect) {
+    settingsThemeSelect.value = theme;
+    settingsThemeSelect.addEventListener("change", async (e) => {
+      const selectedTheme = e.target.value;
+      await chrome.storage.local.set({ theme: selectedTheme });
+      applyTheme(selectedTheme);
+      showToast(`Theme set to ${selectedTheme.charAt(0).toUpperCase() + selectedTheme.slice(1)}`);
+    });
+  }
+}
+
+function applyTheme(theme) {
+  let effective = theme;
+  if (theme === "system") {
+    effective = window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+  }
+
+  if (effective === "light") {
+    document.documentElement.setAttribute("data-theme", "light");
+    if (themeIconSunDash) themeIconSunDash.classList.remove("hidden");
+    if (themeIconMoonDash) themeIconMoonDash.classList.add("hidden");
+    if (themeDashLabel) themeDashLabel.textContent = "Dark Mode";
+  } else {
+    document.documentElement.removeAttribute("data-theme");
+    if (themeIconSunDash) themeIconSunDash.classList.add("hidden");
+    if (themeIconMoonDash) themeIconMoonDash.classList.remove("hidden");
+    if (themeDashLabel) themeDashLabel.textContent = "Light Mode";
+  }
+
+  if (settingsThemeSelect && settingsThemeSelect.value !== theme) {
+    settingsThemeSelect.value = theme;
+  }
+}
+
+async function toggleTheme() {
+  const current = document.documentElement.getAttribute("data-theme") === "light" ? "light" : "dark";
+  const next = current === "light" ? "dark" : "light";
+  applyTheme(next);
+  await chrome.storage.local.set({ theme: next });
+  showToast(next === "light" ? "☀️ Light mode activated" : "🌙 Dark mode activated");
+}
 
 async function autoSyncBackground() {
   const session = await SyncService.getUser();
@@ -825,6 +886,17 @@ async function initMemorySettings() {
       }
     });
   }
+
+  // Quick save floating pill setting
+  const settingQuickSave = document.getElementById("setting-quick-save");
+  if (settingQuickSave) {
+    const { quickSaveEnabled = true } = await chrome.storage.local.get("quickSaveEnabled");
+    settingQuickSave.checked = quickSaveEnabled !== false;
+    settingQuickSave.addEventListener("change", () => {
+      chrome.storage.local.set({ quickSaveEnabled: settingQuickSave.checked });
+      showToast(settingQuickSave.checked ? "⚡ 1-Click floating save button enabled" : "1-Click floating save button disabled");
+    });
+  }
 }
 
 async function updateMemoryStats() {
@@ -875,6 +947,11 @@ function setupEventListeners() {
     bulkBar.classList.add("hidden");
     settingsPanel.classList.remove("hidden");
   });
+
+  // Theme Toggle Button
+  if (btnThemeDash) {
+    btnThemeDash.addEventListener("click", toggleTheme);
+  }
 
   // Add Category Mini Button
   if (btnAddCategoryDash) {
@@ -1001,15 +1078,20 @@ function setupEventListeners() {
   authModalCancel.addEventListener("click", () => authModal.classList.add("hidden"));
   authModal.querySelector(".modal-backdrop").addEventListener("click", () => authModal.classList.add("hidden"));
 
-  authToggleMode.addEventListener("click", (e) => {
-    e.preventDefault();
+  function toggleAuthMode(e) {
+    if (e) e.preventDefault();
     authIsSignUp = !authIsSignUp;
     authSubmitBtn.textContent = authIsSignUp ? "Create Account" : "Log In";
     authModeText.innerHTML = authIsSignUp
       ? `Already have an account? <a href="#" id="auth-toggle-mode" style="color:var(--neon);">Log In</a>`
       : `Don't have an account? <a href="#" id="auth-toggle-mode" style="color:var(--neon);">Sign Up</a>`;
-    document.getElementById("auth-toggle-mode").addEventListener("click", arguments.callee);
-  });
+    const toggleLink = document.getElementById("auth-toggle-mode");
+    if (toggleLink) toggleLink.addEventListener("click", toggleAuthMode);
+  }
+
+  if (authToggleMode) {
+    authToggleMode.addEventListener("click", toggleAuthMode);
+  }
 
   authSubmitBtn.addEventListener("click", async () => {
     const email = authEmailInput.value.trim();
