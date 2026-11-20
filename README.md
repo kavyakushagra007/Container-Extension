@@ -42,26 +42,34 @@ A sleek, offline-first Chrome extension that lets you capture text snippets, art
 
 ---
 
-## 📁 File Structure
+## 📁 Clean Modular Architecture
 
 ```
 Extension/
-├── manifest.json                  # Manifest V3 configuration (permissions, background, content scripts)
-├── background.js                  # Service worker (context menus, shortcuts, badge, memory handlers)
-├── memory-store.js                # IndexedDB full-text search engine for Web Memory
-├── nlp-parser.js                  # Offline natural language & temporal query parser
-├── content.js                     # In-page neon notification toast & page digest extractor
-├── popup.html                     # Dual-mode popup (My Saves 📌 vs Web Memory 🧠)
-├── popup.css                      # Popup styling (Black & #BEFA4F theme)
-├── popup.js                       # Popup controller (Saves & Memory views, CRUD, search, sync)
-├── dashboard.html                 # Full-page desktop dashboard with Web Memory timeline
-├── dashboard.css                  # Dashboard layout (timeline, adaptive auto-sizing cards, stats)
-├── dashboard.js                   # Dashboard controller (timeline view, bulk actions, sort, memory settings)
-├── sync.js                        # Firebase Auth & Cloud Firestore REST API sync module
-├── promo-generator.html           # Canvas generator for Chrome Web Store promo banners
-├── privacy-policy.html            # Offline privacy policy page
-├── CHROME_STORE_SUBMISSION_GUIDE.md # Copy-paste submission text for Chrome Web Store
-└── icons/                         # Extension icons (16x16, 48x48, 128x128)
+├── manifest.json                  # Manifest V3 extension configuration
+├── icons/                         # Extension icons (16x16, 48x48, 128x128)
+├── src/                           # Modular extension source code
+│   ├── background/
+│   │   └── background.js          # Service worker (context menus, shortcuts, badge)
+│   ├── content/
+│   │   └── content.js             # 1-Click floating quick-save button & selection capture
+│   ├── popup/
+│   │   ├── popup.html             # Action popup UI
+│   │   ├── popup.css              # Popup styling (Dark & pure Light mode)
+│   │   └── popup.js               # Popup controller (Saves & Memory views, CRUD, search)
+│   ├── dashboard/
+│   │   ├── dashboard.html         # Full-page desktop dashboard & manager
+│   │   ├── dashboard.css          # Dashboard responsive styling
+│   │   └── dashboard.js           # Dashboard controller (timeline view, bulk actions, settings)
+│   └── services/
+│       ├── memory-store.js        # IndexedDB full-text search engine for Web Memory
+│       ├── nlp-parser.js          # Offline natural language & temporal query parser
+│       └── sync.js                # Firebase Auth & Cloud Firestore sync service
+├── privacy-policy.html            # In-app and public privacy policy
+├── docs/
+│   └── CHROME_STORE_SUBMISSION_GUIDE.md # Web Store submission & reviewer justification guide
+├── .gitignore                     # Git ignore rules for clean repo management
+└── README.md                      # Documentation
 ```
 
 ---
@@ -69,5 +77,5 @@ Extension/
 ## 📦 Publishing to the Chrome Web Store
 
 When you are ready to publish:
-1. Refer to [CHROME_STORE_SUBMISSION_GUIDE.md](file:///Users/kushagrasingh/Downloads/Extension/CHROME_STORE_SUBMISSION_GUIDE.md) for pre-written descriptions, permission justifications, and store metadata.
-2. Compress the extension files into a `.zip` and upload directly to the [Chrome Developer Dashboard](https://chrome.google.com/webstore/devconsole).
+1. Refer to [CHROME_STORE_SUBMISSION_GUIDE.md](file:///Users/kushagrasingh/Downloads/Extension/docs/CHROME_STORE_SUBMISSION_GUIDE.md) for pre-written descriptions, permission justifications, and store metadata.
+2. Compress the extension files into a `.zip` (excluding `docs/` and `.git`) and upload directly to the [Chrome Developer Dashboard](https://chrome.google.com/webstore/devconsole).

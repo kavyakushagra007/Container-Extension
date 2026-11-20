@@ -84,18 +84,21 @@
     <p>SaveIt ("we", "our", or "extension") is designed with complete user privacy in mind. We believe your notes, clipped text, and bookmarks belong exclusively to you.</p>
 
     <h2>1. Data Collection & Storage</h2>
-    <p><strong>SaveIt does NOT collect, transmit, or sell your personal data.</strong></p>
+    <p><strong>SaveIt is local-first. We do NOT sell, track, or share your personal data with third-party advertisers.</strong></p>
     <ul>
-      <li>All saved text snippets, links, tags, and notes are stored <strong>strictly locally</strong> on your computer using Chrome's <code>chrome.storage.local</code> API.</li>
-      <li>No data ever leaves your device or is transmitted to any external server or cloud service.</li>
+      <li><strong>Local Storage:</strong> All saved text snippets, links, tags, and Web Memory browsing records are stored locally on your computer using Chrome's <code>chrome.storage.local</code> API.</li>
+      <li><strong>Optional Cloud Sync:</strong> If you explicitly choose to create an account and enable Cloud Sync, your saved items and categories are securely synchronized via Google Firebase Firestore REST APIs. This is completely optional and disabled by default.</li>
     </ul>
 
     <h2>2. Permissions Justification</h2>
     <ul>
-      <li><strong>storage:</strong> Required to save your clips and notes locally on your machine.</li>
+      <li><strong>storage:</strong> Required to save your clips, notes, and preferences locally on your machine.</li>
       <li><strong>contextMenus:</strong> Enables the right-click "Save to SaveIt" option on selections, links, and pages.</li>
       <li><strong>activeTab & scripting:</strong> Allows the extension to extract the selected text snippet when you invoke the keyboard shortcut (⌘+Shift+S / Ctrl+Shift+S) or context menu.</li>
-      <li><strong>clipboardRead:</strong> Used only when you manually click the "Paste from clipboard" button to save whatever text you have currently copied.</li>
+      <li><strong>clipboardRead:</strong> Used only when you voluntarily click "Paste from clipboard" to save copied text.</li>
+      <li><strong>tabs:</strong> Used to detect active tab title and URL for saved clips and chronological Web Memory recall.</li>
+      <li><strong>history:</strong> Used exclusively for the optional "Web Memory" feature to allow users to search recent browsing visits and promote visited pages to permanent saves. Your history is processed locally on your machine and is never transmitted to any third party.</li>
+      <li><strong>Host Permissions (Google Firebase):</strong> Connects directly to Firebase Authentication and Cloud Firestore only when you sign in for optional multi-device cloud backup.</li>
     </ul>
 
     <h2>3. Third-Party Sharing</h2>
