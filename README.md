@@ -66,8 +66,6 @@ Extension/
 │       ├── nlp-parser.js          # Offline natural language & temporal query parser
 │       └── sync.js                # Firebase Auth & Cloud Firestore sync service
 ├── privacy-policy.html            # In-app and public privacy policy
-├── docs/
-│   └── CHROME_STORE_SUBMISSION_GUIDE.md # Web Store submission & reviewer justification guide
 ├── .gitignore                     # Git ignore rules for clean repo management
 └── README.md                      # Documentation
 ```
@@ -77,5 +75,4 @@ Extension/
 ## 📦 Publishing to the Chrome Web Store
 
 When you are ready to publish:
-1. Refer to [CHROME_STORE_SUBMISSION_GUIDE.md](file:///Users/kushagrasingh/Downloads/Extension/docs/CHROME_STORE_SUBMISSION_GUIDE.md) for pre-written descriptions, permission justifications, and store metadata.
-2. Compress the extension files into a `.zip` (excluding `docs/` and `.git`) and upload directly to the [Chrome Developer Dashboard](https://chrome.google.com/webstore/devconsole).
+1. Compress the extension files into a `.zip` (excluding `.git`) and upload directly to the [Chrome Developer Dashboard](https://chrome.google.com/webstore/devconsole).
