@@ -5,8 +5,9 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>SaveIt – Dashboard</title>
   <link rel="stylesheet" href="dashboard.css" />
+  <link rel="stylesheet" href="../shared/ui.css" />
 </head>
-<body>
+<body data-surface="dashboard">
   <div id="app">
     <!-- Sidebar -->
     <aside class="sidebar" id="sidebar">
@@ -19,7 +20,7 @@
           </svg>
           <h1 class="logo-text">SaveIt</h1>
         </div>
-        <button class="btn-sidebar-toggle" id="btn-sidebar-toggle" title="Collapse sidebar">
+        <button class="btn-sidebar-toggle" id="btn-sidebar-toggle" title="Collapse sidebar" aria-label="Collapse sidebar">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16">
             <polyline points="15 18 9 12 15 6"></polyline>
           </svg>
@@ -27,17 +28,17 @@
       </div>
 
       <nav class="sidebar-nav">
-        <button class="nav-item active" data-view="all" title="All Items">
+        <button class="nav-item active" data-view="all" title="All Items" aria-label="All Items">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
           <span class="nav-label">All Items</span>
           <span class="nav-count" id="count-all">0</span>
         </button>
-        <button class="nav-item" data-view="favorite" title="Favorites">
+        <button class="nav-item" data-view="favorite" title="Favorites" aria-label="Favorites">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
           <span class="nav-label">Favorites</span>
           <span class="nav-count" id="count-fav">0</span>
         </button>
-        <button class="nav-item" data-view="memory" title="Web Memory">
+        <button class="nav-item" data-view="memory" title="Web Memory" aria-label="Web Memory">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/></svg>
           <span class="nav-label">Web Memory</span>
           <span class="nav-count" id="count-memory">0</span>
@@ -45,12 +46,12 @@
       </nav>
 
       <div class="sidebar-footer">
-        <button class="nav-item" id="btn-theme-dash" title="Toggle Light / Dark mode">
+        <button class="nav-item" id="btn-theme-dash" title="Toggle Light / Dark mode" aria-label="Toggle Light / Dark mode">
           <svg id="theme-icon-sun-dash" class="theme-icon hidden" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>
           <svg id="theme-icon-moon-dash" class="theme-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
           <span class="nav-label" id="theme-dash-label">Light Mode</span>
         </button>
-        <button class="nav-item" id="btn-settings" title="Settings">
+        <button class="nav-item" id="btn-settings" title="Settings" aria-label="Settings">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
           <span class="nav-label">Settings</span>
         </button>
@@ -62,21 +63,22 @@
       <!-- Top Bar -->
       <header class="topbar">
         <div class="topbar-left">
+          <p class="page-eyebrow">Your personal library</p>
           <h2 id="page-title">All Items</h2>
         </div>
         <div class="topbar-right">
           <div class="search-box">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-            <input type="text" id="search-input" placeholder="Search everything..." />
+            <input type="text" id="search-input" aria-label="Search saved items and web memory" autocomplete="off" placeholder="Search everything..." />
           </div>
           <div class="sort-box">
-            <select id="sort-select">
+            <select id="sort-select" aria-label="Sort items">
               <option value="newest">Newest first</option>
               <option value="oldest">Oldest first</option>
               <option value="alpha">A → Z</option>
             </select>
           </div>
-          <button class="btn btn-secondary" id="btn-dash-auth" title="Account & Cloud Sync">
+          <button class="btn btn-secondary" id="btn-dash-auth" title="Account & Cloud Sync" aria-label="Account & Cloud Sync">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
             <span id="dash-auth-label">Cloud Sync</span>
           </button>
@@ -152,10 +154,10 @@
                 <h3 id="preview-title" class="preview-title">Material Preview</h3>
               </div>
               <div class="preview-header-actions">
-                <button class="preview-icon-btn" id="preview-fav-btn" title="Toggle Favorite">
+                <button class="preview-icon-btn" id="preview-fav-btn" title="Toggle Favorite" aria-label="Toggle Favorite">
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
                 </button>
-                <button class="preview-icon-btn" id="preview-close-btn" title="Close Preview">
+                <button class="preview-icon-btn" id="preview-close-btn" title="Close Preview" aria-label="Close Preview">
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
                 </button>
               </div>
@@ -202,7 +204,7 @@
                 <h3 id="preview-editor-title" class="preview-title">Edit Item</h3>
               </div>
               <div class="preview-header-actions">
-                <button class="preview-icon-btn" id="preview-editor-close-btn" title="Cancel Editing">
+                <button class="preview-icon-btn" id="preview-editor-close-btn" title="Cancel Editing" aria-label="Cancel Editing">
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
                 </button>
               </div>
@@ -395,7 +397,7 @@
             <div class="about-card">
               <div class="about-info">
                 <span class="about-brand">SaveIt v1.0.0</span>
-                <span class="about-tagline">Your permanent, private web clipboard. All data is kept locally on your machine.</span>
+                <span class="about-tagline">Your local-first web clipboard. Optional cloud sync uploads saved items and categories.</span>
               </div>
               <a href="../../privacy-policy.html" target="_blank" class="about-link">View Privacy Policy →</a>
             </div>
@@ -431,7 +433,7 @@
     <div class="modal-content modal-detail">
       <div class="detail-header">
         <h2 id="detail-title">Saved Material</h2>
-        <button id="detail-close-btn" class="modal-close-icon" title="Close">✕</button>
+        <button id="detail-close-btn" class="modal-close-icon" title="Close" aria-label="Close">✕</button>
       </div>
       <div class="detail-body">
         <div class="detail-content-box" id="detail-content"></div>
@@ -468,32 +470,38 @@
   </div>
 
   <!-- Auth / Account Modal -->
-  <div id="auth-modal" class="modal hidden">
+  <div id="auth-modal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="auth-modal-title">
     <div class="modal-backdrop"></div>
-    <div class="modal-content">
-      <h2 id="auth-modal-title">Cloud Sync & Account</h2>
+    <div class="modal-content cloud-panel">
+      <div class="cloud-heading">
+        <div><p class="page-eyebrow">YOUR LIBRARY, EVERYWHERE</p><h2 id="auth-modal-title">Cloud sync</h2></div>
+        <button type="button" id="cloud-close" class="icon-btn" aria-label="Close cloud sync">✕</button>
+      </div>
+      <div class="cloud-scope"><span>✓ Saves & categories sync across devices</span><span>◉ Web Memory stays on this device</span></div>
+      <div id="cloud-feedback" class="cloud-feedback hidden" role="status" aria-live="polite"></div>
       <div id="auth-logged-in-view" class="hidden">
         <div class="auth-status-card">
-          <div class="auth-avatar">👤</div>
+          <div class="auth-avatar" aria-hidden="true">↗</div>
           <div class="auth-info">
-            <div class="auth-email" id="auth-user-email">user@example.com</div>
-            <div class="auth-sync-status" id="auth-sync-status">🟢 Synced with Firebase Cloud</div>
+            <div class="auth-email" id="auth-user-email"></div>
+            <div class="auth-sync-status" id="auth-sync-status" role="status" aria-live="polite">Ready to sync</div>
           </div>
         </div>
-        <div class="modal-actions" style="margin-top: 18px;">
+        <p id="cloud-last-sync" class="cloud-last-sync">No successful sync yet</p>
+          <div class="modal-actions" style="margin-top: 18px;">
           <button id="btn-sync-now" class="btn btn-primary">Sync Now</button>
-          <button id="btn-logout" class="btn btn-secondary">Log Out</button>
+          <button id="btn-logout" class="btn btn-secondary">Sign out</button>
         </div>
       </div>
       <div id="auth-logged-out-view">
-        <p class="auth-desc">Log in to sync your saved items across different Chrome profiles and computers.</p>
+        <p class="auth-desc">Sign in to keep your saved items together across Chrome profiles and computers. Your local saves are available without an account.</p>
         <div class="form-group">
           <label for="auth-email-input">Email</label>
-          <input type="email" id="auth-email-input" placeholder="you@example.com" />
+          <input type="email" id="auth-email-input" autocomplete="email" required placeholder="you@example.com" />
         </div>
         <div class="form-group">
           <label for="auth-password-input">Password</label>
-          <input type="password" id="auth-password-input" placeholder="••••••••" />
+          <input type="password" id="auth-password-input" autocomplete="current-password" required placeholder="••••••••" />
         </div>
         <div class="auth-toggle-row">
           <span id="auth-mode-text">Don't have an account? <a href="#" id="auth-toggle-mode" style="color:var(--neon);">Sign Up</a></span>
@@ -507,11 +515,13 @@
   </div>
 
   <!-- Toast -->
-  <div id="toast" class="toast hidden"></div>
+  <div id="toast" role="status" aria-live="polite" class="toast hidden"></div>
 
+  <script src="../shared/theme.js"></script>
   <script src="../services/nlp-parser.js"></script>
   <script src="../services/memory-store.js"></script>
   <script src="../services/sync.js"></script>
+  <script src="../shared/cloud-ui.js"></script>
   <script src="dashboard.js"></script>
 </body>
 </html>

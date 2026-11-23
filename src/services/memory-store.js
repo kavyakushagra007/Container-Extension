@@ -88,7 +88,8 @@ const MemoryStore = (() => {
             textContent: pageData.textContent || recent.textContent,
             favicon: pageData.favicon || recent.favicon,
             visitedAt: now,
-            visitCount: (recent.visitCount || 1) + 1,
+            visitCount: (recent.visitCount || 1) + (pageData.captureId && pageData.captureId === recent.captureId ? 0 : 1),
+            captureId: pageData.captureId || "",
           };
         } else {
           record = {
@@ -103,6 +104,7 @@ const MemoryStore = (() => {
             favicon: pageData.favicon || "",
             visitedAt: now,
             visitCount: 1,
+            captureId: pageData.captureId || "",
           };
         }
 
@@ -165,7 +167,7 @@ const MemoryStore = (() => {
             if (keywords.includes(term)) termScore += 8;
             if (desc.includes(term)) termScore += 6;
             if (url.includes(term)) termScore += 4;
-            if (text.includes(term)) termScore += 2;
+            if (text.includes(term)) termScore += 12;
 
             if (termScore === 0) {
               allMatch = false;
@@ -178,7 +180,7 @@ const MemoryStore = (() => {
             // Boost score slightly for more visits and recent visits
             const hoursAgo = Math.max(0, (Date.now() - val.visitedAt) / (1000 * 60 * 60));
             const recencyBoost = Math.max(0, 5 - (hoursAgo / 24));
-            const totalScore = score + (val.visitCount || 1) + recencyBoost;
+            const totalScore = score + Math.min(val.visitCount || 1, 5) + recencyBoost;
 
             results.push({ item: val, score: totalScore });
           }
@@ -256,7 +258,7 @@ const MemoryStore = (() => {
               if (kws.includes(term)) termScore += 9;
               if (desc.includes(term)) termScore += 7;
               if (url.includes(term)) termScore += 5;
-              if (text.includes(term)) termScore += 3;
+              if (text.includes(term)) termScore += 12;
 
               if (termScore > 0) {
                 matchedCount++;
@@ -268,7 +270,7 @@ const MemoryStore = (() => {
           const threshold = terms.length <= 1 ? terms.length : Math.min(2, terms.length);
           if (matchedCount >= threshold && score > 0) {
             if (matchedCount === terms.length && terms.length > 0) score += 25; // All terms matched bonus
-            score += (val.visitCount || 1);
+            score += Math.min(val.visitCount || 1, 5);
             matches.push({ item: val, score });
           }
 
@@ -362,7 +364,7 @@ const MemoryStore = (() => {
           description: item.description || "",
           keywords: item.keywords || "",
           textContent: item.textContent || "",
-          favicon: item.favicon || `https://www.google.com/s2/favicons?domain=${domain}&sz=32`,
+          favicon: "",
           visitedAt: item.visitedAt || Date.now(),
           visitCount: item.visitCount || 1,
         };
@@ -381,15 +383,17 @@ const MemoryStore = (() => {
     return new Promise((resolve, reject) => {
       const tx = db.transaction(STORE_NAME, "readonly");
       const store = tx.objectStore(STORE_NAME);
-      const countReq = store.count();
-
-      countReq.onsuccess = () => {
-        const count = countReq.result || 0;
-        // Approximation: ~1.5KB per page digest
-        const approxBytes = count * 1500;
-        resolve({ count, approxBytes });
+      const req = store.openCursor();
+      let count = 0;
+      let approxBytes = 0;
+      req.onsuccess = (event) => {
+        const cursor = event.target.result;
+        if (!cursor) return resolve({ count, approxBytes });
+        count++;
+        approxBytes += new TextEncoder().encode(JSON.stringify(cursor.value)).length;
+        cursor.continue();
       };
-      countReq.onerror = () => reject(countReq.error);
+      req.onerror = () => reject(req.error);
     });
   }
 

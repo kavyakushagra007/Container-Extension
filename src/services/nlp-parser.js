@@ -48,74 +48,44 @@ const NLPParser = (() => {
 
     // 1. Detect and extract temporal expressions
     const now = new Date();
-    const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
-    const ONE_DAY = 24 * 60 * 60 * 1000;
+    const dayStart = (offset = 0) => new Date(now.getFullYear(), now.getMonth(), now.getDate() + offset).getTime();
     const ONE_HOUR = 60 * 60 * 1000;
-
-    // Pattern: "X days ago" / "X day ago" / "two days ago"
-    const daysAgoRegex = /\b(one|two|three|four|five|six|seven|eight|nine|ten|a|an|couple|few|\d+)\s+days?\s+ago\b/i;
-    const daysAgoMatch = working.match(daysAgoRegex);
-
-    if (daysAgoMatch) {
-      isConversational = true;
-      const numStr = daysAgoMatch[1];
-      const count = NUMBER_WORDS[numStr] !== undefined ? NUMBER_WORDS[numStr] : parseInt(numStr, 10) || 2;
-      const targetDayStart = startOfToday - (count * ONE_DAY);
-      const targetDayEnd = targetDayStart + ONE_DAY + (2 * ONE_HOUR); // slight buffer
+    const number = value => NUMBER_WORDS[value] ?? Number(value);
+    const dayMatch = working.match(/\b(one|two|three|four|five|six|seven|eight|nine|ten|a|an|couple|few|\d+)\s+days?\s+ago\b/i);
+    const hourMatch = working.match(/\b(one|two|three|four|five|six|seven|eight|nine|ten|a|an|couple|few|\d+)\s+hours?\s+ago\b/i);
+    let expression = null;
+    if (dayMatch) {
+      const count = number(dayMatch[1]);
+      timeRange = { start: dayStart(-count), end: dayStart(1 - count) - 1, label: `${count} days ago` };
+      expression = dayMatch[0];
+    } else if (/\byesterday\b/i.test(working)) {
+      timeRange = { start: dayStart(-1), end: dayStart() - 1, label: "yesterday" };
+      expression = /\byesterday\b/gi;
+    } else if (/\b(today|this morning|this afternoon|tonight)\b/i.test(working)) {
+      const match = working.match(/\b(today|this morning|this afternoon|tonight)\b/i)[0];
+      const hour = match === "this afternoon" ? 12 : match === "tonight" ? 18 : 0;
+      const endHour = match === "this morning" ? 12 : match === "this afternoon" ? 18 : 24;
       timeRange = {
-        start: targetDayStart - (3 * ONE_HOUR), // 3-hour buffer
-        end: targetDayEnd,
-        label: `${count} days ago`,
+        start: new Date(now.getFullYear(), now.getMonth(), now.getDate(), hour).getTime(),
+        end: new Date(now.getFullYear(), now.getMonth(), now.getDate(), endHour).getTime() - 1,
+        label: match,
       };
-      working = working.replace(daysAgoMatch[0], " ");
+      expression = match;
+    } else if (hourMatch) {
+      const count = number(hourMatch[1]);
+      timeRange = { start: now.getTime() - (count + 0.5) * ONE_HOUR, end: Math.min(now.getTime(), now.getTime() - (count - 0.5) * ONE_HOUR), label: `${count} hours ago` };
+      expression = hourMatch[0];
+    } else if (/\blast week\b/i.test(working)) {
+      const daysSinceMonday = (now.getDay() + 6) % 7;
+      timeRange = { start: dayStart(-daysSinceMonday - 7), end: dayStart(-daysSinceMonday) - 1, label: "last week" };
+      expression = /\blast week\b/gi;
+    } else if (/\b(a|one) week ago\b/i.test(working)) {
+      timeRange = { start: dayStart(-7), end: dayStart(-6) - 1, label: "a week ago" };
+      expression = /\b(a|one) week ago\b/gi;
     }
-
-    // Pattern: "yesterday"
-    if (!timeRange && /\byesterday\b/i.test(working)) {
+    if (expression) {
       isConversational = true;
-      timeRange = {
-        start: startOfToday - ONE_DAY - (2 * ONE_HOUR),
-        end: startOfToday + (2 * ONE_HOUR),
-        label: "yesterday",
-      };
-      working = working.replace(/\byesterday\b/gi, " ");
-    }
-
-    // Pattern: "today" / "this morning" / "this afternoon"
-    if (!timeRange && /\b(today|this morning|this afternoon|tonight)\b/i.test(working)) {
-      isConversational = true;
-      timeRange = {
-        start: startOfToday - (ONE_HOUR),
-        end: Date.now() + ONE_HOUR,
-        label: "today",
-      };
-      working = working.replace(/\b(today|this morning|this afternoon|tonight)\b/gi, " ");
-    }
-
-    // Pattern: "X hours ago"
-    const hoursAgoRegex = /\b(one|two|three|four|five|six|seven|eight|nine|ten|couple|few|\d+)\s+hours?\s+ago\b/i;
-    const hoursAgoMatch = working.match(hoursAgoRegex);
-    if (!timeRange && hoursAgoMatch) {
-      isConversational = true;
-      const numStr = hoursAgoMatch[1];
-      const count = NUMBER_WORDS[numStr] !== undefined ? NUMBER_WORDS[numStr] : parseInt(numStr, 10) || 2;
-      timeRange = {
-        start: Date.now() - ((count + 1.5) * ONE_HOUR),
-        end: Date.now() - ((count - 1.5) * ONE_HOUR),
-        label: `${count} hours ago`,
-      };
-      working = working.replace(hoursAgoMatch[0], " ");
-    }
-
-    // Pattern: "last week" / "a week ago"
-    if (!timeRange && /\b(last week|a week ago|one week ago)\b/i.test(working)) {
-      isConversational = true;
-      timeRange = {
-        start: startOfToday - (8 * ONE_DAY),
-        end: startOfToday - (4 * ONE_DAY),
-        label: "last week",
-      };
-      working = working.replace(/\b(last week|a week ago|one week ago)\b/gi, " ");
+      working = working.replace(expression, " ");
     }
 
     // 2. Strip conversational phrases
@@ -144,7 +114,7 @@ const NLPParser = (() => {
 
     return {
       rawQuery: trimmed,
-      cleanKeywords: cleanKeywords.length > 0 ? cleanKeywords : words,
+      cleanKeywords,
       timeRange,
       isConversational,
       promptText: cleanKeywords.join(" "),
