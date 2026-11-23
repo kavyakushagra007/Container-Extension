@@ -150,15 +150,19 @@ chrome.runtime.onStartup.addListener(() => {
 });
 
 async function saveItem(item) {
+  return SyncService._enqueue(() => persistItem(item));
+}
+
+async function persistItem(item) {
   const { items = [], categories = ["General", "Study", "Reading", "Ideas"] } = await chrome.storage.local.get(["items", "categories"]);
   items.unshift(item);
 
   // If item has a new category not yet in categories, add it
   if (item.category && !categories.includes(item.category)) {
     categories.push(item.category);
-    await chrome.storage.local.set({ items, categories });
+    await SyncService._saveLocal({ items, categories });
   } else {
-    await chrome.storage.local.set({ items });
+    await SyncService._saveLocal({ items });
   }
 
   // Sync to cloud in background if user is logged in
@@ -192,6 +196,39 @@ function generateId() {
 
 // ── Message Listeners ──
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+  if (message.action === "persistSaves" || message.action === "syncSaves") {
+    // Only extension pages may request writes to the saved collection.
+    if (!sender.url?.startsWith(chrome.runtime.getURL(""))) return false;
+    const operation = message.action === "persistSaves"
+      ? SyncService.saveLocal(message.data)
+      : SyncService.syncNow();
+    operation.then(result => sendResponse({ success: true, result }))
+      .catch(error => sendResponse({ success: false, error: error.message }));
+    return true;
+  }
+
+  if (message.action === "refreshActiveMemory") {
+    if (!sender.url?.startsWith(chrome.runtime.getURL(""))) return false;
+    (async () => {
+      let timer;
+      try {
+        const [tab] = await chrome.tabs.query({ active: true, lastFocusedWindow: true });
+        if (tab?.id && /^https?:\/\//i.test(tab.url || "")) {
+          await Promise.race([
+            chrome.tabs.sendMessage(tab.id, { action: "captureWebMemoryNow" }),
+            new Promise(resolve => { timer = setTimeout(resolve, 2000); }),
+          ]);
+        }
+      } catch {
+        // Older tabs may need a reload to receive the new content script.
+      } finally {
+        clearTimeout(timer);
+        sendResponse({ success: true });
+      }
+    })();
+    return true;
+  }
+
   // ── Clipboard / Saves Actions ──
   if (message.action === "getItems") {
     chrome.storage.local.get("items", (data) => {
@@ -226,28 +263,16 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     return true;
   }
 
-  if (message.action === "deleteItem") {
-    chrome.storage.local.get("items", (data) => {
-      const items = (data.items || []).filter((i) => i.id !== message.id);
-      chrome.storage.local.set({ items }, () => sendResponse({ success: true }));
-    });
-    return true;
-  }
-
-  if (message.action === "updateItem") {
-    chrome.storage.local.get("items", (data) => {
-      const items = (data.items || []).map((i) =>
-        i.id === message.item.id ? { ...i, ...message.item } : i
-      );
-      chrome.storage.local.set({ items }, () => sendResponse({ success: true }));
-    });
-    return true;
-  }
-
-  if (message.action === "clearAll") {
-    chrome.storage.local.set({ items: [] }, () =>
-      sendResponse({ success: true })
-    );
+  if (["deleteItem", "updateItem", "clearAll"].includes(message.action)) {
+    SyncService._enqueue(async () => {
+      const data = await chrome.storage.local.get("items");
+      let items = data.items || [];
+      if (message.action === "deleteItem") items = items.filter(item => item.id !== message.id);
+      if (message.action === "updateItem") items = items.map(item => item.id === message.item.id ? { ...item, ...message.item } : item);
+      if (message.action === "clearAll") items = [];
+      await SyncService._saveLocal({ items });
+    }).then(() => sendResponse({ success: true }))
+      .catch(error => sendResponse({ success: false, error: error.message }));
     return true;
   }
 

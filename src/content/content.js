@@ -4,7 +4,12 @@
 
 (() => {
   // Listen for messages from background
-  chrome.runtime.onMessage.addListener((message) => {
+  chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+    if (message.action === "captureWebMemoryNow") {
+      initWebMemory({ allowHidden: true }).then(() => sendResponse({ success: true }))
+        .catch(() => sendResponse({ success: false }));
+      return true;
+    }
     if (message.action === "showSaveNotification") {
       showNotification(message.type, message.preview);
     }
@@ -126,7 +131,21 @@
 
   // ── Web Memory Extractor ──
   // Extracts lightweight summary of visited webpage for local memory index
-  async function initWebMemory() {
+  let lastMemorySignature = "";
+  let memoryUrl = "";
+  let captureId = "";
+  let captureRunning = false;
+
+  let captureQueue = Promise.resolve();
+  function initWebMemory(options = {}) {
+    // A search arriving during capture waits for the latest page snapshot.
+    captureQueue = captureQueue.then(() => captureWebMemory(options));
+    return captureQueue;
+  }
+
+  async function captureWebMemory({ allowHidden = false } = {}) {
+    if (!allowHidden && document.visibilityState === "hidden") return;
+    captureRunning = true;
     try {
       // 1. Only run in top frame
       if (window !== window.top) return;
@@ -185,19 +204,10 @@
         .slice(0, 12)
         .join(" • ");
 
-      // Clean text excerpt (first ~800 words / deep article capture)
-      const textExcerpt = extractCleanTextExcerpt();
+      // Index readable body text, not just the first few paragraphs.
+      const textExcerpt = PageText.extract(document.body);
 
-      // Favicon
-      let favicon = "";
-      const favEl =
-        document.querySelector('link[rel~="icon"]') ||
-        document.querySelector('link[rel="shortcut icon"]');
-      if (favEl && favEl.href) {
-        favicon = favEl.href;
-      } else {
-        favicon = `https://www.google.com/s2/favicons?domain=${hostname}&sz=32`;
-      }
+      const favicon = "";
 
       const payload = {
         url: loc.href,
@@ -205,52 +215,68 @@
         title: title || hostname,
         description: (metaDesc || "").slice(0, 500).trim(),
         keywords: headings.slice(0, 500),
-        textContent: textExcerpt.slice(0, 4500),
+        textContent: textExcerpt,
         favicon: favicon,
       };
+
+      // A refresh of the same loaded page updates its text without adding a visit.
+      if (memoryUrl !== loc.href) {
+        memoryUrl = loc.href;
+        captureId = `${Date.now()}_${Math.random().toString(36).slice(2)}`;
+        lastMemorySignature = "";
+      }
+      const signature = JSON.stringify(payload);
+      if (signature === lastMemorySignature) return;
+      payload.captureId = captureId;
 
       // Send to background to save in IndexedDB (guard against invalidated context)
       if (!chrome.runtime || !chrome.runtime.id) return;
 
       try {
-        chrome.runtime.sendMessage({
+        const response = await chrome.runtime.sendMessage({
           action: "recordPageMemory",
-          payload: payload,
-        }, () => {
-          // Consume chrome.runtime.lastError so Chrome never logs an unhandled error
-          if (chrome.runtime.lastError) {
-            // Silently handled
-          }
+          payload,
         });
+        if (response?.success) lastMemorySignature = signature;
       } catch (err) {
         // Silently handled
       }
     } catch (e) {
-      // Fail silently to never disrupt the user's webpage
+      // Fail silently to never disrupt the user's webpage.
+    } finally {
+      captureRunning = false;
     }
   }
 
-  function extractCleanTextExcerpt() {
-    try {
-      const container = document.querySelector("main") || document.querySelector("article") || document.body;
-      if (!container) return "";
-
-      const clone = container.cloneNode(true);
-      // Remove unwanted elements
-      const unwanted = clone.querySelectorAll("script, style, noscript, nav, footer, header, form, svg, iframe");
-      unwanted.forEach((el) => el.remove());
-
-      const raw = clone.innerText || clone.textContent || "";
-      const cleaned = raw.replace(/\s+/g, " ").trim();
-      const words = cleaned.split(" ").slice(0, 300);
-      return words.join(" ");
-    } catch {
-      return "";
-    }
-  }
-
-  // Run page extraction after a short delay so dynamically loaded titles/content settle
+  // Capture delayed and dynamically inserted content without rescanning on every mutation.
+  let captureDebounce;
+  const memoryObserver = new MutationObserver(() => {
+    clearTimeout(captureDebounce);
+    captureDebounce = setTimeout(() => initWebMemory(), 700);
+  });
+  memoryObserver.observe(document.documentElement, {
+    subtree: true, childList: true, characterData: true, attributes: true,
+    attributeFilter: ["hidden", "aria-hidden", "class", "style"],
+  });
   setTimeout(initWebMemory, 1200);
+  const memoryTimer = setInterval(() => {
+    if (!chrome.runtime?.id) {
+      clearInterval(memoryTimer);
+      memoryObserver.disconnect();
+      return;
+    }
+    if (document.visibilityState === "hidden" || captureRunning) return;
+    // Shadow-root updates do not bubble to the document observer. Recheck visible
+    // pages periodically; unchanged snapshots are deduplicated before storage.
+    initWebMemory();
+  }, 5000);
+  document.addEventListener("visibilitychange", () => {
+    initWebMemory({ allowHidden: true });
+  });
+  window.addEventListener("pagehide", () => { initWebMemory({ allowHidden: true }); });
+  chrome.storage.onChanged.addListener((changes, area) => {
+    if (area === "local" && (changes.memoryEnabled || changes.memoryBlacklist)) initWebMemory();
+  });
 
   // ── 1-Click Floating Quick Save Button on Selection ──
   let floatingSaveBtn = null;

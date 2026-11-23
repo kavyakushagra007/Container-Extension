@@ -73,26 +73,25 @@ document.addEventListener("DOMContentLoaded", async () => {
 });
 
 async function initTheme() {
-  const { theme = "dark" } = await chrome.storage.local.get("theme");
-  applyTheme(theme);
+  const theme = await ThemeController.watch(applyTheme);
 
-  // Sync across windows
-  chrome.storage.onChanged.addListener((changes) => {
-    if (changes.theme) {
-      applyTheme(changes.theme.newValue);
-    }
-  });
 }
 
 function applyTheme(theme) {
-  if (theme === "light") {
+  const effective = ThemeController.resolve(theme);
+  if (btnTheme) {
+    const label = effective === "light" ? "Switch to dark mode" : "Switch to light mode";
+    btnTheme.title = label;
+    btnTheme.setAttribute("aria-label", label);
+  }
+  if (effective === "light") {
     document.documentElement.setAttribute("data-theme", "light");
-    if (themeIconSun) themeIconSun.classList.remove("hidden");
-    if (themeIconMoon) themeIconMoon.classList.add("hidden");
-  } else {
-    document.documentElement.removeAttribute("data-theme");
     if (themeIconSun) themeIconSun.classList.add("hidden");
     if (themeIconMoon) themeIconMoon.classList.remove("hidden");
+  } else {
+    document.documentElement.removeAttribute("data-theme");
+    if (themeIconSun) themeIconSun.classList.remove("hidden");
+    if (themeIconMoon) themeIconMoon.classList.add("hidden");
   }
 }
 
@@ -110,6 +109,7 @@ async function autoSyncBackground() {
     const res = await SyncService.syncNow();
     if (res) {
       allItems = res.items || [];
+      SyncService.rememberItems(allItems);
       if (res.categories && res.categories.length > 0) {
         categories = res.categories;
       }
@@ -125,6 +125,7 @@ async function autoSyncBackground() {
 async function loadState() {
   const data = await chrome.storage.local.get(["items", "categories"]);
   allItems = data.items || [];
+      SyncService.rememberItems(allItems);
   if (data.categories && data.categories.length > 0) {
     categories = data.categories;
   }
@@ -289,6 +290,7 @@ let currentNlpResult = null;
 
 async function loadAndRenderMemories() {
   try {
+    await chrome.runtime.sendMessage({ action: "refreshActiveMemory" }).catch(() => {});
     currentNlpResult = null;
     const trimmed = (searchQuery || "").trim();
 
@@ -341,7 +343,7 @@ function renderMemories() {
     } else {
       if (emptyP) emptyP.textContent = "No browsing memories yet";
       if (emptySpan) {
-        emptySpan.innerHTML = `Pages you browse will appear here automatically.<br/><button id="btn-popup-sync" style="margin-top:10px; background:rgba(190,250,79,0.12); border:1px solid var(--neon); color:var(--neon); padding:5px 12px; border-radius:6px; font-size:11px; font-weight:700; cursor:pointer;">⚡ Sync Past 14 Days History</button>`;
+        emptySpan.innerHTML = `Pages you browse will appear here automatically.<br/><button id="btn-popup-sync" style="margin-top:10px; background:var(--neon-bg); border:1px solid var(--neon); color:var(--neon); padding:5px 12px; border-radius:6px; font-size:11px; font-weight:700; cursor:pointer;">⚡ Sync Past 14 Days History</button>`;
         const btnSync = document.getElementById("btn-popup-sync");
         if (btnSync) {
           btnSync.addEventListener("click", () => {
@@ -454,7 +456,12 @@ function highlightMatches(text, query) {
 }
 
 function getContextSnippet(mem, query) {
-  const defaultSnippet = (mem.description || mem.keywords || mem.textContent || "").slice(0, 150);
+  // Show the meaningful body match rather than a conversational filler word.
+  if (query && typeof NLPParser !== "undefined") {
+    const parsed = NLPParser.parseQuery(query);
+    if (parsed.isConversational) query = parsed.cleanKeywords.join(" ");
+  }
+  const defaultSnippet = (mem.textContent || mem.description || mem.keywords || "Page text not captured yet. Revisit this page to search its contents.").slice(0, 150);
   if (!query || typeof query !== "string") {
     return {
       snippetHTML: escapeHTML(defaultSnippet),
@@ -565,7 +572,7 @@ function createSpotlightCardHTML(mem, parsed, matchedInTime) {
   const title = escapeHTML(rawTitle);
   const snippetInfo = getContextSnippet(mem, searchQuery);
   const highlightedTitle = highlightMatches(rawTitle, searchQuery);
-  const favicon = mem.favicon || `https://www.google.com/s2/favicons?domain=${mem.domain}&sz=32`;
+  const favicon = chrome.runtime.getURL("icons/icon16.png");
 
   const timeBadge = matchedInTime && parsed.timeRange?.label
     ? `From ${escapeHTML(parsed.timeRange.label)}`
@@ -597,7 +604,7 @@ function createSpotlightCardHTML(mem, parsed, matchedInTime) {
       ${snippetInfo.snippetHTML ? `<div class="ai-answer-snippet">${snippetInfo.snippetHTML}</div>` : ""}
       <div class="ai-answer-actions">
         <div style="display:flex; align-items:center; gap:6px;">
-          <img class="memory-favicon" src="${escapeHTML(favicon)}" onerror="this.style.display='none'" alt="" />
+          <img class="memory-favicon" src="${escapeHTML(favicon)}" alt="" />
           <span class="memory-domain">${domain}</span>
         </div>
         <div class="memory-actions">
@@ -622,7 +629,7 @@ function createMemoryHTML(mem) {
   const title = escapeHTML(rawTitle);
   const snippetInfo = getContextSnippet(mem, searchQuery);
   const highlightedTitle = highlightMatches(rawTitle, searchQuery);
-  const favicon = mem.favicon || `https://www.google.com/s2/favicons?domain=${mem.domain}&sz=32`;
+  const favicon = chrome.runtime.getURL("icons/icon16.png");
   const visits = mem.visitCount > 1 ? ` · Visited ${mem.visitCount}x` : "";
 
   const saveBtn = isSaved
@@ -636,7 +643,7 @@ function createMemoryHTML(mem) {
     <div class="memory-card" data-id="${mem.id}">
       <div class="memory-header">
         <div class="memory-origin">
-          <img class="memory-favicon" src="${escapeHTML(favicon)}" onerror="this.style.display='none'" alt="" />
+          <img class="memory-favicon" src="${escapeHTML(favicon)}" alt="" />
           <span class="memory-domain">${domain}</span>
           ${snippetInfo.matchBadge || ""}
         </div>
@@ -727,7 +734,7 @@ function setupEventListeners() {
       tabMemory.classList.add("active");
       tabSaves.classList.remove("active");
       if (savesToolbar) savesToolbar.classList.add("hidden");
-      searchInput.placeholder = "Search browsing memory (e.g. Nike, Python, tutorial)...";
+      searchInput.placeholder = "Search words inside pages…";
       searchQuery = searchInput.value;
       loadAndRenderMemories();
     });
@@ -883,7 +890,10 @@ function setupEventListeners() {
 
   function toggleAuthMode(e) {
     if (e) e.preventDefault();
+    if (authSubmitBtn.disabled) return;
+    CloudSyncUI.feedback("");
     authIsSignUp = !authIsSignUp;
+    authPasswordInput.autocomplete = authIsSignUp ? "new-password" : "current-password";
     authSubmitBtn.textContent = authIsSignUp ? "Create Account" : "Log In";
     authModeText.innerHTML = authIsSignUp
       ? `Already have an account? <a href="#" id="auth-toggle-mode" style="color:var(--neon);">Log In</a>`
@@ -898,12 +908,14 @@ function setupEventListeners() {
 
   authSubmitBtn.addEventListener("click", async () => {
     const email = authEmailInput.value.trim();
-    const password = authPasswordInput.value.trim();
+    const password = authPasswordInput.value;
     if (!email || !password) {
-      showToast("Please enter email and password");
+      CloudSyncUI.feedback("Enter your email and password to continue.", "error");
       return;
     }
 
+    if (!authEmailInput.reportValidity()) return;
+    CloudSyncUI.feedback("Connecting to your account…");
     authSubmitBtn.disabled = true;
     authSubmitBtn.textContent = "Connecting...";
 
@@ -917,10 +929,14 @@ function setupEventListeners() {
       }
 
       // Sync data immediately
+      authPasswordInput.value = "";
+      await checkAuthStatus();
+      CloudSyncUI.feedback("");
       showToast("Syncing with cloud...");
       const synced = await SyncService.syncNow();
       if (synced) {
         allItems = synced.items || [];
+      SyncService.rememberItems(allItems);
         if (synced.categories && synced.categories.length > 0) {
           categories = synced.categories;
         }
@@ -930,7 +946,7 @@ function setupEventListeners() {
       }
       checkAuthStatus();
     } catch (err) {
-      showToast(err.message || "Authentication failed");
+      CloudSyncUI.feedback(CloudSyncUI.errorMessage(err.message), "error");
     } finally {
       authSubmitBtn.disabled = false;
       authSubmitBtn.textContent = authIsSignUp ? "Create Account" : "Log In";
@@ -944,6 +960,7 @@ function setupEventListeners() {
       const res = await SyncService.syncNow();
       if (res) {
         allItems = res.items || [];
+      SyncService.rememberItems(allItems);
         if (res.categories && res.categories.length > 0) {
           categories = res.categories;
         }
@@ -956,12 +973,14 @@ function setupEventListeners() {
       showToast("Sync failed: " + err.message);
     } finally {
       btnSyncNow.disabled = false;
-      btnSyncNow.textContent = "Sync Now";
+      await CloudSyncUI.refresh();
     }
   });
 
   btnLogout.addEventListener("click", async () => {
     await SyncService.logOut();
+    CloudSyncUI.feedback("");
+    authPasswordInput.value = "";
     checkAuthStatus();
     showToast("Logged out of cloud account");
   });
@@ -1014,7 +1033,8 @@ function setupEventListeners() {
           categories = Array.from(new Set([...categories, ...importedCategories]));
         }
 
-        chrome.storage.local.set({ items: allItems, categories }, () => {
+        SyncService.saveLocal({ items: allItems, categories }, (saved) => {
+      allItems = saved.items;
           updateCategoryDatalist();
           renderCategoriesBar();
           renderItems();
@@ -1050,11 +1070,11 @@ async function checkAuthStatus() {
     authLoggedOutView.classList.add("hidden");
     authLoggedInView.classList.remove("hidden");
     authUserEmail.textContent = session.user.email;
-    authModalTitle.textContent = "Account & Cloud Sync";
+    authModalTitle.textContent = "Cloud sync";
   } else {
     authLoggedInView.classList.add("hidden");
     authLoggedOutView.classList.remove("hidden");
-    authModalTitle.textContent = "Log In to Cloud Sync";
+    authModalTitle.textContent = "Cloud sync";
   }
 }
 

@@ -86,8 +86,8 @@
     <h2>1. Data Collection & Storage</h2>
     <p><strong>SaveIt is local-first. We do NOT sell, track, or share your personal data with third-party advertisers.</strong></p>
     <ul>
-      <li><strong>Local Storage:</strong> All saved text snippets, links, tags, and Web Memory browsing records are stored locally on your computer using Chrome's <code>chrome.storage.local</code> API.</li>
-      <li><strong>Optional Cloud Sync:</strong> If you explicitly choose to create an account and enable Cloud Sync, your saved items and categories are securely synchronized via Google Firebase Firestore REST APIs. This is completely optional and disabled by default.</li>
+      <li><strong>Local Storage:</strong> Saved text snippets, links, tags, settings, and sign-in tokens are stored using <code>chrome.storage.local</code>. Web Memory records are stored separately in IndexedDB. Web Memory is enabled by default and records visited page URLs, titles, headings, and readable page text (up to 200,000 characters per record). Text is refreshed locally when page content changes. Form fields, editable regions, and hidden elements are excluded. Its default retention is 14 days. You can disable it, exclude domains, or clear its records in Settings. Pages containing password fields and listed sensitive domains are skipped, but these filters do not detect all sensitive content.</li>
+      <li><strong>Optional Cloud Sync:</strong> If you explicitly choose to create an account and enable Cloud Sync, your saved items, categories, and deletion markers are synchronized via Google Firebase Firestore REST APIs. This is completely optional and disabled by default.</li>
     </ul>
 
     <h2>2. Permissions Justification</h2>
@@ -102,14 +102,14 @@
     </ul>
 
     <h2>3. Third-Party Sharing</h2>
-    <p>We do not partner with third-party advertisers, analytics services, or trackers. There are zero tracking pixels, telemetry scripts, or analytics tools included in SaveIt.</p>
+    <p>We do not partner with third-party advertisers, analytics services, or trackers. There are no telemetry scripts or analytics tools included in SaveIt. Memory cards use a bundled icon rather than requesting favicons from external services.</p>
 
     <h2>4. Data Control & Deletion</h2>
     <p>You have 100% control over your data at all times:</p>
     <ul>
-      <li>You can export all your data at any time in standard JSON format.</li>
-      <li>You can delete individual items or use "Clear All" in the Dashboard to wipe all data permanently.</li>
-      <li>Uninstalling the extension instantly removes all stored local data.</li>
+      <li>You can export saved items and categories in JSON format. This export does not include Web Memory or account credentials.</li>
+      <li>You can delete individual saved items or clear your saves in the Dashboard. Web Memory has a separate clear control. Saved-item deletions are propagated on successful cloud sync; deletion markers are retained to prevent old copies from returning.</li>
+      <li>Uninstalling removes extension-local data, but does not delete your Firebase account or cloud copy. Signing out stops future sync.</li>
     </ul>
 
     <h2>5. Contact</h2>

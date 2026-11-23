@@ -148,15 +148,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 });
 
 async function initTheme() {
-  const { theme = "dark" } = await chrome.storage.local.get("theme");
-  applyTheme(theme);
-
-  // Sync across windows
-  chrome.storage.onChanged.addListener((changes) => {
-    if (changes.theme) {
-      applyTheme(changes.theme.newValue);
-    }
-  });
+  const theme = await ThemeController.watch(applyTheme);
 
   if (settingsThemeSelect) {
     settingsThemeSelect.value = theme;
@@ -169,20 +161,22 @@ async function initTheme() {
 }
 
 function applyTheme(theme) {
-  let effective = theme;
-  if (theme === "system") {
-    effective = window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+  const effective = ThemeController.resolve(theme);
+  if (btnThemeDash) {
+    const label = effective === "light" ? "Switch to dark mode" : "Switch to light mode";
+    btnThemeDash.title = label;
+    btnThemeDash.setAttribute("aria-label", label);
   }
 
   if (effective === "light") {
     document.documentElement.setAttribute("data-theme", "light");
-    if (themeIconSunDash) themeIconSunDash.classList.remove("hidden");
-    if (themeIconMoonDash) themeIconMoonDash.classList.add("hidden");
+    if (themeIconSunDash) themeIconSunDash.classList.add("hidden");
+    if (themeIconMoonDash) themeIconMoonDash.classList.remove("hidden");
     if (themeDashLabel) themeDashLabel.textContent = "Dark Mode";
   } else {
     document.documentElement.removeAttribute("data-theme");
-    if (themeIconSunDash) themeIconSunDash.classList.add("hidden");
-    if (themeIconMoonDash) themeIconMoonDash.classList.remove("hidden");
+    if (themeIconSunDash) themeIconSunDash.classList.remove("hidden");
+    if (themeIconMoonDash) themeIconMoonDash.classList.add("hidden");
     if (themeDashLabel) themeDashLabel.textContent = "Light Mode";
   }
 
@@ -205,6 +199,7 @@ async function autoSyncBackground() {
     const res = await SyncService.syncNow();
     if (res) {
       allItems = res.items || [];
+      SyncService.rememberItems(allItems);
       if (res.categories && res.categories.length > 0) {
         categories = res.categories;
       }
@@ -219,6 +214,7 @@ async function autoSyncBackground() {
 async function loadState() {
   const data = await chrome.storage.local.get(["items", "categories"]);
   allItems = data.items || [];
+      SyncService.rememberItems(allItems);
   if (data.categories && data.categories.length > 0) {
     categories = data.categories;
   }
@@ -420,7 +416,12 @@ function highlightMatches(text, query) {
 }
 
 function getContextSnippet(mem, query) {
-  const defaultSnippet = (mem.description || mem.keywords || mem.textContent || "").slice(0, 160);
+  // Show the meaningful body match rather than a conversational filler word.
+  if (query && typeof NLPParser !== "undefined") {
+    const parsed = NLPParser.parseQuery(query);
+    if (parsed.isConversational) query = parsed.cleanKeywords.join(" ");
+  }
+  const defaultSnippet = (mem.textContent || mem.description || mem.keywords || "Page text not captured yet. Revisit this page to search its contents.").slice(0, 160);
   if (!query || typeof query !== "string") {
     return {
       snippetHTML: escapeHTML(defaultSnippet),
@@ -560,8 +561,8 @@ function showPreview(item) {
     previewFavBtn.classList.toggle("fav-active", !!item.favorite);
     const starSvg = previewFavBtn.querySelector("svg");
     if (starSvg) {
-      starSvg.setAttribute("fill", item.favorite ? "#ffe600" : "none");
-      starSvg.setAttribute("stroke", item.favorite ? "#ffe600" : "currentColor");
+      starSvg.setAttribute("fill", item.favorite ? "var(--favorite)" : "none");
+      starSvg.setAttribute("stroke", item.favorite ? "var(--favorite)" : "currentColor");
     }
   }
 
@@ -671,7 +672,7 @@ function showMemoryPreview(mem) {
 
   // Content rendering: full body text with highlights if query exists
   if (previewContent) {
-    const rawBody = mem.textContent || mem.description || mem.keywords || "No page text excerpt available.";
+    const rawBody = mem.textContent || mem.description || mem.keywords || "Page text not captured yet. Revisit this page to search its contents.";
     const highlightedBody = searchQuery ? highlightMatches(rawBody, searchQuery) : escapeHTML(rawBody);
 
     let headingsHTML = "";
@@ -842,7 +843,8 @@ function saveEditorInSidebar() {
       item.type = detectedType;
     }
     editingItemId = null;
-    chrome.storage.local.set({ items: allItems }, () => {
+    SyncService.saveLocal({ items: allItems }, (saved) => {
+      allItems = saved.items;
       if (previewEditor) previewEditor.classList.add("hidden");
       updateStats();
       render();
@@ -863,7 +865,8 @@ function saveEditorInSidebar() {
       favorite: false,
     };
     allItems.unshift(newItem);
-    chrome.storage.local.set({ items: allItems, categories }, () => {
+    SyncService.saveLocal({ items: allItems, categories }, (saved) => {
+      allItems = saved.items;
       if (previewEditor) previewEditor.classList.add("hidden");
       updateStats();
       render();
@@ -941,7 +944,8 @@ function handleCardAction(e) {
 
   if (action === "favorite") {
     item.favorite = !item.favorite;
-    chrome.storage.local.set({ items: allItems }, () => {
+    SyncService.saveLocal({ items: allItems }, (saved) => {
+      allItems = saved.items;
       updateStats();
       render();
       if (activePreviewId === id) {
@@ -961,7 +965,8 @@ function handleCardAction(e) {
     if (activePreviewId === id) {
       closePreview();
     }
-    chrome.storage.local.set({ items: allItems }, () => {
+    SyncService.saveLocal({ items: allItems }, (saved) => {
+      allItems = saved.items;
       updateBulkBar();
       updateStats();
       render();
@@ -994,6 +999,7 @@ function updateBulkBar() {
 
 // ── Web Memory Dashboard View ──
 async function renderMemoryView() {
+  await chrome.runtime.sendMessage({ action: "refreshActiveMemory" }).catch(() => {});
   itemsGrid.classList.remove("hidden");
   let memories = [];
   let nlpResult = null;
@@ -1196,7 +1202,7 @@ function createDashSpotlightHTML(mem, parsed, matchedInTime) {
   const title = escapeHTML(rawTitle);
   const snippetInfo = getContextSnippet(mem, searchQuery);
   const highlightedTitle = highlightMatches(rawTitle, searchQuery);
-  const favicon = mem.favicon || `https://www.google.com/s2/favicons?domain=${mem.domain}&sz=32`;
+  const favicon = chrome.runtime.getURL("icons/icon16.png");
   const timeBadge = matchedInTime && parsed.timeRange?.label
     ? `From ${escapeHTML(parsed.timeRange.label)}`
     : `Visited ${timeAgo}`;
@@ -1229,7 +1235,7 @@ function createDashSpotlightHTML(mem, parsed, matchedInTime) {
       ${snippetInfo.snippetHTML ? `<div class="dash-memory-snippet" style="font-size:13.5px;">${snippetInfo.snippetHTML}</div>` : ""}
       <div class="dash-memory-footer" style="padding-top:12px;">
         <div style="display:flex; align-items:center; gap:8px;">
-          <img class="dash-memory-favicon" src="${escapeHTML(favicon)}" onerror="this.style.display='none'" alt="" />
+          <img class="dash-memory-favicon" src="${escapeHTML(favicon)}" alt="" />
           <span class="dash-memory-domain" style="font-size:13px;">${domain}</span>
         </div>
         <div class="dash-memory-actions">
@@ -1257,7 +1263,7 @@ function createDashMemoryCardHTML(mem) {
   const title = escapeHTML(rawTitle);
   const snippetInfo = getContextSnippet(mem, searchQuery);
   const highlightedTitle = highlightMatches(rawTitle, searchQuery);
-  const favicon = mem.favicon || `https://www.google.com/s2/favicons?domain=${mem.domain}&sz=32`;
+  const favicon = chrome.runtime.getURL("icons/icon16.png");
   const visits = mem.visitCount > 1 ? `<span class="dash-memory-visits">Visited ${mem.visitCount}x</span>` : "";
 
   const saveBtn = isSaved
@@ -1273,7 +1279,7 @@ function createDashMemoryCardHTML(mem) {
     <div class="dash-memory-card${isActive}" data-id="${mem.id}">
       <div class="dash-memory-header">
         <div class="dash-memory-meta">
-          <img class="dash-memory-favicon" src="${escapeHTML(favicon)}" onerror="this.style.display='none'" alt="" />
+          <img class="dash-memory-favicon" src="${escapeHTML(favicon)}" alt="" />
           <span class="dash-memory-domain">${domain}</span>
           ${snippetInfo.matchBadge || ""}
           ${visits}
@@ -1591,7 +1597,8 @@ function setupEventListeners() {
       if (!item) return;
 
       item.favorite = !item.favorite;
-      chrome.storage.local.set({ items: allItems }, () => {
+      SyncService.saveLocal({ items: allItems }, (saved) => {
+      allItems = saved.items;
         updateStats();
         showPreview(item);
         const cardFavBtn = itemsGrid.querySelector(`.item-card[data-id="${item.id}"] [data-action="favorite"]`);
@@ -1672,7 +1679,8 @@ function setupEventListeners() {
         allItems = allItems.filter((i) => i.id !== id);
         selectedIds.delete(id);
         closePreview();
-        chrome.storage.local.set({ items: allItems }, () => {
+        SyncService.saveLocal({ items: allItems }, (saved) => {
+      allItems = saved.items;
           updateBulkBar();
           updateStats();
           render();
@@ -1746,7 +1754,8 @@ function setupEventListeners() {
       allItems = allItems.filter((i) => i.id !== id);
       selectedIds.delete(id);
       hideDetailModal();
-      chrome.storage.local.set({ items: allItems }, () => {
+      SyncService.saveLocal({ items: allItems }, (saved) => {
+      allItems = saved.items;
         updateBulkBar();
         updateStats();
         render();
@@ -1767,7 +1776,8 @@ function setupEventListeners() {
   btnDeleteSelected.addEventListener("click", () => {
     if (confirm(`Delete ${selectedIds.size} selected items?`)) {
       allItems = allItems.filter((i) => !selectedIds.has(i.id));
-      chrome.storage.local.set({ items: allItems }, () => {
+      SyncService.saveLocal({ items: allItems }, (saved) => {
+      allItems = saved.items;
         selectedIds.clear();
         updateBulkBar();
         updateStats();
@@ -1795,7 +1805,10 @@ function setupEventListeners() {
 
   function toggleAuthMode(e) {
     if (e) e.preventDefault();
+    if (authSubmitBtn.disabled) return;
+    CloudSyncUI.feedback("");
     authIsSignUp = !authIsSignUp;
+    authPasswordInput.autocomplete = authIsSignUp ? "new-password" : "current-password";
     authSubmitBtn.textContent = authIsSignUp ? "Create Account" : "Log In";
     authModeText.innerHTML = authIsSignUp
       ? `Already have an account? <a href="#" id="auth-toggle-mode" style="color:var(--neon);">Log In</a>`
@@ -1810,12 +1823,14 @@ function setupEventListeners() {
 
   authSubmitBtn.addEventListener("click", async () => {
     const email = authEmailInput.value.trim();
-    const password = authPasswordInput.value.trim();
+    const password = authPasswordInput.value;
     if (!email || !password) {
-      showToast("Please enter email and password");
+      CloudSyncUI.feedback("Enter your email and password to continue.", "error");
       return;
     }
 
+    if (!authEmailInput.reportValidity()) return;
+    CloudSyncUI.feedback("Connecting to your account…");
     authSubmitBtn.disabled = true;
     authSubmitBtn.textContent = "Connecting...";
 
@@ -1828,10 +1843,14 @@ function setupEventListeners() {
         showToast("Logged in!");
       }
 
+      authPasswordInput.value = "";
+      await checkAuthStatus();
+      CloudSyncUI.feedback("");
       showToast("Syncing with cloud...");
       const synced = await SyncService.syncNow();
       if (synced) {
         allItems = synced.items || [];
+      SyncService.rememberItems(allItems);
         if (synced.categories && synced.categories.length > 0) {
           categories = synced.categories;
         }
@@ -1840,7 +1859,7 @@ function setupEventListeners() {
       }
       checkAuthStatus();
     } catch (err) {
-      showToast(err.message || "Authentication failed");
+      CloudSyncUI.feedback(CloudSyncUI.errorMessage(err.message), "error");
     } finally {
       authSubmitBtn.disabled = false;
       authSubmitBtn.textContent = authIsSignUp ? "Create Account" : "Log In";
@@ -1854,6 +1873,7 @@ function setupEventListeners() {
       const res = await SyncService.syncNow();
       if (res) {
         allItems = res.items || [];
+      SyncService.rememberItems(allItems);
         if (res.categories && res.categories.length > 0) {
           categories = res.categories;
         }
@@ -1865,12 +1885,14 @@ function setupEventListeners() {
       showToast("Sync failed: " + err.message);
     } finally {
       btnSyncNow.disabled = false;
-      btnSyncNow.textContent = "Sync Now";
+      await CloudSyncUI.refresh();
     }
   });
 
   btnLogout.addEventListener("click", async () => {
     await SyncService.logOut();
+    CloudSyncUI.feedback("");
+    authPasswordInput.value = "";
     checkAuthStatus();
     showToast("Logged out of cloud account");
   });
@@ -1929,7 +1951,8 @@ function handleModalSave() {
     showToast("Item saved!");
   }
 
-  chrome.storage.local.set({ items: allItems, categories }, () => {
+  SyncService.saveLocal({ items: allItems, categories }, (saved) => {
+      allItems = saved.items;
     modal.classList.add("hidden");
     editingItemId = null;
     updateStats();
@@ -1945,7 +1968,7 @@ async function checkAuthStatus() {
     authLoggedOutView.classList.add("hidden");
     authLoggedInView.classList.remove("hidden");
     authUserEmail.textContent = session.user.email;
-    dashAuthLabel.textContent = "Synced";
+    dashAuthLabel.textContent = "Cloud Sync";
     btnDashAuth.classList.add("btn-primary");
     btnDashAuth.classList.remove("btn-secondary");
   } else {
@@ -1988,7 +2011,8 @@ function handleImport(e) {
         categories = Array.from(new Set([...categories, ...importedCategories]));
       }
 
-      chrome.storage.local.set({ items: allItems, categories }, () => {
+      SyncService.saveLocal({ items: allItems, categories }, (saved) => {
+      allItems = saved.items;
         updateStats();
         render();
         showToast(`Imported ${importedItems.length} items!`);
@@ -2004,7 +2028,8 @@ function handleImport(e) {
 
 function clearAllData() {
   if (confirm("Are you sure? This will delete ALL saved items permanently!")) {
-    chrome.storage.local.set({ items: [] }, () => {
+    SyncService.saveLocal({ items: [] }, (saved) => {
+      allItems = saved.items;
       allItems = [];
       selectedIds.clear();
       updateBulkBar();
