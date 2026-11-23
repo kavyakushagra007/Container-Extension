@@ -8,6 +8,8 @@ let selectedIds = new Set();
 let editingItemId = null;
 let currentDetailItemId = null;
 let activePreviewId = null;
+let activePreviewMemoryId = null;
+let currentMemories = [];
 let authIsSignUp = false;
 
 // ── DOM Elements ──
@@ -220,6 +222,7 @@ async function loadState() {
   if (data.categories && data.categories.length > 0) {
     categories = data.categories;
   }
+  updateBulkBar();
   updateStats();
   render();
 }
@@ -283,6 +286,7 @@ function render() {
   if (items.length === 0) {
     itemsGrid.classList.add("hidden");
     emptyState.classList.remove("hidden");
+    if (bulkBar) bulkBar.classList.add("hidden");
     closePreview();
     return;
   }
@@ -385,6 +389,137 @@ function createCardHTML(item) {
   `;
 }
 
+// ── Contextual Search & Snippet Match Extraction ──
+function escapeRegex(str) {
+  return str.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+function highlightMatches(text, query) {
+  if (!text) return "";
+  if (!query || typeof query !== "string") return escapeHTML(text);
+  const terms = query
+    .toLowerCase()
+    .split(/\s+/)
+    .map((t) => t.trim())
+    .filter((t) => t.length >= 2);
+  if (terms.length === 0) return escapeHTML(text);
+
+  const escapedTerms = terms.map(escapeRegex).join("|");
+  const regex = new RegExp(`(${escapedTerms})`, "gi");
+  const checkRegex = new RegExp(`^(?:${escapedTerms})$`, "i");
+
+  const parts = text.split(regex);
+  return parts
+    .map((part) => {
+      if (checkRegex.test(part)) {
+        return `<mark class="search-match">${escapeHTML(part)}</mark>`;
+      }
+      return escapeHTML(part);
+    })
+    .join("");
+}
+
+function getContextSnippet(mem, query) {
+  const defaultSnippet = (mem.description || mem.keywords || mem.textContent || "").slice(0, 160);
+  if (!query || typeof query !== "string") {
+    return {
+      snippetHTML: escapeHTML(defaultSnippet),
+      matchBadge: null,
+    };
+  }
+
+  const terms = query
+    .toLowerCase()
+    .split(/\s+/)
+    .map((t) => t.trim())
+    .filter((t) => t.length >= 2);
+
+  if (terms.length === 0) {
+    return {
+      snippetHTML: escapeHTML(defaultSnippet),
+      matchBadge: null,
+    };
+  }
+
+  const textContent = mem.textContent || "";
+  const keywords = mem.keywords || "";
+  const description = mem.description || "";
+  const title = mem.title || "";
+  const url = mem.url || "";
+
+  function findFirstTermIndex(sourceText) {
+    const lower = sourceText.toLowerCase();
+    let bestIdx = -1;
+    for (const t of terms) {
+      const idx = lower.indexOf(t);
+      if (idx !== -1 && (bestIdx === -1 || idx < bestIdx)) {
+        bestIdx = idx;
+      }
+    }
+    return bestIdx;
+  }
+
+  // 1. In Page Body Text
+  const textIdx = findFirstTermIndex(textContent);
+  if (textIdx !== -1) {
+    const start = Math.max(0, textIdx - 45);
+    const end = Math.min(textContent.length, textIdx + 120);
+    let excerpt = textContent.slice(start, end).trim();
+    if (start > 0) excerpt = "…" + excerpt;
+    if (end < textContent.length) excerpt = excerpt + "…";
+
+    return {
+      snippetHTML: highlightMatches(excerpt, query),
+      matchBadge: `<span class="memory-match-badge" title="Found inside indexed page text">🎯 In Page Body</span>`,
+    };
+  }
+
+  // 2. In Headings
+  const kwIdx = findFirstTermIndex(keywords);
+  if (kwIdx !== -1) {
+    const start = Math.max(0, kwIdx - 35);
+    const end = Math.min(keywords.length, kwIdx + 120);
+    let excerpt = keywords.slice(start, end).trim();
+    if (start > 0) excerpt = "…" + excerpt;
+    if (end < keywords.length) excerpt = excerpt + "…";
+
+    return {
+      snippetHTML: highlightMatches(excerpt, query),
+      matchBadge: `<span class="memory-match-badge" title="Found in page headings">🏷️ In Headings</span>`,
+    };
+  }
+
+  // 3. In Description
+  const descIdx = findFirstTermIndex(description);
+  if (descIdx !== -1) {
+    return {
+      snippetHTML: highlightMatches(description.slice(0, 160), query),
+      matchBadge: `<span class="memory-match-badge" title="Found in page summary">📝 In Summary</span>`,
+    };
+  }
+
+  // 4. In Title
+  if (findFirstTermIndex(title) !== -1) {
+    return {
+      snippetHTML: highlightMatches(defaultSnippet, query),
+      matchBadge: `<span class="memory-match-badge" title="Found in page title">📌 In Title</span>`,
+    };
+  }
+
+  // 5. In URL
+  if (findFirstTermIndex(url) !== -1) {
+    return {
+      snippetHTML: highlightMatches(defaultSnippet, query),
+      matchBadge: `<span class="memory-match-badge" title="Found in web address">🌐 In URL</span>`,
+    };
+  }
+
+  return {
+    snippetHTML: highlightMatches(defaultSnippet, query),
+    matchBadge: null,
+  };
+}
+
 // ── Preview Pane Controller (Outlook / iCloud Mail Style) ──
 function showPreview(item) {
   if (!item) {
@@ -392,6 +527,7 @@ function showPreview(item) {
     return;
   }
   activePreviewId = item.id;
+  activePreviewMemoryId = null;
 
   // Highlight active card in grid
   itemsGrid.querySelectorAll(".item-card").forEach((card) => {
@@ -400,6 +536,9 @@ function showPreview(item) {
     } else {
       card.classList.remove("active-preview");
     }
+  });
+  itemsGrid.querySelectorAll(".dash-memory-card, .dash-ai-spotlight").forEach((card) => {
+    card.classList.remove("active-preview");
   });
 
   if (previewEditor) previewEditor.classList.add("hidden");
@@ -415,14 +554,26 @@ function showPreview(item) {
     previewBadge.textContent = "SAVED";
   }
 
-  // Update Favorite button
+  // Restore Favorite button for deliberate saves
   if (previewFavBtn) {
+    previewFavBtn.style.display = "inline-flex";
     previewFavBtn.classList.toggle("fav-active", !!item.favorite);
     const starSvg = previewFavBtn.querySelector("svg");
     if (starSvg) {
       starSvg.setAttribute("fill", item.favorite ? "#ffe600" : "none");
       starSvg.setAttribute("stroke", item.favorite ? "#ffe600" : "currentColor");
     }
+  }
+
+  // Restore Edit button for deliberate saves
+  if (previewEditBtn) {
+    previewEditBtn.style.display = "inline-flex";
+    previewEditBtn.disabled = false;
+    previewEditBtn.className = "btn btn-secondary btn-sm";
+    previewEditBtn.innerHTML = `
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+      Edit
+    `;
   }
 
   // Content rendering
@@ -481,9 +632,119 @@ function showPreview(item) {
   }
 }
 
+function showMemoryPreview(mem) {
+  if (!mem) {
+    closePreview();
+    return;
+  }
+  activePreviewMemoryId = mem.id;
+  activePreviewId = null;
+
+  // Highlight active memory card
+  itemsGrid.querySelectorAll(".dash-memory-card, .dash-ai-spotlight").forEach((card) => {
+    card.classList.toggle("active-preview", card.dataset.id === mem.id);
+  });
+  itemsGrid.querySelectorAll(".item-card").forEach((card) => {
+    card.classList.remove("active-preview");
+  });
+
+  if (!previewPane) return;
+  previewPane.classList.remove("hidden");
+  if (previewResizer) previewResizer.classList.remove("hidden");
+  if (previewEmpty) previewEmpty.classList.add("hidden");
+  if (previewEditor) previewEditor.classList.add("hidden");
+  if (previewCard) previewCard.classList.remove("hidden");
+
+  // Badge & Title
+  if (previewBadge) {
+    previewBadge.textContent = "WEB MEMORY";
+  }
+  if (previewTitle) {
+    previewTitle.textContent = mem.title || mem.domain || "Web Memory";
+    previewTitle.title = mem.title || mem.domain || "Web Memory";
+  }
+
+  // Hide favorite star for web memories
+  if (previewFavBtn) {
+    previewFavBtn.style.display = "none";
+  }
+
+  // Content rendering: full body text with highlights if query exists
+  if (previewContent) {
+    const rawBody = mem.textContent || mem.description || mem.keywords || "No page text excerpt available.";
+    const highlightedBody = searchQuery ? highlightMatches(rawBody, searchQuery) : escapeHTML(rawBody);
+
+    let headingsHTML = "";
+    if (mem.keywords) {
+      const kwList = mem.keywords.split(" • ").map((s) => s.trim()).filter((s) => s.length > 0);
+      if (kwList.length > 0) {
+        headingsHTML = `
+          <div class="memory-preview-headings">
+            <div class="memory-preview-headings-title">📑 Page Headings & Topics</div>
+            <div class="memory-preview-headings-list">
+              ${kwList.map((h) => `<span class="memory-heading-chip">${searchQuery ? highlightMatches(h, searchQuery) : escapeHTML(h)}</span>`).join("")}
+            </div>
+          </div>
+        `;
+      }
+    }
+
+    previewContent.innerHTML = `
+      <div class="memory-preview-text" style="font-size:13.5px; line-height:1.7; color:var(--text);">${highlightedBody}</div>
+      ${headingsHTML}
+    `;
+  }
+
+  // Source Row
+  if (previewSourceRow) {
+    previewSourceRow.style.display = "flex";
+    if (previewSource) {
+      previewSource.innerHTML = `<a href="${escapeHTML(mem.url)}" target="_blank" rel="noopener" style="color:var(--neon); text-decoration:none; display:inline-flex; align-items:center; gap:4px;">${escapeHTML(mem.domain || mem.url)} ↗</a>`;
+    }
+  }
+
+  // Date Row
+  if (previewDate) {
+    const visits = mem.visitCount > 1 ? ` · Visited ${mem.visitCount} times` : "";
+    previewDate.textContent = `${new Date(mem.visitedAt).toLocaleString()}${visits}`;
+  }
+
+  // Tags Row
+  if (previewTagsRow) {
+    previewTagsRow.style.display = "flex";
+    if (previewTags) {
+      previewTags.innerHTML = `
+        <span class="tag">#web-memory</span>
+        <span class="tag">#${escapeHTML(mem.domain || "web")}</span>
+      `;
+    }
+  }
+
+  // Customize Edit button as "Save to My Saves"
+  if (previewEditBtn) {
+    previewEditBtn.style.display = "inline-flex";
+    const isSaved = allItems.some(
+      (i) => i.content === mem.url || (i.sourceUrl && i.sourceUrl === mem.url)
+    );
+    if (isSaved) {
+      previewEditBtn.innerHTML = `✓ Saved`;
+      previewEditBtn.disabled = true;
+      previewEditBtn.className = "btn btn-secondary btn-sm";
+    } else {
+      previewEditBtn.innerHTML = `
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+        Save to My Saves
+      `;
+      previewEditBtn.disabled = false;
+      previewEditBtn.className = "btn btn-primary btn-sm";
+    }
+  }
+}
+
 function closePreview() {
   activePreviewId = null;
-  itemsGrid.querySelectorAll(".item-card").forEach((card) => {
+  activePreviewMemoryId = null;
+  itemsGrid.querySelectorAll(".item-card, .dash-memory-card, .dash-ai-spotlight").forEach((card) => {
     card.classList.remove("active-preview");
   });
   if (previewCard) previewCard.classList.add("hidden");
@@ -796,6 +1057,7 @@ async function renderMemoryView() {
 
   emptyState.classList.add("hidden");
 
+  currentMemories = memories;
   let html = "";
   let remainingMemories = memories;
 
@@ -848,6 +1110,18 @@ async function renderMemoryView() {
 
   itemsGrid.innerHTML = html;
 
+  // Attach Card Click to Preview
+  itemsGrid.querySelectorAll(".dash-memory-card, .dash-ai-spotlight").forEach((card) => {
+    card.addEventListener("click", (e) => {
+      if (e.target.closest("button") || e.target.closest("a")) return;
+      const id = card.dataset.id;
+      const mem = currentMemories.find((m) => m.id === id);
+      if (mem) {
+        showMemoryPreview(mem);
+      }
+    });
+  });
+
   // Events
   itemsGrid.querySelectorAll(".dash-memory-title").forEach((link) => {
     link.addEventListener("click", (e) => {
@@ -872,15 +1146,17 @@ async function renderMemoryView() {
   });
 
   itemsGrid.querySelectorAll("[data-action='dash-promote-memory']").forEach((btn) => {
-    btn.addEventListener("click", () => {
+    btn.addEventListener("click", (e) => {
+      e.stopPropagation();
       const id = btn.dataset.id;
-      const mem = memories.find((m) => m.id === id);
+      const mem = currentMemories.find((m) => m.id === id);
       if (mem) promoteDashMemory(mem, btn);
     });
   });
 
   itemsGrid.querySelectorAll("[data-action='dash-open-memory']").forEach((btn) => {
-    btn.addEventListener("click", () => {
+    btn.addEventListener("click", (e) => {
+      e.stopPropagation();
       let url = btn.dataset.url;
       if (!url) return;
       if (url.startsWith("chrome://") || url.startsWith("chrome-extension://") || url.startsWith("about:")) {
@@ -901,7 +1177,8 @@ async function renderMemoryView() {
   });
 
   itemsGrid.querySelectorAll("[data-action='dash-del-memory']").forEach((btn) => {
-    btn.addEventListener("click", () => {
+    btn.addEventListener("click", (e) => {
+      e.stopPropagation();
       const id = btn.dataset.id;
       deleteDashMemory(id);
     });
@@ -915,8 +1192,10 @@ function createDashSpotlightHTML(mem, parsed, matchedInTime) {
 
   const timeAgo = getTimeAgo(new Date(mem.visitedAt));
   const domain = escapeHTML(mem.domain || "web");
-  const title = escapeHTML(mem.title || mem.url);
-  const snippet = escapeHTML(mem.description || mem.keywords || mem.textContent || "").slice(0, 240);
+  const rawTitle = mem.title || mem.url;
+  const title = escapeHTML(rawTitle);
+  const snippetInfo = getContextSnippet(mem, searchQuery);
+  const highlightedTitle = highlightMatches(rawTitle, searchQuery);
   const favicon = mem.favicon || `https://www.google.com/s2/favicons?domain=${mem.domain}&sz=32`;
   const timeBadge = matchedInTime && parsed.timeRange?.label
     ? `From ${escapeHTML(parsed.timeRange.label)}`
@@ -933,18 +1212,21 @@ function createDashSpotlightHTML(mem, parsed, matchedInTime) {
     ? `Direct match for <strong>"${escapeHTML(parsed.promptText)}"</strong> ${parsed.timeRange?.label ? `from <strong>${escapeHTML(parsed.timeRange.label)}</strong>` : ""}:`
     : "Best direct answer:";
 
+  const isActive = activePreviewMemoryId === mem.id ? " active-preview" : "";
+
   return `
-    <div class="dash-ai-spotlight" data-id="${mem.id}">
+    <div class="dash-ai-spotlight${isActive}" data-id="${mem.id}">
       <div class="dash-ai-spotlight-top">
         <span class="dash-ai-badge">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="13" height="13"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
           Direct Memory Match
         </span>
+        ${snippetInfo.matchBadge || ""}
         <span class="dash-memory-time" style="color:var(--neon); font-weight:700;">${timeBadge}</span>
       </div>
       <div class="dash-ai-echo">${promptEcho}</div>
-      <a class="dash-memory-title" href="#" data-url="${escapeHTML(mem.url)}" title="${title}" style="font-size:17px;">${title}</a>
-      ${snippet ? `<div class="dash-memory-snippet" style="font-size:13.5px;">${snippet}…</div>` : ""}
+      <a class="dash-memory-title" href="#" data-url="${escapeHTML(mem.url)}" title="${title}" style="font-size:17px;">${highlightedTitle}</a>
+      ${snippetInfo.snippetHTML ? `<div class="dash-memory-snippet" style="font-size:13.5px;">${snippetInfo.snippetHTML}</div>` : ""}
       <div class="dash-memory-footer" style="padding-top:12px;">
         <div style="display:flex; align-items:center; gap:8px;">
           <img class="dash-memory-favicon" src="${escapeHTML(favicon)}" onerror="this.style.display='none'" alt="" />
@@ -971,8 +1253,10 @@ function createDashMemoryCardHTML(mem) {
 
   const timeAgo = getTimeAgo(new Date(mem.visitedAt));
   const domain = escapeHTML(mem.domain || "web");
-  const title = escapeHTML(mem.title || mem.url);
-  const snippet = escapeHTML(mem.description || mem.keywords || mem.textContent || "").slice(0, 220);
+  const rawTitle = mem.title || mem.url;
+  const title = escapeHTML(rawTitle);
+  const snippetInfo = getContextSnippet(mem, searchQuery);
+  const highlightedTitle = highlightMatches(rawTitle, searchQuery);
   const favicon = mem.favicon || `https://www.google.com/s2/favicons?domain=${mem.domain}&sz=32`;
   const visits = mem.visitCount > 1 ? `<span class="dash-memory-visits">Visited ${mem.visitCount}x</span>` : "";
 
@@ -983,18 +1267,21 @@ function createDashMemoryCardHTML(mem) {
         Save
        </button>`;
 
+  const isActive = activePreviewMemoryId === mem.id ? " active-preview" : "";
+
   return `
-    <div class="dash-memory-card" data-id="${mem.id}">
+    <div class="dash-memory-card${isActive}" data-id="${mem.id}">
       <div class="dash-memory-header">
         <div class="dash-memory-meta">
           <img class="dash-memory-favicon" src="${escapeHTML(favicon)}" onerror="this.style.display='none'" alt="" />
           <span class="dash-memory-domain">${domain}</span>
+          ${snippetInfo.matchBadge || ""}
           ${visits}
         </div>
         <span class="dash-memory-time">${timeAgo}</span>
       </div>
-      <a class="dash-memory-title" href="#" data-url="${escapeHTML(mem.url)}" title="${title}">${title}</a>
-      ${snippet ? `<div class="dash-memory-snippet">${snippet}…</div>` : ""}
+      <a class="dash-memory-title" href="#" data-url="${escapeHTML(mem.url)}" title="${title}">${highlightedTitle}</a>
+      ${snippetInfo.snippetHTML ? `<div class="dash-memory-snippet">${snippetInfo.snippetHTML}</div>` : ""}
       <div class="dash-memory-footer">
         <div style="color:var(--text-muted); font-size:11.5px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; max-width:240px;">
           ${escapeHTML(mem.url)}
@@ -1174,6 +1461,7 @@ function switchView(view) {
     if (dashboardSplit) dashboardSplit.classList.add("hidden");
     if (bulkBar) bulkBar.classList.add("hidden");
     if (settingsPanel) settingsPanel.classList.remove("hidden");
+    closePreview();
     return;
   }
 
@@ -1189,11 +1477,23 @@ function switchView(view) {
   if (view === "memory") {
     if (statsRow) statsRow.classList.add("hidden");
     if (bulkBar) bulkBar.classList.add("hidden");
-    if (previewPane) previewPane.classList.add("hidden");
+    if (previewPane) previewPane.classList.remove("hidden");
+    if (previewResizer) previewResizer.classList.remove("hidden");
     renderMemoryView();
+    if (activePreviewMemoryId) {
+      const activeMem = currentMemories.find((m) => m.id === activePreviewMemoryId);
+      if (activeMem) {
+        showMemoryPreview(activeMem);
+      } else {
+        closePreview();
+      }
+    } else {
+      closePreview();
+    }
   } else {
     if (statsRow) statsRow.classList.remove("hidden");
     if (previewPane) previewPane.classList.remove("hidden");
+    if (previewResizer) previewResizer.classList.remove("hidden");
     render();
   }
 }
@@ -1307,11 +1607,19 @@ function setupEventListeners() {
 
   if (previewCopyBtn) {
     previewCopyBtn.addEventListener("click", () => {
-      if (!activePreviewId) return;
-      const item = allItems.find((i) => i.id === activePreviewId);
-      if (!item) return;
+      if (activePreviewId) {
+        const item = allItems.find((i) => i.id === activePreviewId);
+        if (!item) return;
+        navigator.clipboard.writeText(item.content);
+      } else if (activePreviewMemoryId) {
+        const mem = currentMemories.find((m) => m.id === activePreviewMemoryId);
+        if (!mem) return;
+        const textToCopy = `${mem.title || ""}\n${mem.url}\n\n${mem.textContent || mem.description || ""}`;
+        navigator.clipboard.writeText(textToCopy);
+      } else {
+        return;
+      }
 
-      navigator.clipboard.writeText(item.content);
       showToast("Copied to clipboard!");
       const originalHTML = previewCopyBtn.innerHTML;
       previewCopyBtn.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="color:var(--neon);" width="14" height="14"><polyline points="20 6 9 17 4 12"/></svg> Copied!`;
@@ -1321,9 +1629,16 @@ function setupEventListeners() {
 
   if (previewEditBtn) {
     previewEditBtn.addEventListener("click", () => {
-      if (!activePreviewId) return;
-      const item = allItems.find((i) => i.id === activePreviewId);
-      if (item) openEditorInSidebar(item);
+      if (activePreviewId) {
+        const item = allItems.find((i) => i.id === activePreviewId);
+        if (item) openEditorInSidebar(item);
+      } else if (activePreviewMemoryId) {
+        const mem = currentMemories.find((m) => m.id === activePreviewMemoryId);
+        if (mem) {
+          promoteDashMemory(mem);
+          showMemoryPreview(mem);
+        }
+      }
     });
   }
 
@@ -1352,18 +1667,23 @@ function setupEventListeners() {
 
   if (previewDeleteBtn) {
     previewDeleteBtn.addEventListener("click", () => {
-      if (!activePreviewId) return;
-      const id = activePreviewId;
-      allItems = allItems.filter((i) => i.id !== id);
-      selectedIds.delete(id);
-      closePreview();
-      chrome.storage.local.set({ items: allItems }, () => {
-        updateBulkBar();
-        updateStats();
-        render();
-        showToast("Item deleted");
-        SyncService.pushToCloud(allItems, categories);
-      });
+      if (activePreviewId) {
+        const id = activePreviewId;
+        allItems = allItems.filter((i) => i.id !== id);
+        selectedIds.delete(id);
+        closePreview();
+        chrome.storage.local.set({ items: allItems }, () => {
+          updateBulkBar();
+          updateStats();
+          render();
+          showToast("Item deleted");
+          SyncService.pushToCloud(allItems, categories);
+        });
+      } else if (activePreviewMemoryId) {
+        const id = activePreviewMemoryId;
+        closePreview();
+        deleteDashMemory(id);
+      }
     });
   }
 

@@ -423,6 +423,137 @@ function renderMemories() {
   });
 }
 
+// ── Contextual Search & Snippet Match Extraction ──
+function escapeRegex(str) {
+  return str.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+function highlightMatches(text, query) {
+  if (!text) return "";
+  if (!query || typeof query !== "string") return escapeHTML(text);
+  const terms = query
+    .toLowerCase()
+    .split(/\s+/)
+    .map((t) => t.trim())
+    .filter((t) => t.length >= 2);
+  if (terms.length === 0) return escapeHTML(text);
+
+  const escapedTerms = terms.map(escapeRegex).join("|");
+  const regex = new RegExp(`(${escapedTerms})`, "gi");
+  const checkRegex = new RegExp(`^(?:${escapedTerms})$`, "i");
+
+  const parts = text.split(regex);
+  return parts
+    .map((part) => {
+      if (checkRegex.test(part)) {
+        return `<mark class="search-match">${escapeHTML(part)}</mark>`;
+      }
+      return escapeHTML(part);
+    })
+    .join("");
+}
+
+function getContextSnippet(mem, query) {
+  const defaultSnippet = (mem.description || mem.keywords || mem.textContent || "").slice(0, 150);
+  if (!query || typeof query !== "string") {
+    return {
+      snippetHTML: escapeHTML(defaultSnippet),
+      matchBadge: null,
+    };
+  }
+
+  const terms = query
+    .toLowerCase()
+    .split(/\s+/)
+    .map((t) => t.trim())
+    .filter((t) => t.length >= 2);
+
+  if (terms.length === 0) {
+    return {
+      snippetHTML: escapeHTML(defaultSnippet),
+      matchBadge: null,
+    };
+  }
+
+  const textContent = mem.textContent || "";
+  const keywords = mem.keywords || "";
+  const description = mem.description || "";
+  const title = mem.title || "";
+  const url = mem.url || "";
+
+  function findFirstTermIndex(sourceText) {
+    const lower = sourceText.toLowerCase();
+    let bestIdx = -1;
+    for (const t of terms) {
+      const idx = lower.indexOf(t);
+      if (idx !== -1 && (bestIdx === -1 || idx < bestIdx)) {
+        bestIdx = idx;
+      }
+    }
+    return bestIdx;
+  }
+
+  // 1. In Page Body
+  const textIdx = findFirstTermIndex(textContent);
+  if (textIdx !== -1) {
+    const start = Math.max(0, textIdx - 40);
+    const end = Math.min(textContent.length, textIdx + 110);
+    let excerpt = textContent.slice(start, end).trim();
+    if (start > 0) excerpt = "…" + excerpt;
+    if (end < textContent.length) excerpt = excerpt + "…";
+
+    return {
+      snippetHTML: highlightMatches(excerpt, query),
+      matchBadge: `<span class="memory-match-badge" title="Found inside indexed page text">🎯 In Page Body</span>`,
+    };
+  }
+
+  // 2. In Headings
+  const kwIdx = findFirstTermIndex(keywords);
+  if (kwIdx !== -1) {
+    const start = Math.max(0, kwIdx - 30);
+    const end = Math.min(keywords.length, kwIdx + 110);
+    let excerpt = keywords.slice(start, end).trim();
+    if (start > 0) excerpt = "…" + excerpt;
+    if (end < keywords.length) excerpt = excerpt + "…";
+
+    return {
+      snippetHTML: highlightMatches(excerpt, query),
+      matchBadge: `<span class="memory-match-badge" title="Found in page headings">🏷️ In Headings</span>`,
+    };
+  }
+
+  // 3. In Description
+  const descIdx = findFirstTermIndex(description);
+  if (descIdx !== -1) {
+    return {
+      snippetHTML: highlightMatches(description.slice(0, 150), query),
+      matchBadge: `<span class="memory-match-badge" title="Found in page summary">📝 In Summary</span>`,
+    };
+  }
+
+  // 4. In Title
+  if (findFirstTermIndex(title) !== -1) {
+    return {
+      snippetHTML: highlightMatches(defaultSnippet, query),
+      matchBadge: `<span class="memory-match-badge" title="Found in page title">📌 In Title</span>`,
+    };
+  }
+
+  // 5. In URL
+  if (findFirstTermIndex(url) !== -1) {
+    return {
+      snippetHTML: highlightMatches(defaultSnippet, query),
+      matchBadge: `<span class="memory-match-badge" title="Found in web address">🌐 In URL</span>`,
+    };
+  }
+
+  return {
+    snippetHTML: highlightMatches(defaultSnippet, query),
+    matchBadge: null,
+  };
+}
+
 function createSpotlightCardHTML(mem, parsed, matchedInTime) {
   const isSaved = allItems.some(
     (i) => i.content === mem.url || (i.sourceUrl && i.sourceUrl === mem.url)
@@ -430,8 +561,10 @@ function createSpotlightCardHTML(mem, parsed, matchedInTime) {
 
   const timeAgo = getTimeAgo(new Date(mem.visitedAt));
   const domain = escapeHTML(mem.domain || "web");
-  const title = escapeHTML(mem.title || mem.url);
-  const snippet = escapeHTML(mem.description || mem.keywords || mem.textContent || "").slice(0, 160);
+  const rawTitle = mem.title || mem.url;
+  const title = escapeHTML(rawTitle);
+  const snippetInfo = getContextSnippet(mem, searchQuery);
+  const highlightedTitle = highlightMatches(rawTitle, searchQuery);
   const favicon = mem.favicon || `https://www.google.com/s2/favicons?domain=${mem.domain}&sz=32`;
 
   const timeBadge = matchedInTime && parsed.timeRange?.label
@@ -456,11 +589,12 @@ function createSpotlightCardHTML(mem, parsed, matchedInTime) {
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="11" height="11"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
           Direct Match
         </span>
+        ${snippetInfo.matchBadge || ""}
         <span class="ai-answer-time-tag">${timeBadge}</span>
       </div>
       <div class="ai-answer-prompt-echo">${promptEcho}</div>
-      <a class="ai-answer-title memory-title-link" href="#" data-url="${escapeHTML(mem.url)}" title="${title}">${title}</a>
-      ${snippet ? `<div class="ai-answer-snippet">${snippet}…</div>` : ""}
+      <a class="ai-answer-title memory-title-link" href="#" data-url="${escapeHTML(mem.url)}" title="${title}">${highlightedTitle}</a>
+      ${snippetInfo.snippetHTML ? `<div class="ai-answer-snippet">${snippetInfo.snippetHTML}</div>` : ""}
       <div class="ai-answer-actions">
         <div style="display:flex; align-items:center; gap:6px;">
           <img class="memory-favicon" src="${escapeHTML(favicon)}" onerror="this.style.display='none'" alt="" />
@@ -484,8 +618,10 @@ function createMemoryHTML(mem) {
 
   const timeAgo = getTimeAgo(new Date(mem.visitedAt));
   const domain = escapeHTML(mem.domain || "web");
-  const title = escapeHTML(mem.title || mem.url);
-  const snippet = escapeHTML(mem.description || mem.keywords || mem.textContent || "").slice(0, 140);
+  const rawTitle = mem.title || mem.url;
+  const title = escapeHTML(rawTitle);
+  const snippetInfo = getContextSnippet(mem, searchQuery);
+  const highlightedTitle = highlightMatches(rawTitle, searchQuery);
   const favicon = mem.favicon || `https://www.google.com/s2/favicons?domain=${mem.domain}&sz=32`;
   const visits = mem.visitCount > 1 ? ` · Visited ${mem.visitCount}x` : "";
 
@@ -502,11 +638,12 @@ function createMemoryHTML(mem) {
         <div class="memory-origin">
           <img class="memory-favicon" src="${escapeHTML(favicon)}" onerror="this.style.display='none'" alt="" />
           <span class="memory-domain">${domain}</span>
+          ${snippetInfo.matchBadge || ""}
         </div>
         <span class="memory-time">${timeAgo}${visits}</span>
       </div>
-      <a class="memory-title-link" href="#" data-url="${escapeHTML(mem.url)}" title="${title}">${title}</a>
-      ${snippet ? `<div class="memory-snippet">${snippet}…</div>` : ""}
+      <a class="memory-title-link" href="#" data-url="${escapeHTML(mem.url)}" title="${title}">${highlightedTitle}</a>
+      ${snippetInfo.snippetHTML ? `<div class="memory-snippet">${snippetInfo.snippetHTML}</div>` : ""}
       <div class="memory-footer">
         <div class="memory-visits">
           <span style="color:var(--text-muted); font-size:10px;">${escapeHTML(mem.url.slice(0, 38))}…</span>

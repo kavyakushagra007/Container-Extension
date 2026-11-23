@@ -181,11 +181,11 @@
       const headings = Array.from(document.querySelectorAll("h1, h2, h3"))
         .map((h) => h.innerText || h.textContent || "")
         .map((s) => s.trim().replace(/\s+/g, " "))
-        .filter((s) => s.length > 2 && s.length < 150)
-        .slice(0, 8)
+        .filter((s) => s.length > 2 && s.length < 200)
+        .slice(0, 12)
         .join(" • ");
 
-      // Clean text excerpt (first ~300 words)
+      // Clean text excerpt (first ~800 words / deep article capture)
       const textExcerpt = extractCleanTextExcerpt();
 
       // Favicon
@@ -203,9 +203,9 @@
         url: loc.href,
         domain: hostname.replace(/^www\./, ""),
         title: title || hostname,
-        description: (metaDesc || "").slice(0, 300).trim(),
-        keywords: headings.slice(0, 300),
-        textContent: textExcerpt.slice(0, 1000),
+        description: (metaDesc || "").slice(0, 500).trim(),
+        keywords: headings.slice(0, 500),
+        textContent: textExcerpt.slice(0, 4500),
         favicon: favicon,
       };
 
