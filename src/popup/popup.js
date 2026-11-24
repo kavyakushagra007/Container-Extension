@@ -992,13 +992,16 @@ function setupEventListeners() {
   });
   document.addEventListener("click", () => dropdownMenu.classList.add("hidden"));
 
-  const menuDashboard = document.getElementById("menu-dashboard");
-  if (menuDashboard) {
-    menuDashboard.addEventListener("click", () => {
-      dropdownMenu.classList.add("hidden");
-      chrome.tabs.create({ url: chrome.runtime.getURL("src/dashboard/dashboard.html") });
-    });
-  }
+  const openDashboard = async () => {
+    dropdownMenu.classList.add("hidden");
+    try {
+      await chrome.tabs.create({ url: chrome.runtime.getURL("src/dashboard/dashboard.html") });
+    } catch {
+      showToast("Could not open the dashboard. Please try again.");
+    }
+  };
+  document.getElementById("menu-dashboard")?.addEventListener("click", openDashboard);
+  document.getElementById("btn-open-dashboard")?.addEventListener("click", openDashboard);
 
   // Export
   document.getElementById("menu-export").addEventListener("click", () => {

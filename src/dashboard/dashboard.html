@@ -67,17 +67,6 @@
           <h2 id="page-title">All Items</h2>
         </div>
         <div class="topbar-right">
-          <div class="search-box">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-            <input type="text" id="search-input" aria-label="Search saved items and web memory" autocomplete="off" placeholder="Search everything..." />
-          </div>
-          <div class="sort-box">
-            <select id="sort-select" aria-label="Sort items">
-              <option value="newest">Newest first</option>
-              <option value="oldest">Oldest first</option>
-              <option value="alpha">A → Z</option>
-            </select>
-          </div>
           <button class="btn btn-secondary" id="btn-dash-auth" title="Account & Cloud Sync" aria-label="Account & Cloud Sync">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
             <span id="dash-auth-label">Cloud Sync</span>
@@ -92,6 +81,20 @@
       <!-- Split View Workspace (Feed + Outlook/iCloud-style Preview Pane) -->
       <div class="dashboard-split" id="dashboard-split">
         <div class="feed-column" id="feed-column">
+          <div class="library-toolbar" role="search" aria-label="Search and sort library">
+          <div class="search-box">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+            <input type="text" id="search-input" aria-label="Search saved items and web memory" autocomplete="off" placeholder="Search everything..." />
+          </div>
+          <div class="sort-box">
+            <select id="sort-select" aria-label="Sort items">
+              <option value="newest">Newest first</option>
+              <option value="oldest">Oldest first</option>
+              <option value="alpha">A → Z</option>
+              <option value="reverse-alpha">Z → A</option>
+            </select>
+          </div>
+          </div>
           <!-- Stats Cards (Clickable) -->
           <div class="stats-row" id="stats-row">
             <div class="stat-card stat-card-clickable" id="stat-card-total" role="button" tabindex="0" title="Click to view All Items">
@@ -475,7 +478,7 @@
     <div class="modal-content cloud-panel">
       <div class="cloud-heading">
         <div><p class="page-eyebrow">YOUR LIBRARY, EVERYWHERE</p><h2 id="auth-modal-title">Cloud sync</h2></div>
-        <button type="button" id="cloud-close" class="icon-btn" aria-label="Close cloud sync">✕</button>
+        <button type="button" id="cloud-close" class="icon-btn" aria-label="Close cloud sync"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18"/></svg></button>
       </div>
       <div class="cloud-scope"><span>✓ Saves & categories sync across devices</span><span>◉ Web Memory stays on this device</span></div>
       <div id="cloud-feedback" class="cloud-feedback hidden" role="status" aria-live="polite"></div>

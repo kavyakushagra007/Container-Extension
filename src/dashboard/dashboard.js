@@ -118,8 +118,33 @@ const themeIconMoonDash = document.getElementById("theme-icon-moon-dash");
 const themeDashLabel = document.getElementById("theme-dash-label");
 const settingsThemeSelect = document.getElementById("settings-theme-select");
 
+// Keep the sidebar divider aligned when the toolbar wraps or fonts resize.
+function initHeaderAlignment() {
+  const topbar = document.querySelector(".topbar");
+  if (!topbar) return;
+  const update = () => {
+    document.documentElement.style.setProperty(
+      "--dashboard-header-height",
+      `${topbar.getBoundingClientRect().height}px`,
+    );
+  };
+  update();
+  new ResizeObserver(update).observe(topbar);
+  updateSidebarToggle();
+}
+
+function updateSidebarToggle() {
+  if (!btnSidebarToggle || !sidebar) return;
+  const collapsed = sidebar.classList.contains("collapsed");
+  const label = collapsed ? "Expand sidebar" : "Collapse sidebar";
+  btnSidebarToggle.title = label;
+  btnSidebarToggle.setAttribute("aria-label", label);
+  btnSidebarToggle.setAttribute("aria-expanded", String(!collapsed));
+}
+
 // ── Init ──
 document.addEventListener("DOMContentLoaded", async () => {
+  initHeaderAlignment();
   await initTheme();
   await loadState();
 
@@ -131,7 +156,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     ]);
     if (sidebarCollapsed && sidebar) {
       sidebar.classList.add("collapsed");
-      if (btnSidebarToggle) btnSidebarToggle.title = "Expand sidebar";
+      updateSidebarToggle();
     }
     if (previewPaneWidth && previewPane) {
       previewPane.style.width = `${previewPaneWidth}px`;
@@ -256,8 +281,9 @@ function getFilteredItems() {
     items.sort((a, b) => b.createdAt - a.createdAt);
   } else if (currentSort === "oldest") {
     items.sort((a, b) => a.createdAt - b.createdAt);
-  } else if (currentSort === "alpha") {
-    items.sort((a, b) => (a.content || "").localeCompare(b.content || ""));
+  } else if (currentSort === "alpha" || currentSort === "reverse-alpha") {
+    const direction = currentSort === "alpha" ? 1 : -1;
+    items.sort((a, b) => direction * (a.content || "").localeCompare(b.content || ""));
   }
 
   return items;
@@ -277,11 +303,14 @@ function render() {
 
   if (previewPane) previewPane.classList.remove("hidden");
 
+  itemsGrid.classList.add("saved-columns");
   const items = getFilteredItems();
 
   if (items.length === 0) {
     itemsGrid.classList.add("hidden");
     emptyState.classList.remove("hidden");
+    emptyState.querySelector("h3").textContent = "No saved items found";
+    emptyState.querySelector("p").textContent = "Try another search. If your library is empty, save some text or a link to get started.";
     if (bulkBar) bulkBar.classList.add("hidden");
     closePreview();
     return;
@@ -999,6 +1028,7 @@ function updateBulkBar() {
 
 // ── Web Memory Dashboard View ──
 async function renderMemoryView() {
+  itemsGrid.classList.remove("saved-columns");
   await chrome.runtime.sendMessage({ action: "refreshActiveMemory" }).catch(() => {});
   itemsGrid.classList.remove("hidden");
   let memories = [];
@@ -1039,8 +1069,9 @@ async function renderMemoryView() {
   }
 
   // Sorting
-  if (currentSort === "alpha") {
-    memories.sort((a, b) => (a.title || "").localeCompare(b.title || ""));
+  if (currentSort === "alpha" || currentSort === "reverse-alpha") {
+    const direction = currentSort === "alpha" ? 1 : -1;
+    memories.sort((a, b) => direction * (a.title || "").localeCompare(b.title || ""));
   } else if (currentSort === "oldest") {
     memories.sort((a, b) => a.visitedAt - b.visitedAt);
   }
@@ -1099,6 +1130,10 @@ async function renderMemoryView() {
     }
   });
 
+  if (currentSort === "oldest") groups.reverse();
+  if (currentSort === "alpha" || currentSort === "reverse-alpha") {
+    groups.splice(0, groups.length, { label: "Pages by title", items: remainingMemories });
+  }
   groups.forEach((group) => {
     if (group.items.length === 0) return;
     html += `
@@ -1511,7 +1546,7 @@ function setupEventListeners() {
     btnSidebarToggle.addEventListener("click", () => {
       sidebar.classList.toggle("collapsed");
       const isCollapsed = sidebar.classList.contains("collapsed");
-      btnSidebarToggle.title = isCollapsed ? "Expand sidebar" : "Collapse sidebar";
+      updateSidebarToggle();
       chrome.storage.local.set({ sidebarCollapsed: isCollapsed });
     });
   }

@@ -113,6 +113,16 @@
       <span>Select text, right-click → "Save to SaveIt"<br/>or press <kbd>⌘</kbd>+<kbd>⇧</kbd>+<kbd>S</kbd></span>
     </div>
 
+    <footer class="popup-footer">
+      <button id="btn-open-dashboard" class="dashboard-launch-btn" type="button" aria-label="Go to Dashboard (opens a new tab)">
+        <span>Go to Dashboard</span>
+        <svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M15 3h6v6M10 14 21 3"/>
+          <path d="M21 14v5a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5"/>
+        </svg>
+      </button>
+    </footer>
+
     <!-- Edit Item Modal -->
     <div id="edit-modal" class="modal hidden">
       <div class="modal-backdrop"></div>
@@ -159,7 +169,7 @@
       <div class="modal-content cloud-panel">
         <div class="cloud-heading">
         <div><p class="page-eyebrow">YOUR LIBRARY, EVERYWHERE</p><h2 id="auth-modal-title">Cloud sync</h2></div>
-        <button type="button" id="cloud-close" class="icon-btn" aria-label="Close cloud sync">✕</button>
+        <button type="button" id="cloud-close" class="icon-btn" aria-label="Close cloud sync"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18"/></svg></button>
       </div>
       <div class="cloud-scope"><span>✓ Saves & categories sync across devices</span><span>◉ Web Memory stays on this device</span></div>
       <div id="cloud-feedback" class="cloud-feedback hidden" role="status" aria-live="polite"></div>

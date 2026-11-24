@@ -18,3 +18,10 @@
 # Logs & Diagnostics
 *.log
 
+
+# Generated extension packages and extracted builds
+/release/
+
+# Python caches
+__pycache__/
+*.py[cod]
