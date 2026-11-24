@@ -215,19 +215,19 @@ function createItemHTML(item) {
     : "";
 
   return `
-    <div class="item-card" data-id="${item.id}">
+    <div class="item-card" data-id="${escapeHTML(item.id)}">
       <div class="item-top">
         <div class="item-actions" style="margin-left: auto;">
-          <button class="item-action-btn ${item.favorite ? "favorite-active" : ""}" data-action="favorite" data-id="${item.id}" title="Favorite">
+          <button class="item-action-btn ${item.favorite ? "favorite-active" : ""}" data-action="favorite" data-id="${escapeHTML(item.id)}" title="Favorite">
             <svg viewBox="0 0 24 24" fill="${item.favorite ? "currentColor" : "none"}" stroke="currentColor" stroke-width="2"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
           </button>
-          <button class="item-action-btn edit-btn" data-action="edit" data-id="${item.id}" title="Edit">
+          <button class="item-action-btn edit-btn" data-action="edit" data-id="${escapeHTML(item.id)}" title="Edit">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
           </button>
-          <button class="item-action-btn" data-action="copy" data-id="${item.id}" title="Copy">
+          <button class="item-action-btn" data-action="copy" data-id="${escapeHTML(item.id)}" title="Copy">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
           </button>
-          <button class="item-action-btn delete-btn" data-action="delete" data-id="${item.id}" title="Delete">
+          <button class="item-action-btn delete-btn" data-action="delete" data-id="${escapeHTML(item.id)}" title="Delete">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
           </button>
         </div>
@@ -580,7 +580,7 @@ function createSpotlightCardHTML(mem, parsed, matchedInTime) {
 
   const saveBtn = isSaved
     ? `<span class="btn-promote-save saved">✓ Saved</span>`
-    : `<button class="btn-promote-save" data-action="promote-memory" data-id="${mem.id}">
+    : `<button class="btn-promote-save" data-action="promote-memory" data-id="${escapeHTML(mem.id)}">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="11" height="11"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
         Save
        </button>`;
@@ -590,7 +590,7 @@ function createSpotlightCardHTML(mem, parsed, matchedInTime) {
     : "Best direct answer:";
 
   return `
-    <div class="ai-answer-card" data-id="${mem.id}">
+    <div class="ai-answer-card" data-id="${escapeHTML(mem.id)}">
       <div class="ai-answer-top">
         <span class="ai-answer-badge">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="11" height="11"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
@@ -609,7 +609,7 @@ function createSpotlightCardHTML(mem, parsed, matchedInTime) {
         </div>
         <div class="memory-actions">
           ${saveBtn}
-          <button class="memory-del-btn" data-action="delete-memory" data-id="${mem.id}" title="Remove memory">
+          <button class="memory-del-btn" data-action="delete-memory" data-id="${escapeHTML(mem.id)}" title="Remove memory">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="12" height="12"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
           </button>
         </div>
@@ -634,13 +634,13 @@ function createMemoryHTML(mem) {
 
   const saveBtn = isSaved
     ? `<span class="btn-promote-save saved">✓ Saved</span>`
-    : `<button class="btn-promote-save" data-action="promote-memory" data-id="${mem.id}">
+    : `<button class="btn-promote-save" data-action="promote-memory" data-id="${escapeHTML(mem.id)}">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="11" height="11"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
         Save
        </button>`;
 
   return `
-    <div class="memory-card" data-id="${mem.id}">
+    <div class="memory-card" data-id="${escapeHTML(mem.id)}">
       <div class="memory-header">
         <div class="memory-origin">
           <img class="memory-favicon" src="${escapeHTML(favicon)}" alt="" />
@@ -657,7 +657,7 @@ function createMemoryHTML(mem) {
         </div>
         <div class="memory-actions">
           ${saveBtn}
-          <button class="memory-del-btn" data-action="delete-memory" data-id="${mem.id}" title="Remove memory">
+          <button class="memory-del-btn" data-action="delete-memory" data-id="${escapeHTML(mem.id)}" title="Remove memory">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="12" height="12"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
           </button>
         </div>
@@ -1080,9 +1080,9 @@ async function checkAuthStatus() {
 
 // ── Helpers ──
 function escapeHTML(str) {
-  const div = document.createElement("div");
-  div.textContent = str;
-  return div.innerHTML;
+  return String(str ?? "").replace(/[&<>"']/g, char => ({
+    "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;",
+  })[char]);
 }
 
 function getTimeAgo(date) {

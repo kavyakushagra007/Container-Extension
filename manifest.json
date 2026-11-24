@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "SaveIt – Your Permanent Clipboard",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Save text snippets, article quotes, and links from any webpage. Your personal forever clipboard.",
   "permissions": ["storage", "contextMenus", "activeTab", "scripting", "clipboardRead", "tabs", "history"],
   "host_permissions": [

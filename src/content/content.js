@@ -124,10 +124,10 @@
   }
 
   function escapeHTML(str) {
-    const div = document.createElement("div");
-    div.textContent = str;
-    return div.innerHTML;
-  }
+  return String(str ?? "").replace(/[&<>"']/g, char => ({
+    "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;",
+  })[char]);
+}
 
   // ── Web Memory Extractor ──
   // Extracts lightweight summary of visited webpage for local memory index

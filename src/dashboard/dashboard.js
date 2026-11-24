@@ -356,8 +356,8 @@ function createCardHTML(item) {
     : "";
 
   return `
-    <div class="item-card ${isSelected ? "selected" : ""} ${isActivePreview ? "active-preview" : ""}" data-id="${item.id}" style="cursor:pointer;">
-      <div class="item-checkbox" data-id="${item.id}"></div>
+    <div class="item-card ${isSelected ? "selected" : ""} ${isActivePreview ? "active-preview" : ""}" data-id="${escapeHTML(item.id)}" style="cursor:pointer;">
+      <div class="item-checkbox" data-id="${escapeHTML(item.id)}"></div>
       <div class="card-content">${contentHTML}</div>
       ${tagsHTML}
       <div class="card-footer">
@@ -367,16 +367,16 @@ function createCardHTML(item) {
           ${sourceHTML}
         </div>
         <div class="card-actions">
-          <button class="card-action-btn ${item.favorite ? "fav-active" : ""}" data-action="favorite" data-id="${item.id}" title="Favorite">
+          <button class="card-action-btn ${item.favorite ? "fav-active" : ""}" data-action="favorite" data-id="${escapeHTML(item.id)}" title="Favorite">
             <svg viewBox="0 0 24 24" fill="${item.favorite ? "currentColor" : "none"}" stroke="currentColor" stroke-width="2"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
           </button>
-          <button class="card-action-btn" data-action="copy" data-id="${item.id}" title="Copy">
+          <button class="card-action-btn" data-action="copy" data-id="${escapeHTML(item.id)}" title="Copy">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
           </button>
-          <button class="card-action-btn" data-action="edit" data-id="${item.id}" title="Edit">
+          <button class="card-action-btn" data-action="edit" data-id="${escapeHTML(item.id)}" title="Edit">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
           </button>
-          <button class="card-action-btn delete-hover" data-action="delete" data-id="${item.id}" title="Delete">
+          <button class="card-action-btn delete-hover" data-action="delete" data-id="${escapeHTML(item.id)}" title="Delete">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
           </button>
         </div>
@@ -1209,7 +1209,7 @@ function createDashSpotlightHTML(mem, parsed, matchedInTime) {
 
   const saveBtn = isSaved
     ? `<span class="btn-dash-promote saved">✓ Saved</span>`
-    : `<button class="btn-dash-promote" data-action="dash-promote-memory" data-id="${mem.id}">
+    : `<button class="btn-dash-promote" data-action="dash-promote-memory" data-id="${escapeHTML(mem.id)}">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="12" height="12"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
         Save to Saves
        </button>`;
@@ -1221,7 +1221,7 @@ function createDashSpotlightHTML(mem, parsed, matchedInTime) {
   const isActive = activePreviewMemoryId === mem.id ? " active-preview" : "";
 
   return `
-    <div class="dash-ai-spotlight${isActive}" data-id="${mem.id}">
+    <div class="dash-ai-spotlight${isActive}" data-id="${escapeHTML(mem.id)}">
       <div class="dash-ai-spotlight-top">
         <span class="dash-ai-badge">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="13" height="13"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
@@ -1243,7 +1243,7 @@ function createDashSpotlightHTML(mem, parsed, matchedInTime) {
           <button class="btn-dash-icon" data-action="dash-open-memory" data-url="${escapeHTML(mem.url)}" title="Open URL">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
           </button>
-          <button class="btn-dash-icon danger" data-action="dash-del-memory" data-id="${mem.id}" title="Delete memory">
+          <button class="btn-dash-icon danger" data-action="dash-del-memory" data-id="${escapeHTML(mem.id)}" title="Delete memory">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
           </button>
         </div>
@@ -1268,7 +1268,7 @@ function createDashMemoryCardHTML(mem) {
 
   const saveBtn = isSaved
     ? `<span class="btn-dash-promote saved">✓ Saved</span>`
-    : `<button class="btn-dash-promote" data-action="dash-promote-memory" data-id="${mem.id}">
+    : `<button class="btn-dash-promote" data-action="dash-promote-memory" data-id="${escapeHTML(mem.id)}">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="12" height="12"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
         Save
        </button>`;
@@ -1276,7 +1276,7 @@ function createDashMemoryCardHTML(mem) {
   const isActive = activePreviewMemoryId === mem.id ? " active-preview" : "";
 
   return `
-    <div class="dash-memory-card${isActive}" data-id="${mem.id}">
+    <div class="dash-memory-card${isActive}" data-id="${escapeHTML(mem.id)}">
       <div class="dash-memory-header">
         <div class="dash-memory-meta">
           <img class="dash-memory-favicon" src="${escapeHTML(favicon)}" alt="" />
@@ -1297,7 +1297,7 @@ function createDashMemoryCardHTML(mem) {
           <button class="btn-dash-icon" data-action="dash-open-memory" data-url="${escapeHTML(mem.url)}" title="Open URL">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="13" height="13"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
           </button>
-          <button class="btn-dash-icon danger" data-action="dash-del-memory" data-id="${mem.id}" title="Delete memory">
+          <button class="btn-dash-icon danger" data-action="dash-del-memory" data-id="${escapeHTML(mem.id)}" title="Delete memory">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="13" height="13"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
           </button>
         </div>
@@ -1601,7 +1601,7 @@ function setupEventListeners() {
       allItems = saved.items;
         updateStats();
         showPreview(item);
-        const cardFavBtn = itemsGrid.querySelector(`.item-card[data-id="${item.id}"] [data-action="favorite"]`);
+        const cardFavBtn = itemsGrid.querySelector(`.item-card[data-id="${CSS.escape(String(item.id))}"] [data-action="favorite"]`);
         if (cardFavBtn) {
           cardFavBtn.classList.toggle("fav-active", item.favorite);
           const svg = cardFavBtn.querySelector("svg");
@@ -2043,9 +2043,9 @@ function clearAllData() {
 
 // ── Helpers ──
 function escapeHTML(str) {
-  const div = document.createElement("div");
-  div.textContent = str;
-  return div.innerHTML;
+  return String(str ?? "").replace(/[&<>"']/g, char => ({
+    "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;",
+  })[char]);
 }
 
 function getTimeAgo(date) {
